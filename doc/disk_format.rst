@@ -36,12 +36,12 @@ layout changes are made, since nodes themselves contain encoding versioning
 information as well.
 
 Next follows a 64bit LSB unsigned integer, which contains the offset of the
-last valid root node at the time the block was written. If no root node was
+last valid commit node at the time the block was written. If no commit node was
 available (i.e. the database was empty), this should be 0.
 
-Then follows a 32bit LSB unsigned int and 16bit LSB unsigned short, containing
-the seconds and microseconds of the UNIX timestamp at which the metadata block
-was generated.
+Then follows a 32bit LSB unsigned int which works as a counter. It can safely
+overflow. Whenever a metadata block is updated, the counter value is
+incremented with 2.
 
 Now follows another (though different) fixed magic.
 
@@ -59,7 +59,9 @@ is validated. If both checksums are invalid, a heavyweight full recovery,
 scanning the complete database file, is required, and the operation shouldn't
 continue. If a single metadata block is valid, this one is used to retrieve the
 offset of the last valid root node. If both metadata blocks are valid, the one
-with the highest timestamp (i.e. the last one written) is used.
+with the highest counter (i.e. the last one written, except for overflow
+scenarios) is used. If one counter is significantly less than the other (i.e.
+overflow occurred), the lowest is used.
 
 Writing metadata consists of:
 
@@ -147,13 +149,37 @@ Diagram
     | 4          | 1    | 1    | 1    | 4          | length | 8                  | 4          | length | 8                  | 4          |
     +------------------------------------------------------------------------------------------------------------------------------------+
 
-Root Nodes
-----------
-There are 2 ways to encode root nodes:
+Commit Nodes
+------------
+Whenever a slab has been written to all spindles, a commit node should be
+created. The commit node starts with a 32 bit LSB unsigned integer containing
+the length of the node, similar to other node formats. Then follows a single
+byte denoting a commit node (0x03 in the initial version).
 
-* Introduce a specific node type, containing nothing but a pointer to a root
-  branch node
-* Use one of the bitmap flags in a normal branch node to denote it can be used
-  as a root node.
+Next comes an always-incrementing integer using var-int encoding. The value is
+encoded in 32 bit LSB unsigned integers. The most significant bit denotes
+whether there's more data to be added (1 if there is, 0 in the final 32 bit
+value), and the lowest-value 32 bit integer comes first.
 
-If the latter is a suitable solution, we don't need a specific encoding.
+As such (in case the value encoding would be done in 8 bit integers, for
+demonstration purposes) this data::
+
+    0b01000000 == 64
+    0b01111111 == 127
+    0b10000010 0b00000001 == 130
+
+Next comes a 64 bit LSB unsigned integer contains the offset of the branch node
+containing the root of the B-tree.
+
+Finally, 4-byte CRC32 checksum of all this data (including the length
+specifier) is appended.
+
+Diagram
+~~~~~~~
+::
+
+    +-----------------------------------------------------------------------------+
+    | 0x00000032 | 0x03 | 0x80000002 0x00000001 | 0xabcdef0123456789 | 0xCC3232CC |
+    |-----------------------------------------------------------------------------|
+    | 4          | 1    | variable              | 64                 | 4          |
+    +-----------------------------------------------------------------------------+
