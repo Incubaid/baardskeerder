@@ -22,6 +22,10 @@ filesystem-dependent and fixed-size, e.g. 4096 bytes), 2 versions of metadata
 are written. After the metadata blocks, serialized leaf, node or commit
 entries are appended.
 
+Whenever in this document a reference is made to a '64-bit file offset', this
+should be interpreted as one 8-bit LSB unsigned integer spindle ID, and 56-bit
+LSB unsigned integer offset in the file used on the specified spindle.
+
 Entries
 -------
 Metadata
@@ -35,9 +39,16 @@ initial version(s). This version number should only be changed if invasive
 layout changes are made, since entries themselves contain encoding versioning
 information as well.
 
+Now follows an 8-bit LSB unsigned integer, containing the spindle ID of the
+storage file. This should never change, and within one database no two storage
+files should have the same spindle ID.
+
 Next follows a 64bit LSB unsigned integer, which contains the offset of the
 last valid commit entry at the time the block was written. If no commit entry
 was available (i.e. the database was empty), this should be 0.
+
+Unlike other offsets, this should be a real offset, no spindle ID should be
+encoded.
 
 Then follows a 32bit LSB unsigned int which works as a counter. It can safely
 overflow. Whenever a metadata block is updated, the counter value is
@@ -81,11 +92,11 @@ Diagram
 
 ::
 
-    +----------------------------------------------------------------------------------------------+
-    | BaArDsKeErDeR | 0x01 | 0xabcdef0123456789 | 0x4e834081 | 0xb64d | bAaRdSkEeRdEr | 0xcc3232cc |
-    |----------------------------------------------------------------------------------------------|
-    | magic length  | 1    | 8                  | 4          | 2      | magic length  | 4          |
-    +----------------------------------------------------------------------------------------------+
+    +--------------------------------------------------------------------------------------------+
+    | BaArDsKeErDeR | 0x01 | 0x02 | 0xabcdef0123456789 | 0x4e834081 | bAaRdSkEeRdEr | 0xcc3232cc |
+    |--------------------------------------------------------------------------------------------|
+    | magic length  | 1    | 1    | 8                  | 4          | magic length  | 4          |
+    +--------------------------------------------------------------------------------------------+
 
 Leaf Entries
 ~~~~~~~~~~~~
