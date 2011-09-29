@@ -1,29 +1,29 @@
 Baardskeerder Database File Format
 ==================================
-This is a preliminary proposal on the Baardskeerder on-disk database format.
-The format attempts to find a balance between performance, robustness,
-reliability and future-proofness.
+This is a preliminary proposal on the Baardskeerder on-disk database format for
+entry slabs. The format attempts to find a balance between performance,
+robustness, reliability and future-proofness.
 
 Whenever an implementation can't be backwards-compatible, the version
 identifier stored in metadatablocks (see below) should be bumped. Within a
 database version, any implementation should be backwards-compatible.
 
-Whenever an implementation comes by a node type identifier or option flag it
+Whenever an implementation comes by an entry type identifier or option flag it
 doesn't know about, an error should be reported, and operations can't be
 continued. As such, forward-compatibility is possible though not guaranteed.
 
 Basic Overview
 --------------
-The database format contains 4 types of fields: a metadata page, a leaf node,
-a branch node, or a root pointer node.
+The database format contains 4 types of fields: a metadata page, a leaf entry,
+a node entry, or a commit entry.
 
 In the first 2 blocks of the file (where we consider a block to be
 filesystem-dependent and fixed-size, e.g. 4096 bytes), 2 versions of metadata
-are written. After the metadata blocks, serialized leaf, branch or root nodes
-are appended.
+are written. After the metadata blocks, serialized leaf, node or commit
+entries are appended.
 
-Nodes
------
+Entries
+-------
 Metadata
 ~~~~~~~~
 A metadata block contains some database metadata, and is extended to fill
@@ -32,12 +32,12 @@ exactly one filesystem block of size B.
 The metadata block starts with a fixed magic denoting a Baardskeerder database.
 After this magic, a 1-byte version number is added. This should be 0x01 in the
 initial version(s). This version number should only be changed if invasive
-layout changes are made, since nodes themselves contain encoding versioning
+layout changes are made, since entries themselves contain encoding versioning
 information as well.
 
 Next follows a 64bit LSB unsigned integer, which contains the offset of the
-last valid commit node at the time the block was written. If no commit node was
-available (i.e. the database was empty), this should be 0.
+last valid commit entry at the time the block was written. If no commit entry
+was available (i.e. the database was empty), this should be 0.
 
 Then follows a 32bit LSB unsigned int which works as a counter. It can safely
 overflow. Whenever a metadata block is updated, the counter value is
@@ -58,8 +58,8 @@ Whenever a database is loaded, the metadata blocks are read, and their checksum
 is validated. If both checksums are invalid, a heavyweight full recovery,
 scanning the complete database file, is required, and the operation shouldn't
 continue. If a single metadata block is valid, this one is used to retrieve the
-offset of the last valid root node. If both metadata blocks are valid, the one
-with the highest counter (i.e. the last one written, except for overflow
+offset of the last valid commit entry. If both metadata blocks are valid, the
+one with the highest counter (i.e. the last one written, except for overflow
 scenarios) is used. If one counter is significantly less than the other (i.e.
 overflow occurred), the lowest is used.
 
@@ -87,13 +87,14 @@ Diagram
     | magic length  | 1    | 8                  | 4          | 2      | magic length  | 4          |
     +----------------------------------------------------------------------------------------------+
 
-Leaf Nodes
-~~~~~~~~~~
-Leaf nodes contain values stored in the tree. Similar to branch and root nodes,
-they start with a 32 (or 24?) bit LSB unsigned integer denoting the length of
-the node, not including its own size, but including the checksum size. 
+Leaf Entries
+~~~~~~~~~~~~
+Leaf entries contain values stored in the tree. Similar to node and commit
+entries, they start with a 32 (or 24?) bit LSB unsigned integer denoting the
+length of the entry, not including its own size, but including the checksum
+size. 
 
-Then follows the identifier of leaf nodes version 1 (0x01) in a single byte.
+Then follows the identifier of leaf entries version 1 (0x01) in a single byte.
 After this first byte, another byte acts as a bitmap for settings (when using
 compression, this could e.g. act to flag whether a value is compressed). In the
 first version, this will always be 0.
@@ -112,18 +113,18 @@ Diagram
     | 4          | 1    | 1    | length     | 4          |
     +----------------------------------------------------+
 
-Branch Nodes
-------------
-Branch nodes contain internal branches of the tree. Similar to leaf nodes and
-root nodes, they start with a 32 (or 24?) bit LSB unsigned integer denoting the
-length of the node, not including its own size, but including the checksum
-size.
+Node Entries
+--------------
+Node entries contain internal nodes of the tree. Similar to leaf entries
+and commit entries, they start with a 32 (or 24?) bit LSB unsigned integer
+denoting the length of the entry, not including its own size, but including
+the checksum size.
 
-Then follows the identifier of branch nodes version 1 (0x02) in a single byte.
-After this first byte, another byte acts as a bitmap for settings. In the first
-version, this will always be 0.
+Then follows the identifier of node entries version 1 (0x02) in a single
+byte. After this first byte, another byte acts as a bitmap for settings. In
+the first version, this will always be 0.
 
-Then follows the number of (key, pointer) pairs stored inside the branch node,
+Then follows the number of (key, pointer) pairs stored inside the node entry,
 encoded as an 8-bit LSB unsigned integer.
 
 Next come all (key, pointer) pairs. These are encoded as follows: first, a
@@ -149,12 +150,12 @@ Diagram
     | 4          | 1    | 1    | 1    | 4          | length | 8                  | 4          | length | 8                  | 4          |
     +------------------------------------------------------------------------------------------------------------------------------------+
 
-Commit Nodes
-------------
-Whenever a slab has been written to all spindles, a commit node should be
-created. The commit node starts with a 32 bit LSB unsigned integer containing
-the length of the node, similar to other node formats. Then follows a single
-byte denoting a commit node (0x03 in the initial version).
+Commit Entries
+--------------
+Whenever a slab has been written to all spindles, a commit entry should be
+created. The commit entry starts with a 32 bit LSB unsigned integer containing
+the length of the entry, similar to other entry formats. Then follows a single
+byte denoting a commit entry (0x03 in the initial version).
 
 Next comes an always-incrementing integer using var-int encoding. The value is
 encoded in 32 bit LSB unsigned integers. The most significant bit denotes
@@ -168,8 +169,8 @@ demonstration purposes) this data::
     0b01111111 == 127
     0b10000010 0b00000001 == 130
 
-Next comes a 64 bit LSB unsigned integer contains the offset of the branch node
-containing the root of the B-tree.
+Next comes a 64 bit LSB unsigned integer contains the offset of the node
+entry containing the root of the B-tree.
 
 Finally, 4-byte CRC32 checksum of all this data (including the length
 specifier) is appended.

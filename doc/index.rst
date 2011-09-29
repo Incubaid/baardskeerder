@@ -21,11 +21,11 @@ you got a reference to a valid root of a tree, this reference will remain valid
 and contain the same data, even when updates to the tree are made later on.
 Check the `Wikipedia article`_ for more details.
 
-An implementation will, for every update, calculate which internal nodes need
-to be updated (starting at the new leaf, going up to the root node), then
-append the new leaf and all changed internal nodes to a storage medium. Every
-internal node points to other internal nodes inserted earlier in time, or a
-leaf node, all of them at a lower offset ('on its left') in the storage
+An implementation will, for every update, calculate which internal entries need
+to be updated (starting at the new leaf, going up to the root entry), then
+append the new leaf and all changed internal entries to a storage medium. Every
+internal entry points to other internal entries inserted earlier in time, or a
+leaf entry, all of them at a lower offset ('on its left') in the storage
 container.
 
 .. _B-tree: http://en.wikipedia.org/wiki/B-tree
