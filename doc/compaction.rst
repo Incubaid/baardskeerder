@@ -100,7 +100,7 @@ Reverse PL, and rewrite it by merging adjecent ranges into larger ranges.
 Finally, map over the rewritten PL and punch a hole in the database file for
 every range encountered.
 
-::
+.. code-block:: haskell
 
     collapse :: PunchList -> PunchList
     collapse [] = []
