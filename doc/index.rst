@@ -52,6 +52,7 @@ Contents:
    details
    disk_format
    compaction
+   interface
 
 Indices and tables
 ==================
