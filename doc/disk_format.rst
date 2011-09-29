@@ -92,7 +92,7 @@ Leaf Entries
 Leaf entries contain values stored in the tree. Similar to node and commit
 entries, they start with a 32 (or 24?) bit LSB unsigned integer denoting the
 length of the entry, not including its own size, but including the checksum
-size. 
+size.
 
 Then follows the identifier of leaf entries version 1 (0x01) in a single byte.
 After this first byte, another byte acts as a bitmap for settings (when using
@@ -165,9 +165,11 @@ value), and the lowest-value 32 bit integer comes first.
 As such (in case the value encoding would be done in 8 bit integers, for
 demonstration purposes) this data::
 
-    0b01000000 == 64
-    0b01111111 == 127
-    0b10000010 0b00000001 == 130
+    0b01000000 == 64 * (128 ** 0) == 64
+    0b01111111 == 127 * (128 ** 0) == 127
+    0b10000000 0b00000000 == 0 * (128 ** 0) + 0 * (128 ** 1) == 0
+    0b10000000 0b00000001 == 0 * (128 ** 0) + 1 * (128 ** 1) == 128
+    0b10000010 0b00000101 == 2 * (128 ** 0) + 5 * (128 ** 1) == 642
 
 Next comes a 64 bit LSB unsigned integer contains the offset of the node
 entry containing the root of the B-tree.
