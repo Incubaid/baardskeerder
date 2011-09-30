@@ -121,14 +121,20 @@ let set log k v =
   let rec build_set (visited:trail)  = V v :: do_start (log.next) k visited 
   and do_start start k visited = match visited with
     | [] -> [L (k, start) ]
-    | (Hit ,  L(k0,p0),pe) :: rest -> L(k, start) :: do_rest (start + 1 ) rest
-    | (Left,  L(k0,p0),pe) :: rest -> L(k, start) :: N (start + 1, k, pe)  :: do_rest (start + 2) rest
-    | (Right, L(k0,p0),pe) :: rest -> L(k, start) :: N (p0 , k0,start + 1) :: do_rest (start + 2) rest
+    | (Hit ,  L(k0,p0),pe) :: rest -> 
+      L(k, start) :: do_rest (start + 1 ) rest
+    | (Left,  L(k0,p0),pe) :: rest -> 
+      L(k, start) :: N (start + 1, k, pe)  :: do_rest (start + 2) rest
+    | (Right, L(k0,p0),pe) :: rest -> 
+      L(k, start) :: N (p0 , k0,start + 1) :: do_rest (start + 2) rest
     | _ -> todo visited (Printf.sprintf "do_start %i '%s'" start k)
   and do_rest start visited = 
     match visited with
       | [] -> []
-      | (Left, N(pl,k0,pr),pe) :: [] -> N (start, k0, pr) :: do_rest (start + 1) []
+      | (Left, N(pl,k0,pr),pe) :: rest -> 
+	N (start, k0, pr) :: do_rest (start + 1) rest
+      | (Right, N(pl,k0,pr),pe) :: rest ->
+	N (pl,k0,start) :: do_rest (start + 1) rest
       | _ -> todo visited (Printf.sprintf "do_rest %i" start)
   in
   let rec descend visited pos = 
@@ -146,8 +152,14 @@ let set log k v =
   write log path
 
 
-let t0 = make 20 ;;
-List.iter (fun (k,v) -> set t0 k v) ["f","F";  "d","D" ;"a", "A"];;
+let t0 = make 30 ;;
+List.iter (fun (k,v) -> set t0 k v) 
+  ["f","F";  
+   "d","D";
+   "h","H";
+   "a","A";
+   "z","Z";
+  ];;
 
 
 
