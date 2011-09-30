@@ -1,0 +1,9 @@
+$>ocaml
+        Objective Caml version 3.12.1
+
+# #use "test.ml";;
+# view_log t0;;
+- : int = 0
+# view_tree t0;;
+- : int = 0
+
