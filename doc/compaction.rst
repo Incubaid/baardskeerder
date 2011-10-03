@@ -21,8 +21,8 @@ Prelude
     import qualified Data.IntSet as IS
     import System.Posix (COff, Fd)
 
-Insights
-++++++++
+Considerations
+++++++++++++++
 In a database file, a commit entry marks the root of a B-Tree. Any commit or
 node entry points to other entries in the file, but these will always be at a
 lower offset (in this document, we'll refer to lower offsets as 'on the left',
