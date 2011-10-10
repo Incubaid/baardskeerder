@@ -1,0 +1,3 @@
+true: annot
+true: debug
+<test.{ml,byte,native}>: package(oUnit)

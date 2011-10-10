@@ -66,6 +66,12 @@ and do_rest start visited =
       in
       e :: do_rest (start + 1) t
 
+let rec build_delete k start trail = do_start start k trail
+and do_start start k visited = match visited with
+  | [] -> []
+  | [(Hit, L(k0,p0),pe)] -> [L(k0,-1)]
+  | _ -> todo visited "do_start"
+
 let set log k v =
   let rec descend trail pos = 
     match get_entry log pos with
@@ -83,6 +89,24 @@ let set log k v =
   in
   let trail = descend [] (root_pos log) in
   let update = build_set k v log.next trail in
+  write log update
+
+let delete log k = 
+  let rec descend trail pos = 
+    match get_entry log pos with
+      | NIL -> failwith "not_found"
+      | V v -> failwith "corrupt"
+      | L (k0,p0) as e -> let dir = 
+			    if k = k0 
+			    then Hit 
+			    else failwith "Not_found"
+			  in
+			  (dir, e, pos) :: trail
+      | N (l,k0,r) as e when k <= k0 -> descend ((Left, e, pos) :: trail) l
+      | N (l,k0,r) as e              -> descend ((Left, e, pos) :: trail) r
+  in
+  let trail = descend [] (root_pos log) in
+  let update = build_delete k log.next trail in
   write log update
 
 let dump log = 
@@ -108,7 +132,7 @@ let dot_log ?(f = stdout) log =
 	Printf.fprintf f 
 	  "\tnode%i [label = \"{%i | { %s | <f1> %i} }\"];\n" 
 	  i i k p;
-	Printf.fprintf f "\tnode%i:<f1> -> node%i;\n" i p
+	if p >= 0 then Printf.fprintf f "\tnode%i:<f1> -> node%i;\n" i p
       | N(l,k0,r)  -> Printf.fprintf f "\tnode%i [label = \"{%i| { <f1> %i | %s | <f2> %i}}\"];\n" i i l k0 r;
 	Printf.fprintf f "\tnode%i:<f1> -> node%i;\n" i l;
 	Printf.fprintf f "\tnode%i:<f2> -> node%i;\n" i r;
@@ -140,7 +164,7 @@ let dot_tree ?(f= stdout) log =
       | L(k,p) -> 
 	walk p;
 	Printf.fprintf f "\tnode%i [label = %S shape = oval];\n" pos k;
-	Printf.fprintf f "\tnode%i -> node%i\n" pos p;
+	if p <> -1 then Printf.fprintf f "\tnode%i -> node%i\n" pos p;
 	
       | N(l,k,r)  -> 
 	walk l;
@@ -167,7 +191,7 @@ let inserts =
 List.iter (fun (k,v) -> set t0 k v) inserts;;
 
 let t1 = make 10;;
-let i1s = ["d","D"; "f","F";];;
+let i1s = ["d","D"; (* "f","F"; *)];;
 List.iter (fun (k,v) -> set t1 k v) i1s;;
 
 let check () = 

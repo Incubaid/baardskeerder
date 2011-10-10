@@ -5,5 +5,6 @@ module type DB = sig
 
   val set : t -> k -> v -> unit
   val get : t -> k -> v
+  val get': t -> k -> (v -> 'a) -> 'a
   val del : t -> k -> unit
 end
