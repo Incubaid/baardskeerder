@@ -31,10 +31,8 @@ let kvs =   [
   "d", "D";
   "g", "G"; 
   "j", "J"; 
-   (* 
-      "m", "M";
-      "q", "Q";
-   *)
+  "m", "M";
+  "q", "Q";
   ];;
 
 let () = List.iter (fun (k,v) -> MDB.set t0 k v) kvs;;

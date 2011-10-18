@@ -116,6 +116,13 @@ let d = 2
 
 
 let leafz_max (c,t) = List.length c + List.length t = 2 * d - 1
+
+let indexz_max z = 
+  let z_size = match z with
+    | Top (_,kps) -> List.length kps
+    | Loc ((_,c),t) -> List.length c + List.length t 
+  in
+  z_size = 2 * d -1
   
 let leafz_left (c,t) = 
   match t with 
@@ -160,3 +167,10 @@ let leaf_find_set leaf k =
 
 let leafz_insert k p (c,t) = (List.rev c) @ (k,p) :: t
 
+exception IZ of index_z
+
+let indexz_insert lpos sep rpos z = 
+  match z with
+  | Top ((p0,t)) -> lpos, ((sep,rpos) :: t)
+  | Loc ((p0,(k,p)::t),[]) -> p0, List.rev ((sep,rpos):: (k,lpos) :: t)
+  | z -> raise (IZ z)

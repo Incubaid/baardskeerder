@@ -93,7 +93,13 @@ module DB = functor (L:LOG ) -> struct
 	(Index index) :: set_rest start' rest
     and set_overflow lpos sep rpos = function
       | [] -> [Index (lpos, [sep,rpos])]
-      | _ -> failwith "set_overflow"
+      | Index_down z :: rest -> 
+	if indexz_max z 
+	then failwith "dubble overflow"
+	else
+	  let i' = indexz_insert lpos sep rpos z in
+	  let start' = rpos + 1 in
+	  Index i' :: set_rest start' rest
     in
     let trail = descend_set (L.root t) [] in
     let update = set_start (L.next t) trail in

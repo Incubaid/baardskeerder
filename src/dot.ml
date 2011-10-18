@@ -69,31 +69,28 @@ module Dot = functor (L:LOG) -> struct
 	let e = L.read log i in
 	let () = match e with
 	  | NIL      -> ()
-	  | Value v  -> Printf.fprintf f "\tnode%i [label = \"{%i | %s}\"];\n" i i v;
+	  | Value v  -> Printf.fprintf f "\tnode%i [label = \"{%s | %i }\"];\n" i v i;
 	  | Leaf kps -> 
 	    begin
-	      Printf.fprintf f "\tnode%i [label = \"{ %i | {" i i;
+	      Printf.fprintf f "\tnode%i [label = \"{{" i;
 	      let rec loop = function
-		| []          -> ()
-		| [k,p]       -> Printf.fprintf f "<%i> %s" p k
+		| []          -> Printf.fprintf f "} | <%i> %i }\"];\n" i i
+		| (k,p)::[] -> Printf.fprintf f "<%i> %s" p k ; loop []
 		| (k,p)::tail -> Printf.fprintf f "<%i> %s | " p k ; loop tail
 	      in
 	      loop kps;
-	      Printf.fprintf f "}}\"];\n";
 	      List.iter 
 		(fun (_,p) ->
 		  Printf.fprintf f "\tnode%i:<%i> -> node%i;\n" i p p
 		) kps
 	    end
 	  | Index (p0, kps) -> 
-	    Printf.fprintf f "\tnode%i [label = \"{%i | { <%i> | " i i p0;
+	    Printf.fprintf f "\tnode%i [label = \"{{ <%i> " i p0;
 	    let rec loop = function
-	      | []    -> ()
-	      | [k,p] -> Printf.fprintf f " %s | <%i> " k p
-	      | (k,p) :: tail -> Printf.fprintf f " %s | <%i> | " k p; loop tail
+	      | []    -> Printf.fprintf f "} | <%i> %i}\"];\n" i i
+	      | (k,p) :: tail -> Printf.fprintf f "| %s | <%i> " k p; loop tail
 	    in
 	    loop kps;
-	    Printf.fprintf f "}}\"];\n";
 	    Printf.fprintf f "\tnode%i:<%i> -> node%i;\n" i p0 p0;
 	    List.iter 
 	      (fun (_, p) -> 
