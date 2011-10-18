@@ -71,9 +71,7 @@ let leaf_find_delete leaf k =
   loop ([],leaf)
 
 let index_find_set index k = 
-  let () = Printf.printf "index_find_set (%s) %s\n" (index2s index) k in
   let rec loop z = 
-    let () = Printf.printf "loop %s\n" (iz2s z) in
     match z with
     | Top (_,[]) -> z
     | Top (_ , (k0, _) :: _) when k < k0      -> z
@@ -88,6 +86,9 @@ let index_find_set index k =
 						 loop z'
   in loop (Top index)
 
+
+let make_indexz (p0, kps) = Top ((p0, kps))
+
 let indexz_pos = function
   | Top (_                , (_,p0) :: _) -> p0
   | Loc ( (p0, (k,pi) ::_), []         ) -> pi
@@ -95,7 +96,6 @@ let indexz_pos = function
 
 
 let indexz_replace pos z = 
-  let () = Printf.printf "pos=%i z = %s\n" pos (iz2s z) in 
   match z with
   | Top (p0, kps)                         -> (pos,kps)
   | Loc ((p0, (k,pi) :: t ), []         ) -> (p0, List.rev ((k,pos):: t))
@@ -122,7 +122,7 @@ let indexz_max z =
     | Top (_,kps) -> List.length kps
     | Loc ((_,c),t) -> List.length c + List.length t 
   in
-  z_size = 2 * d -1
+  z_size = 2  (* in function of d *)
   
 let leafz_left (c,t) = 
   match t with 
@@ -133,6 +133,14 @@ let leafz_right (c,t) =
   match c with
   | h :: c' -> c', (h:: t)
   | _ -> failwith "right?"
+
+
+let indexz_right = function
+  | Top (p0  ,h :: t) -> Loc ((p0,t),[h])
+  | Loc ((p0, h :: c), t) -> Loc ((p0, c), h :: t)
+
+let indexz_left = function
+  | Loc ((p0, c), h :: t) -> Loc ((p0, h :: c), t)
 
 let leafz_close (c,t) = (List.rev c) @ t
 
@@ -152,10 +160,55 @@ let leafz_balance ((c,t) as z) =
   loop z n
 
 
- let leafz_split k pos (c,t) = 
+let leafz_split k pos (c,t) = 
   let l,r = leafz_balance (c, (k,pos)::t) in
   let lift = List.hd l in
   List.rev l, lift, r
+    
+    
+let indexz_close = function
+  | Top index -> index
+  | Loc ((p0,c), t) -> p0, (List.rev c) @ t
+    
+let indexz_balance z = 
+  let ls = match z with
+    | Top ((_,c)) -> List.length c 
+    | Loc ((_,c), _) -> List.length c
+  in 
+  let n, move = 
+    if ls > d 
+    then
+      ls - (d -1), indexz_right
+    else
+      (d -1)- ls, indexz_left
+  in
+  let rec loop z = function
+    | 0 -> z
+    | i -> loop (move z) (i-1)
+  in
+  loop z n
+    
+exception IZ of index_z
+
+let indexz_insert lpos sep rpos z = 
+  match z with
+  | Top ((p0,t)) -> Top (lpos, ((sep,rpos) :: t))
+  | Loc ((p0,(k,p)::t),[]) -> Loc ( (p0, (sep,rpos):: (k,lpos) :: t), [])
+  | z -> raise (IZ z)
+
+
+let indexz_split lpos sep rpos z = 
+  let z1 = indexz_insert lpos sep rpos z in
+  let z2 = indexz_balance z1 in
+  let r = 
+    match z2 with
+      | Loc ((p0, c), (kn,pn):: t) -> 
+	let left =  (p0, List.rev c) in
+	let right = (pn, t) in
+	left, kn, right
+  in
+  r
+
 
 let leaf_find_set leaf k = 
   let rec loop z = match z with
@@ -167,10 +220,5 @@ let leaf_find_set leaf k =
 
 let leafz_insert k p (c,t) = (List.rev c) @ (k,p) :: t
 
-exception IZ of index_z
 
-let indexz_insert lpos sep rpos z = 
-  match z with
-  | Top ((p0,t)) -> lpos, ((sep,rpos) :: t)
-  | Loc ((p0,(k,p)::t),[]) -> p0, List.rev ((sep,rpos):: (k,lpos) :: t)
-  | z -> raise (IZ z)
+

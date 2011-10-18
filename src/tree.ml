@@ -75,9 +75,7 @@ module DB = functor (L:LOG ) -> struct
       | Leaf_down z :: rest -> 
 	if leafz_max z 
 	then 
-	  let () = Printf.printf "z=%s\n" (lz2s z) in
 	  let left, (sep,ps) , right = leafz_split k start z in
-	  let () = Printf.printf "left=%s, (%s,%i), right=%s\n" (leaf2s left) sep ps (leaf2s right) in
 	  let lpos = start + 1 in
 	  let rpos = start + 2 in
 	  Value v:: Leaf left :: Leaf right :: set_overflow lpos sep rpos rest
@@ -91,13 +89,19 @@ module DB = functor (L:LOG ) -> struct
 	let index = indexz_replace start z in
 	let start' = start + 1 in
 	(Index index) :: set_rest start' rest
-    and set_overflow lpos sep rpos = function
+    and set_overflow lpos sep rpos trail = 
+      match trail with 
       | [] -> [Index (lpos, [sep,rpos])]
       | Index_down z :: rest -> 
 	if indexz_max z 
-	then failwith "dubble overflow"
+	then 
+	  let left, sep', right  = indexz_split lpos sep rpos z in
+	  let lpos' = rpos + 1 in
+	  let rpos' = lpos' + 1 in
+	  Index left :: Index right :: set_overflow lpos' sep' rpos' rest
 	else
-	  let i' = indexz_insert lpos sep rpos z in
+	  let z' = indexz_insert lpos sep rpos z in
+	  let i' = indexz_close z' in
 	  let start' = rpos + 1 in
 	  Index i' :: set_rest start' rest
     in

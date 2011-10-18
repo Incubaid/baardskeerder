@@ -30,15 +30,16 @@ let kvs =   [
   "a", "A";
   "d", "D";
   "g", "G"; 
-  "j", "J"; 
+  "j", "J";
+
   "m", "M";
   "q", "Q";
   "t", "T";
-  "w", "W";
+(*"w", "W";
+  "z", "Z"; *)
   ];;
 
 let () = List.iter (fun (k,v) -> MDB.set t0 k v) kvs;;
 let check () = List.iter (fun (k,v) -> assert (MDB.get t0 k =v)) kvs;;
-(* now delete "q" "Q" *)
 
 
