@@ -29,4 +29,5 @@ type entry =
 type dir = 
   | Leaf_down of leaf_z
   | Index_down of index_z
+
 type path = dir list
