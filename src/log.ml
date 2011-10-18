@@ -18,7 +18,7 @@
  *)
 
 open Entry
-
+open Base
 module type LOG = sig
   type t
     

@@ -41,18 +41,17 @@ module Dot = functor (L:LOG) -> struct
 	    (fun (k,p) -> 
 	      Printf.fprintf f "\tnode%i:<%i> -> node%i\n" pos p p) kps
 	  	  
-	| Index (pp,kps)  ->
-	  walk pp;
+	| Index (p0,kps)  ->
+	  walk p0;
 	  List.iter (fun (_, p) -> walk p) kps;
-	  Printf.fprintf f "\nnode%i [shape = record label=\"" pos;
+	  Printf.fprintf f "\nnode%i [shape = record label=\" <%i> " pos p0;
 	  let rec loop = function
 	    | [] -> ()
-	    | [k,p] -> Printf.fprintf f "<%i> %s" p k
-	    | (k,p):: tail -> Printf.fprintf f "<%i> %s | " p k; loop tail
+	    | (k,p) :: tail  -> Printf.fprintf f " | %s | <%i> " k p; loop tail
 	  in
 	  loop kps;
 	  Printf.fprintf f "\"]\n";
-	  Printf.fprintf f "\tnode%i -> node%i\n" pos pp;
+	  Printf.fprintf f "\tnode%i -> node%i\n" pos p0;
 	  List.iter (fun (_, p) -> Printf.fprintf f "\tnode%i -> node%i;\n" pos p) kps
     in
     walk (L.root log);
@@ -86,16 +85,16 @@ module Dot = functor (L:LOG) -> struct
 		  Printf.fprintf f "\tnode%i:<%i> -> node%i;\n" i p p
 		) kps
 	    end
-	  | Index (pp,kps) -> 
-	    Printf.fprintf f "\tnode%i [label = \"{%i | { " i i;
+	  | Index (p0, kps) -> 
+	    Printf.fprintf f "\tnode%i [label = \"{%i | { <%i> " i i p0;
 	    let rec loop = function
 	      | []    -> ()
-	      | [k,p] -> Printf.fprintf f "<%i> %s" p k
+	      | [k,p] -> Printf.fprintf f " | <%i> %s" p k
 	      | (k,p) :: tail -> Printf.fprintf f "<%i> %s | " p k; loop tail
 	    in
 	    loop kps;
 	    Printf.fprintf f "}}\"];\n";
-	    Printf.fprintf f "\tnode%i -> node%i;\n" i pp;
+	    Printf.fprintf f "\tnode%i -> node%i;\n" i p0;
 	    List.iter 
 	      (fun (_, p) -> 
 		Printf.fprintf f "\tnode%i -> node%i;\n" i p) kps
@@ -118,7 +117,7 @@ module Dot = functor (L:LOG) -> struct
     close_out oc;
     let convert_cmd = Printf.sprintf "dot -Tpng -o %s %s" png dot in
     let _ = Sys.command convert_cmd in
-    let cmd = Printf.sprintf "evince %s" png in
+    let cmd = Printf.sprintf "xli %s" png in
     Sys.command cmd
 
 

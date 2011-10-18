@@ -1,4 +1,5 @@
 # directory "_build";;
+# load "base.cmo";;
 # load "entry.cmo";;
 # load "log.cmo";;
 # load "mlog.cmo";;

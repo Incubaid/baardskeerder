@@ -23,19 +23,22 @@ open Entry
 
 module MDB = DB(Mlog);;
 
-module MDot = Dot(Mlog);;
+module MDot = Dot(Mlog);; 
 
 let t0 = Mlog.make 40;;
-let kvs =   ["a", "A";
-   "d", "D";
-   "g", "G";
-   "j", "J";
-   "m", "M";
-   "q", "Q";
+let kvs =   [
+  "a", "A";
+  "d", "D";
+  (* "g", "G"; *)
+  (* "j", "J"; *)
+   (* 
+      "m", "M";
+      "q", "Q";
+   *)
   ];;
 
 let () = List.iter (fun (k,v) -> MDB.set t0 k v) kvs;;
 let check () = List.iter (fun (k,v) -> assert (MDB.get t0 k =v)) kvs;;
 (* now delete "q" "Q" *)
 
-let test ()  = pick_sibling 1 15 7 [("d",14);("j",15)];;
+
