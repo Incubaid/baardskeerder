@@ -86,18 +86,18 @@ module Dot = functor (L:LOG) -> struct
 		) kps
 	    end
 	  | Index (p0, kps) -> 
-	    Printf.fprintf f "\tnode%i [label = \"{%i | { <%i> " i i p0;
+	    Printf.fprintf f "\tnode%i [label = \"{%i | { <%i> | " i i p0;
 	    let rec loop = function
 	      | []    -> ()
-	      | [k,p] -> Printf.fprintf f " | <%i> %s" p k
-	      | (k,p) :: tail -> Printf.fprintf f "<%i> %s | " p k; loop tail
+	      | [k,p] -> Printf.fprintf f " %s | <%i> " k p
+	      | (k,p) :: tail -> Printf.fprintf f " %s | <%i> | " k p; loop tail
 	    in
 	    loop kps;
 	    Printf.fprintf f "}}\"];\n";
-	    Printf.fprintf f "\tnode%i -> node%i;\n" i p0;
+	    Printf.fprintf f "\tnode%i:<%i> -> node%i;\n" i p0 p0;
 	    List.iter 
 	      (fun (_, p) -> 
-		Printf.fprintf f "\tnode%i -> node%i;\n" i p) kps
+		Printf.fprintf f "\tnode%i:<%i> -> node%i;\n" i p p) kps
 	in
 	let () = 
 	  if e <> NIL && i > 0 

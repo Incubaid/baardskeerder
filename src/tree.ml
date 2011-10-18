@@ -31,12 +31,22 @@ module DB = functor (L:LOG ) -> struct
 	| NIL -> raise Not_found
 	| Value v -> v
 	| Leaf l -> descend_leaf l
+	| Index i -> descend_index i
     and descend_leaf = function
       | [] -> raise Not_found
       | (k0,p0) :: t -> 
 	if k= k0 then descend p0 else
 	  if k > k0 then descend_leaf t
 	  else raise Not_found
+    and descend_index (p0, kps) = 
+      let rec loop pi = function
+	| []                       -> pi
+	| (ki,_) :: _ when k <= ki -> pi 
+	| (_ ,p) :: t              -> loop p t
+      in
+      let pos' = loop p0 kps in
+      descend pos'
+	
     in
     descend (L.root t)
 
@@ -55,7 +65,9 @@ module DB = functor (L:LOG ) -> struct
       Leaf_down z :: trail
     and descend_index trail leaf = 
       let z = index_find_set leaf k in
-      Index_down z :: trail
+      let trail' = Index_down z :: trail in
+      let pos' = indexz_pos z in
+      descend_set pos' trail'
     in 
     let rec set_start start trail = 
       match trail with 
@@ -71,10 +83,14 @@ module DB = functor (L:LOG ) -> struct
 	  Value v:: Leaf left :: Leaf right :: set_overflow lpos sep rpos rest
 	else
 	  let l = leafz_insert k start z in
-	  Value v :: Leaf l :: set_rest rest
-    and set_rest = function
+	  let start' = start + 2 in
+	  Value v :: Leaf l :: set_rest start' rest
+    and set_rest start = function
       | [] -> []
-      | _ -> failwith "set_rest"
+      | (Index_down z) :: rest -> 
+	let index = indexz_replace start z in
+	let start' = start + 1 in
+	(Index index) :: set_rest start' rest
     and set_overflow lpos sep rpos = function
       | [] -> [Index (lpos, [sep,rpos])]
       | _ -> failwith "set_overflow"
