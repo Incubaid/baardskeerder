@@ -55,6 +55,12 @@ let index2s (p0,rest) =
   Buffer.add_string b (leaf2s rest);
   Buffer.contents b
 
+let lz2s (c,t) = Printf.sprintf "(%s,%s)" (leaf2s c) (leaf2s t)
+
+let iz2s = function
+  | Top (p0, kps) -> Printf.sprintf "Top (%i,%s)" p0 (leaf2s kps)
+  | Loc ((p0,c),t) -> Printf.sprintf "Loc ((%i,%s),%s)" p0 (leaf2s c) (leaf2s t)
+
 let leaf_find_delete leaf k = 
   let rec loop z = match z with
     | _, [] -> None
@@ -65,11 +71,17 @@ let leaf_find_delete leaf k =
   loop ([],leaf)
 
 let index_find_set index k = 
-  let rec loop z = match z with
+  let () = Printf.printf "index_find_set (%s) %s\n" (index2s index) k in
+  let rec loop z = 
+    let () = Printf.printf "loop %s\n" (iz2s z) in
+    match z with
+    | Top (_,[]) -> z
     | Top (_ , (k0, _) :: _) when k < k0      -> z
     | Top ((p0, h :: t))                      -> let pre = p0, [h] in
 						 let z' = Loc (pre, t) in
 						 loop z'
+
+    | Loc (_, [])                             -> z
     | Loc (_ , (ki,pi) :: _) when k < ki      -> z
     | Loc ( (p0,c) , ((ki,pi) as h :: t))     -> let pre  = p0, (h :: c) in
 						 let z' = Loc (pre, t) in
@@ -77,13 +89,17 @@ let index_find_set index k =
   in loop (Top index)
 
 let indexz_pos = function
-  | Top (_,(_,p0) :: _) -> p0
-  | Loc (_,(_,pi) :: _) -> pi
+  | Top (_                , (_,p0) :: _) -> p0
+  | Loc ( (p0, (k,pi) ::_), []         ) -> pi
+  | Loc (_                , (_,pi) :: _) -> pi
 
 
-let indexz_replace pos = function
-  | Top (p0, kps) -> (pos,kps)
-  | Loc ((p0,c), (k,px) :: t) ->
+let indexz_replace pos z = 
+  let () = Printf.printf "pos=%i z = %s\n" pos (iz2s z) in 
+  match z with
+  | Top (p0, kps)                         -> (pos,kps)
+  | Loc ((p0, (k,pi) :: t ), []         ) -> (p0, List.rev ((k,pos):: t))
+  | Loc ((p0,            c), (k,px) :: t) ->
     let rec loop acc = function
       | [] -> p0, acc
       | h :: t -> loop ( h :: acc) t
@@ -96,7 +112,8 @@ let leafz_delete = function
 
 let d = 2
 
-let z2s (c,t) = Printf.sprintf "(%s,%s)" (leaf2s c) (leaf2s t)
+
+
 
 let leafz_max (c,t) = List.length c + List.length t = 2 * d - 1
   

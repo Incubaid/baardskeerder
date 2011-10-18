@@ -56,9 +56,9 @@ module DB = functor (L:LOG ) -> struct
       let e = L.read t pos in
       match e with
 	| NIL     -> []
+	| Value _ -> failwith "value ?"
 	| Leaf l  -> descend_leaf trail l
 	| Index i -> descend_index trail i
-	| Value _ -> failwith "value ?"
 	  
     and descend_leaf trail leaf =
       let z = leaf_find_set leaf k in
@@ -75,7 +75,7 @@ module DB = functor (L:LOG ) -> struct
       | Leaf_down z :: rest -> 
 	if leafz_max z 
 	then 
-	  let () = Printf.printf "z=%s\n" (z2s z) in
+	  let () = Printf.printf "z=%s\n" (lz2s z) in
 	  let left, (sep,ps) , right = leafz_split k start z in
 	  let () = Printf.printf "left=%s, (%s,%i), right=%s\n" (leaf2s left) sep ps (leaf2s right) in
 	  let lpos = start + 1 in
@@ -83,7 +83,7 @@ module DB = functor (L:LOG ) -> struct
 	  Value v:: Leaf left :: Leaf right :: set_overflow lpos sep rpos rest
 	else
 	  let l = leafz_insert k start z in
-	  let start' = start + 2 in
+	  let start' = start + 1 in
 	  Value v :: Leaf l :: set_rest start' rest
     and set_rest start = function
       | [] -> []
