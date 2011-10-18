@@ -51,8 +51,8 @@ module Dot = functor (L:LOG) -> struct
 	  in
 	  loop kps;
 	  Printf.fprintf f "\"]\n";
-	  Printf.fprintf f "\tnode%i -> node%i\n" pos p0;
-	  List.iter (fun (_, p) -> Printf.fprintf f "\tnode%i -> node%i;\n" pos p) kps
+	  Printf.fprintf f "\tnode%i:<%i> -> node%i\n" pos p0 p0;
+	  List.iter (fun (_, p) -> Printf.fprintf f "\tnode%i:<%i> -> node%i;\n" pos p p) kps
     in
     walk (L.root log);
     Printf.fprintf f "}\n"
@@ -108,13 +108,13 @@ module Dot = functor (L:LOG) -> struct
   let view ?(v=dot_tree) log = 
     let root = "test" in
     let dot = Filename.temp_file root ".dot" in
-    let png = Filename.temp_file root ".png" in
+    let svg = Filename.temp_file root ".svg" in
     let oc = open_out dot in
     let () = v ~f:oc log in
     close_out oc;
-    let convert_cmd = Printf.sprintf "dot -Tpng -o %s %s" png dot in
+    let convert_cmd = Printf.sprintf "dot -Tsvg -o %s %s" svg dot in
     let _ = Sys.command convert_cmd in
-    let cmd = Printf.sprintf "xli %s" png in
+    let cmd = Printf.sprintf "firefox %s" svg in
     Sys.command cmd
 
 
