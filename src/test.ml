@@ -22,6 +22,7 @@ open Log
 open Tree
 open Entry
 open Base
+open Index
 
 module MDB = DB(Mlog)
 
@@ -113,8 +114,35 @@ let split_2 ((log,set,get,delete) as q) =
 
 
 
+let t_neigbours () = 
+  let z = Loc ((7, [("j", 15); ("d", 14)]), []) in
+  let nb = Index.indexz_neighbours z in
+  OUnit.assert_equal (NL 14) nb
+
+let t_suppress () = 
+  let z = Loc ((7, [("j", 15); ("d", 14)]), []) in
+  let nb = Index.indexz_neighbours z in
+  match nb with 
+    | NL 14 ->
+      let index = Index.indexz_suppress L 17 z in
+      Printf.printf "index = %s\n" (index2s index)
+    | _ -> failwith "should be NL 14"
+
+let t_suppress2 () = 
+  let z = Loc ((7,["d", 8]),[]) in
+  let nb = Index.indexz_neighbours z in
+  match nb with 
+    | NL 7 ->
+      let index = Index.indexz_suppress L 17 z in
+      Printf.printf "index = %s\n" (index2s index)
+    | _ -> failwith "should be NL 7"
+
+
 let suite = 
   "correctness" >::: [
+    "index_neighbours" >:: t_neigbours;
+    "index_suppress" >:: t_suppress;
+    "index_suppress2" >:: t_suppress2;
     "insert_delete_1" >:: mem_wrap insert_delete_1;
     "insert_delete_2" >:: mem_wrap insert_delete_2;
     "insert_delete_3" >:: mem_wrap insert_delete_3;

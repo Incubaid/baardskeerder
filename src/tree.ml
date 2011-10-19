@@ -21,6 +21,8 @@
 open Log
 open Entry
 open Base
+open Leaf
+open Index
 
 module DB = functor (L:LOG ) -> struct
 
@@ -119,7 +121,7 @@ module DB = functor (L:LOG ) -> struct
 	| Leaf l -> descend_leaf trail l
 	| Index i -> descend_index trail i
     and descend_leaf trail leaf = 
-      match Base.leaf_find_delete leaf k with
+      match leaf_find_delete leaf k with
 	| None -> raise Not_found
 	| Some (p,z) -> 
 	  let step = Leaf_down z in 

@@ -19,7 +19,8 @@
 
 (* .. *)
 open Base
-
+open Leaf
+open Index
 type entry = 
   | NIL
   | Value of v

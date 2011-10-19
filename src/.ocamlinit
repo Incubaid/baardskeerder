@@ -1,5 +1,7 @@
 # directory "_build";;
 # load "base.cmo";;
+# load "leaf.cmo";;
+# load "index.cmo";;
 # load "entry.cmo";;
 # load "log.cmo";;
 # load "mlog.cmo";;

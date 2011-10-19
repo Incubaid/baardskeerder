@@ -40,8 +40,8 @@ let dump (t:t) = Array.iteri
       match a with
 	| NIL     -> "NIL"
 	| Value v -> Printf.sprintf "Value %S" v
-	| Leaf l  -> Printf.sprintf "Leaf %s  " (Base.leaf2s l)
-	| Index i -> Printf.sprintf "Index %s)" (Base.index2s i)
+	| Leaf l  -> Printf.sprintf "Leaf %s  " (Leaf.leaf2s l)
+	| Index i -> Printf.sprintf "Index %s)" (Index.index2s i)
     in
     Printf.printf "%2i: %s\n" i s) 
   t.es

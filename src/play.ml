@@ -20,6 +20,7 @@
 open Dot
 open Tree
 open Entry
+open Mlog
 
 module MDB = DB(Mlog);;
 
