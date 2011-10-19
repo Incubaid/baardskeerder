@@ -120,6 +120,8 @@ let leaf_merge left right = left @ right
 let leafz_max (c,t) = List.length c + List.length t = 2 * d - 1
 let leafz_min (c,t) = List.length c + List.length t = d
 
+let index_below_min (p0,t) = List.length t < d
+
 let indexz_max z = 
   let z_size = match z with
     | Top (_,kps) -> List.length kps
@@ -158,8 +160,9 @@ let indexz_suppress d pn z =
       end
     | L ->
       match z with
-	| Loc ((p0, (kc,pc)::c),[]) -> pn, (List.rev c)
-	| _ -> failwith "L"
+	| Loc ((p0,(k, p1)::t),[]) -> pn, t
+	| Loc ((p0, (kl,pl)::(kr,pr)::c),[]) -> p0, (List.rev ((kr,pn):: c))
+	| _ -> let () = Printf.printf "z=%s\n" (iz2s z) in failwith "L"
 
 
 type neigbours = 
@@ -171,8 +174,10 @@ type neigbours =
 
 let indexz_neighbours = function
   | Top (p0, (k,p1)::t)        -> NR p1
+  | Loc ((p0, [kc,pc]),[])  -> NL p0
   | Loc ((p0, (kc,pc) ::c), (kt,pt) :: t) -> N2 (pc,pt)
-  | Loc ((p0,  (kc,pc)::c), [] ) -> NL p0
+  | Loc ((p0, (kr,pr) :: (kl,pl) ::c), [] ) -> NL pl
+  | z -> Printf.printf "z=%s\n" (iz2s z); failwith "??"
 
 let leafz_close (c,t) = (List.rev c) @ t
 

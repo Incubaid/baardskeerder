@@ -157,8 +157,8 @@ module DB = functor (L:LOG ) -> struct
 		| Leaf l -> l
 		| _ -> failwith "should be leaf"
 	    in
-				
-	    match indexz_neighbours z with
+	    let nb = indexz_neighbours z in
+	    match nb with
 	      | NR pos     -> 
 		begin
 		  let right = read_leaf pos in
@@ -166,11 +166,10 @@ module DB = functor (L:LOG ) -> struct
 		  then 
 		    begin
 		      let left = leafz_delete leafz in
-		      Printf.printf "left=%s  right=%s\n" (leaf2s left) (leaf2s right);
 		      let h  =  Leaf (leaf_merge left right) in
-		      let hpos = start + 1 in
+		      let hpos = start in
 		      let z' = indexz_suppress R hpos z in
-		      let t = leaves_merged z' rest in
+		      let t = leaves_merged hpos z' rest in
 		      h :: t
 		    end
 		  else failwith "??"
@@ -183,9 +182,9 @@ module DB = functor (L:LOG ) -> struct
 		    begin
 		      let right = leafz_delete leafz in
 		      let h = Leaf (leaf_merge left right) in
-		      let hpos = start + 1 in
-		      let z' = indexz_suppress L hpos z in
-		      let t = leaves_merged z' rest in
+		      let lpos = start in
+		      let index' = indexz_suppress L lpos z in
+		      let t = leaves_merged lpos index' rest in
 		      h :: t
 		    end
 		  else
@@ -194,10 +193,11 @@ module DB = functor (L:LOG ) -> struct
 	      | N2 (p0,p1) -> failwith "n2"
 	  end
 	| _ -> failwith "corrupt"
-    and leaves_merged z rest = 
-      match z, rest with
-	| (_,[]) , [] -> []
-	| _ -> failwith "leaves_merged"
+    and leaves_merged start index rest = 
+      match index, rest with
+	| (_,[]) , []  -> []
+	| index , [] -> [Index index] (* no chance to merge *)
+	| index , rest -> failwith "todo:merge with sibling"
     in
     let trail = descend (L.root t) [] in
     let update = delete_start (L.next t) trail in
