@@ -156,7 +156,11 @@ let indexz_suppress d pn z =
 	  | Top (p0, (_,p1)::t)                  -> pn,t
 	  | Loc ((p0, (kc,pc) :: c), (kt,pt)::t) -> p0, (List.rev c) @ (kc,pn) :: t
       end
-    | L -> failwith "todo"
+    | L ->
+      match z with
+	| Loc ((p0, (kc,pc)::c),[]) -> pn, (List.rev c)
+	| _ -> failwith "L"
+
 
 type neigbours = 
   | NR of pos
@@ -168,7 +172,7 @@ type neigbours =
 let indexz_neighbours = function
   | Top (p0, (k,p1)::t)        -> NR p1
   | Loc ((p0, (kc,pc) ::c), (kt,pt) :: t) -> N2 (pc,pt)
-  | Loc ((p0,  (kc,pc)::c), [] ) -> NL pc
+  | Loc ((p0,  (kc,pc)::c), [] ) -> NL p0
 
 let leafz_close (c,t) = (List.rev c) @ t
 

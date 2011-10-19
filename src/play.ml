@@ -26,13 +26,15 @@ module MDB = DB(Mlog);;
 module MDot = Dot(Mlog);; 
 
 let t0 = Mlog.make 80;;
-let kvs =  List.rev [
+let kvs =  [
   "a", "A";
   "d", "D";
   "g", "G"; 
   "j", "J";
-  (* "m", "M";
+  "m", "M";
   "q", "Q";
+
+(*
   "t", "T";
   "w", "W";
   "z", "Z"; *)
@@ -52,8 +54,8 @@ let () = List.iter (fun (k,v) ->
 ) kvs;;
 let check () = List.iter (fun (k,v) -> assert (MDB.get t0 k =v)) kvs;;
 let () = check ();;
+let () = MDB.delete t0 "q";;
 let _  = MDot.view_tree t0;;
-let () = MDB.delete t0 "a";;
 
 (*
 let () = 

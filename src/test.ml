@@ -34,18 +34,24 @@ let mem_teardown q = ()
 let mem_wrap t = OUnit.bracket mem_setup t mem_teardown
 
 let check (log,_,get,_) kvs = 
-  List.iter (fun (k,v) -> OUnit.assert_equal v (get log k)) kvs 
+  List.iter (fun (k,v) -> 
+    Printf.printf "get %S\n%!" k;
+    OUnit.assert_equal v (get log k)) kvs 
 
 let check_not (log,_,get,_) kvs = 
-  List.iter (fun (k,_) -> OUnit.assert_raises Not_found (fun () -> get log k)) kvs
+  List.iter (fun (k,_) -> 
+    OUnit.assert_raises ~msg:k Not_found (fun () -> get log k)) kvs
 
-let set_all (log,set,_,_) kvs = List.iter (fun (k,v) -> set log k v) kvs
+let set_all (log,set,_,_) kvs = List.iter (fun (k,v) -> 
+  Printf.printf "set %S %S\n%!" k v;
+  set log k v) kvs
 
 
 let delete_all_check ((log,set,get,delete) as q) kvs = 
   let rec loop acc = function
     | [] -> ()
     | (k,v) as h :: t -> 
+      Printf.printf "delete %S\n%!" k;
       delete log k;
       let acc' = h :: acc in
       check_not q acc';

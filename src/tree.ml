@@ -136,33 +136,60 @@ module DB = functor (L:LOG ) -> struct
 	if leafz_min z 
 	then leaf_underflow start z rest
 	else 
-	  Leaf (leafz_delete z) :: delete_rest (start + 1) rest
+	  let leaf' = leafz_delete z in
+	  let () = Printf.printf "leaf'=%s\n%!" (leaf2s leaf') in
+	  Leaf leaf' :: delete_rest start rest
     and delete_rest start trail = match trail with
       | [] -> []
-      | _ -> failwith "todo"
+      | Index_down z :: rest -> 	
+	let index = indexz_replace start z in
+	let start' = start + 1 in
+	(Index index) :: delete_rest start' rest
+
     and leaf_underflow start leafz rest = 
       match rest with 
 	| [] -> [Leaf (leafz_delete leafz)]
 	| Index_down z :: rest -> 
 	  begin
+	    let read_leaf pos = 
+	      let e = L.read t pos in
+	      match e with
+		| Leaf l -> l
+		| _ -> failwith "should be leaf"
+	    in
+				
 	    match indexz_neighbours z with
 	      | NR pos     -> 
 		begin
-		  let r = L.read t pos in
-		  match r with
-		    | Leaf right -> 
-		      if leaf_min right
-		      then 
-			begin
-			  let left = leafz_delete leafz in
-			  Printf.printf "left=%s  right=%s\n" (leaf2s left) (leaf2s right);
-			  let h  =  Leaf (leaf_merge left right) in
-			  let hpos = start + 1 in
-			  let z' = indexz_suppress R hpos z in
-			  let t = leaves_merged z' rest in
-			  h :: t
-			end
-		      else failwith "??"
+		  let right = read_leaf pos in
+		  if leaf_min right
+		  then 
+		    begin
+		      let left = leafz_delete leafz in
+		      Printf.printf "left=%s  right=%s\n" (leaf2s left) (leaf2s right);
+		      let h  =  Leaf (leaf_merge left right) in
+		      let hpos = start + 1 in
+		      let z' = indexz_suppress R hpos z in
+		      let t = leaves_merged z' rest in
+		      h :: t
+		    end
+		  else failwith "??"
+		end
+	      | NL pos ->
+		begin
+		  let left = read_leaf pos in
+		  if leaf_min left 
+		  then
+		    begin
+		      let right = leafz_delete leafz in
+		      let h = Leaf (leaf_merge left right) in
+		      let hpos = start + 1 in
+		      let z' = indexz_suppress L hpos z in
+		      let t = leaves_merged z' rest in
+		      h :: t
+		    end
+		  else
+		    failwith "??"
 		end
 	      | N2 (p0,p1) -> failwith "n2"
 	  end
