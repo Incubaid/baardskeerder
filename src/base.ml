@@ -23,6 +23,9 @@ let d = 2
 
 type pos = int
 type k = string
+
+exception NOT_FOUND of k
+
 type v = string
 
 type kp = k * pos

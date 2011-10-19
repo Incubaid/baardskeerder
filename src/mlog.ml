@@ -20,14 +20,25 @@
 open Entry
 
 type t = { es : entry array; mutable next:int}
-    
+type slab = {mutable _es: entry list; mutable pos : int}
+
 let make cap = {es = Array.make cap NIL; next = 0}
-let write t es = 
+
+let make_slab t = {_es=[]; pos = t.next}
+
+let add slab e = 
+  slab._es <- e :: slab._es;
+  let c = slab.pos in
+  slab.pos <- c + 1; 
+  c
+
+
+let write t slab = 
   let do_one e = 
     t.es.(t.next) <- e;
     t.next <- t.next + 1
   in
-  List.iter do_one es
+  List.iter do_one (List.rev slab._es)
     
 let root t = t.next -1
 let next t = t.next

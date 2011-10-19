@@ -86,7 +86,8 @@ let indexz_max z =
 
 let indexz_right = function
   | Top (p0  ,h :: t)          -> Loc ((p0,[h]),t)
-  | Loc ((p0, c), h :: t) -> Loc ((p0, h :: c), t)
+  | Loc ((p0, c), h :: t)      -> Loc ((p0, h :: c), t)
+  | z -> let s = Printf.sprintf "cannot go right: %s\n" (iz2s z) in failwith s
 
 let indexz_left = function
   | Loc ((p0, h :: c), t) -> Loc ((p0, c), h::t)
@@ -106,7 +107,7 @@ let indexz_suppress d pn z =
       match z with
 	| Loc ((p0,[k0, p1]),[]) -> pn,[]
 	| Loc ((p0, (kl,pl)::(kr,pr)::c),[]) -> p0, (List.rev ((kr,pn):: c))
-	| _ -> let () = Printf.printf "z=%s\n" (iz2s z) in failwith "L"
+	| _ -> let s = Printf.sprintf "L: z=%s\n" (iz2s z) in failwith s
 
 
 type neigbours = 
@@ -129,16 +130,16 @@ let indexz_close = function
   | Loc ((p0,c), t) -> p0, (List.rev c) @ t
     
 let indexz_balance z = 
-  let ls = match z with
-    | Top ((_,c)) -> List.length c 
-    | Loc ((_,c), _) -> List.length c
+  let ls,rs = match z with
+    | Top ((_,c))    -> 0 , List.length c
+    | Loc ((_,c), r) -> List.length c, List.length r
   in 
   let n, move = 
-    if ls > d 
+    if ls > rs
     then
-      ls - (d -1), indexz_right
+      ls - rs - 1, indexz_left
     else
-      (d -1)- ls, indexz_left
+      rs - ls -1 , indexz_right
   in
   let rec loop z = function
     | 0 -> z
@@ -157,10 +158,10 @@ let indexz_insert lpos sep rpos z =
 
 let indexz_split lpos sep rpos z = 
   let z1 = indexz_insert lpos sep rpos z in
-  let z2 = indexz_balance z1 in
+  let z2 = indexz_balance z1 in 
   let r = 
     match z2 with
-      | Loc ((p0, (ks,ps) :: c), t) -> 
+      | Loc ((p0, c), (ks,ps):: t) -> 
 	let left =  (p0, List.rev c) in
 	let right = (ps, t) in
 	left, ks, right

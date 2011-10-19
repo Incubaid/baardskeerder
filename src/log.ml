@@ -21,10 +21,12 @@ open Entry
 open Base
 module type LOG = sig
   type t
-    
-  val write : t -> entry list -> unit 
+  type slab
+  val write : t -> slab -> unit 
   val root  : t -> pos
   val next  : t -> pos
   val read  : t -> pos -> entry
-  val size  : entry -> pos
+  val make_slab : t -> slab
+  val add : slab -> entry -> pos
+
 end
