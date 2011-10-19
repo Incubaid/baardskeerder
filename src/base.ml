@@ -90,9 +90,9 @@ let index_find_set index k =
 let make_indexz (p0, kps) = Top ((p0, kps))
 
 let indexz_pos = function
-  | Top (_                , (_,p0) :: _) -> p0
-  | Loc ( (p0, (k,pi) ::_), []         ) -> pi
-  | Loc (_                , (_,pi) :: _) -> pi
+  | Top ( p0,_) -> p0
+  | Loc ((_, (k,pi) ::_) , _      )   -> pi
+
 
 
 let indexz_replace pos z = 
@@ -136,11 +136,11 @@ let leafz_right (c,t) =
 
 
 let indexz_right = function
-  | Top (p0  ,h :: t) -> Loc ((p0,t),[h])
-  | Loc ((p0, h :: c), t) -> Loc ((p0, c), h :: t)
+  | Top (p0  ,h :: t)          -> Loc ((p0,[h]),t)
+  | Loc ((p0, c), h :: t) -> Loc ((p0, h :: c), t)
 
 let indexz_left = function
-  | Loc ((p0, c), h :: t) -> Loc ((p0, h :: c), t)
+  | Loc ((p0, h :: c), t) -> Loc ((p0, c), h::t)
 
 let leafz_close (c,t) = (List.rev c) @ t
 
@@ -202,10 +202,10 @@ let indexz_split lpos sep rpos z =
   let z2 = indexz_balance z1 in
   let r = 
     match z2 with
-      | Loc ((p0, c), (kn,pn):: t) -> 
+      | Loc ((p0, (ks,ps) :: c), t) -> 
 	let left =  (p0, List.rev c) in
-	let right = (pn, t) in
-	left, kn, right
+	let right = (ps, t) in
+	left, ks, right
   in
   r
 
