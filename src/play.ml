@@ -31,13 +31,12 @@ let kvs =  List.rev [
   "d", "D";
   "g", "G"; 
   "j", "J";
-  "m", "M";
+  (* "m", "M";
   "q", "Q";
   "t", "T";
   "w", "W";
+  "z", "Z"; *)
 (*  
-
-  "z", "Z"; 
   "z1","Z1";
   "z2","Z2";
   "z3","Z3";
@@ -54,6 +53,8 @@ let () = List.iter (fun (k,v) ->
 let check () = List.iter (fun (k,v) -> assert (MDB.get t0 k =v)) kvs;;
 let () = check ();;
 let _  = MDot.view_tree t0;;
+let () = MDB.delete t0 "a";;
+
 (*
 let () = 
   let t1 = Mlog.make 40 in

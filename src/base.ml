@@ -114,8 +114,11 @@ let d = 2
 
 
 
+let leaf_min t = List.length t = d
+let leaf_merge left right = left @ right
 
 let leafz_max (c,t) = List.length c + List.length t = 2 * d - 1
+let leafz_min (c,t) = List.length c + List.length t = d
 
 let indexz_max z = 
   let z_size = match z with
@@ -141,6 +144,31 @@ let indexz_right = function
 
 let indexz_left = function
   | Loc ((p0, h :: c), t) -> Loc ((p0, c), h::t)
+
+
+type merger = L | R
+
+let indexz_suppress d pn z = 
+  match d with 
+    | R ->
+      begin
+	match z with 
+	  | Top (p0, (_,p1)::t)                  -> pn,t
+	  | Loc ((p0, (kc,pc) :: c), (kt,pt)::t) -> p0, (List.rev c) @ (kc,pn) :: t
+      end
+    | L -> failwith "todo"
+
+type neigbours = 
+  | NR of pos
+  | NL of pos
+  | N2 of (pos * pos)
+
+
+
+let indexz_neighbours = function
+  | Top (p0, (k,p1)::t)        -> NR p1
+  | Loc ((p0, (kc,pc) ::c), (kt,pt) :: t) -> N2 (pc,pt)
+  | Loc ((p0,  (kc,pc)::c), [] ) -> NL pc
 
 let leafz_close (c,t) = (List.rev c) @ t
 
