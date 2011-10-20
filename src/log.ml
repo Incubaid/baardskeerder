@@ -29,4 +29,5 @@ module type LOG = sig
   val make_slab : t -> slab
   val add : slab -> entry -> pos
 
+  val string_of_slab : slab -> string
 end

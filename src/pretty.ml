@@ -17,29 +17,9 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-(* .. *)
-open Base
-open Leaf
-open Index
-type entry = 
-  | NIL
-  | Value of v
-  | Leaf of leaf
-  | Index of index
+let string_of_list f l = Printf.sprintf "[%s]"
+  (String.concat "; " (List.map f l))
 
-type dir = 
-  | Leaf_down of leaf_z
-  | Index_down of index_z
+let string_of_pair f1 f2 (a, b) = Printf.sprintf "(%s, %s)" (f1 a) (f2 b)
 
-type path = dir list
-
-let string_of_entry = function
-  | NIL -> "NIL"
-  | Value v -> Printf.sprintf "Value %s" v
-  | Leaf l -> Printf.sprintf "Leaf %s" (string_of_leaf l)
-  | Index i -> Printf.sprintf "Index %s" (string_of_index i)
-
-let string_of_dir = function
-  | Leaf_down l -> Printf.sprintf "Leaf_down %s" (string_of_leaf_z l)
-  | Index_down i ->
-      Printf.sprintf "Index_down (%s)" (string_of_index_z i)
+let id x = x

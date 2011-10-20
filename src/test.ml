@@ -154,7 +154,7 @@ let next_permutation a =
   done
 
 let insert_delete_permutations_1' ((log,set,get,delete) as q) =
-  let kvs = take 4 in (* TODO *)
+  let kvs = take 5 in (* TODO *)
   let kvs' = Array.of_list kvs in
   Array.fast_sort (fun (k1, _) (k2, _) -> compare k1 k2) kvs';
 
