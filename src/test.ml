@@ -153,7 +153,7 @@ let next_permutation a =
       decr j;
   done
 
-let insert_delete_permutations_1' ((log,set,get,delete) as q) =
+let insert_delete_permutations_1 ((log,set,get,delete) as q) =
   let kvs = take 5 in (* TODO *)
   let kvs' = Array.of_list kvs in
   Array.fast_sort (fun (k1, _) (k2, _) -> compare k1 k2) kvs';
@@ -178,12 +178,12 @@ let insert_delete_permutations_1' ((log,set,get,delete) as q) =
   in
   loop (fac l)
 
-let insert_delete_permutations_1 ((log,set,get,delete) as q) =
+let debug_info_wrap f = fun ((log, _, _, _) as q) ->
   let b = Printexc.backtrace_status () in
   Printexc.record_backtrace true;
 
   try
-    insert_delete_permutations_1' q
+    f q
   with e ->
     (try
       Printf.fprintf stderr "Exception: %s\n" (Printexc.to_string e);
@@ -197,6 +197,30 @@ let insert_delete_permutations_1 ((log,set,get,delete) as q) =
     raise e
 
   Printexc.record_backtrace b
+
+
+let insert_static_delete_permutations_1 ((log, set, get, delete) as q) =
+  let kvs = take 5 in (* TODO *)
+  let kvs' = Array.of_list kvs in
+  Array.fast_sort (fun (k1, _) (k2, _) -> compare k1 k2) kvs';
+
+  let l = Array.length kvs' in
+
+  let do_test a =
+    List.iter (fun (k, v) -> set log k v) kvs;
+    check q kvs;
+    Array.iter (fun (k, v) -> delete log k) a;
+    check_empty q
+  in
+
+  let rec loop = function
+    | 0 -> ()
+    | n ->
+        do_test kvs';
+        if n > 1 then next_permutation kvs' else ();
+        loop (pred n)
+  in
+  loop (fac l)
 
 
 let t_neigbours () = 
@@ -259,7 +283,10 @@ let suite =
     "insert_delete_6" >:: mem_wrap insert_delete_6;
     "insert_delete_7" >:: mem_wrap insert_delete_7;
     "insert_delete_8" >:: mem_wrap insert_delete_8;
-    "insert_delete_permutations_1" >:: mem_wrap insert_delete_permutations_1;
+    "insert_delete_permutations_1" >::
+      mem_wrap (debug_info_wrap insert_delete_permutations_1);
+    "insert_static_delete_permutations_1" >::
+      mem_wrap (debug_info_wrap insert_static_delete_permutations_1);
   ]
 
 
