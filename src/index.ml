@@ -43,7 +43,7 @@ let index_find_set index k =
   let rec loop z = 
     match z with
     | Top (_,[]) -> z
-    | Top (_ , (k0, _) :: _) when k < k0      -> z
+    | Top (_ , (k0, _) :: _) when k <= k0     -> z
     | Top ((p0, h :: t))                      -> let pre = p0, [h] in
 						 let z' = Loc (pre, t) in
 						 loop z'
