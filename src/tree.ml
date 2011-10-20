@@ -234,7 +234,7 @@ module DB = functor (L:LOG ) -> struct
     in
     let trail = descend (L.root t) [] in
     let slab = L.make_slab t in
-    let start = L.next t in 
+    let start = L.next t in
     let () = delete_start slab start trail in
     L.write t slab
 end 

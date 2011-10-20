@@ -45,14 +45,17 @@ let next t = t.next
 let size e = 1
 let read t pos = if pos < 0 then NIL else t.es.(pos)
 
-let dump (t:t) = Array.iteri 
-  (fun i a -> 
-    let s = 
-      match a with
-	| NIL     -> "NIL"
-	| Value v -> Printf.sprintf "Value %S" v
-	| Leaf l  -> Printf.sprintf "Leaf %s  " (Leaf.leaf2s l)
-	| Index i -> Printf.sprintf "Index %s)" (Index.index2s i)
-    in
-    Printf.printf "%2i: %s\n" i s) 
-  t.es
+let dump ?out:(o=stdout) (t:t) =
+  Printf.fprintf o "Next = %d\n" t.next;
+
+  Array.iteri
+    (fun i a ->
+      let s =
+        match a with
+          | NIL     -> "NIL"
+          | Value v -> Printf.sprintf "Value %S" v
+          | Leaf l  -> Printf.sprintf "Leaf %s  " (Leaf.leaf2s l)
+          | Index i -> Printf.sprintf "Index %s)" (Index.index2s i)
+      in
+      Printf.fprintf o "%2i: %s\n" i s)
+    t.es
