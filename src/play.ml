@@ -25,6 +25,24 @@ open Mlog
 module MDB = DB(Mlog);;
 
 module MDot = Dot(Mlog);; 
+(*
+120: Value "A"
+121: Leaf ["a", 120]  
+122: Value "D"
+123: Leaf ["a", 120; "d", 122]  
+124: Value "G"
+125: Leaf ["a", 120; "d", 122; "g", 124]  
+126: Value "J"
+127: Leaf ["a", 120; "d", 122]  
+128: Leaf ["g", 124; "j", 126]  
+129: Index 127, ["d", 128])
+130: Value "M"
+131: Leaf ["g", 124; "j", 126; "m", 130]  
+132: Index 127, ["d", 131])
+133: Leaf ["d", 122; "g", 124]  
+134: Leaf ["j", 126; "m", 130]  
+135: Index 133, ["d", 134])
+*)
 
 let t0 = Mlog.make 30;;
 let kvs =  [
@@ -62,8 +80,8 @@ let () = List.iter
 
 let check () = List.iter (fun (k,v) -> assert (MDB.get t0 k =v)) kvs;;
 let () = check ();;
-MDB.delete t0 "a";;
-MDot.view_tree t0;;
+(* MDB.delete t0 "a";;
+MDot.view_tree t0;; *)
 (*
 
 let _  = MDot.view_tree t0;; 

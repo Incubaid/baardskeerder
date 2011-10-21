@@ -188,10 +188,10 @@ module DB = functor (L:LOG ) -> struct
 		  else (* borrow from right *)
 		    begin
 		      let left = leafz_delete leafz in
-		      let left', right' = leaf_borrow_right left right in
+		      let left', sep', right' = leaf_borrow_right left right in
 		      let lpos = add_leaf slab left' in
 		      let rpos = add_leaf slab right' in
-		      leaf_borrowed_right slab lpos rpos z rest
+		      leaf_borrowed_right slab lpos sep' rpos z rest
 		    end
 		end
 	      | NL pos ->
@@ -212,8 +212,8 @@ module DB = functor (L:LOG ) -> struct
 	      | N2 (p0,p1) -> failwith "n2"
 	  end
 	| _ -> failwith "corrupt"
-    and leaf_borrowed_right slab lpos rpos z rest = 
-      let z' = indexz_borrowed_right lpos rpos z in
+    and leaf_borrowed_right slab lpos sep rpos z rest = 
+      let z' = indexz_borrowed_right lpos sep rpos z in
       let ipos = L.add slab (Index (indexz_close z')) in
       delete_rest slab ipos rest
 

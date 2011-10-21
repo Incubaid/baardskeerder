@@ -40,9 +40,9 @@ let leaf_merge left right = left @ right
 
 let leaf_borrow_right left right = match right with
   | [] -> failwith "leaf_borrow_right"
-  | h::t -> let rev = List.rev left in 
+  | (k,_) as h ::t -> let rev = List.rev left in 
 	    let left' = List.rev (h :: rev) in
-	    left', t
+	    left',k, t
 
 
 let leafz_delete = function
