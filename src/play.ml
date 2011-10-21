@@ -25,24 +25,6 @@ open Mlog
 module MDB = DB(Mlog);;
 
 module MDot = Dot(Mlog);; 
-(*
-120: Value "A"
-121: Leaf ["a", 120]  
-122: Value "D"
-123: Leaf ["a", 120; "d", 122]  
-124: Value "G"
-125: Leaf ["a", 120; "d", 122; "g", 124]  
-126: Value "J"
-127: Leaf ["a", 120; "d", 122]  
-128: Leaf ["g", 124; "j", 126]  
-129: Index 127, ["d", 128])
-130: Value "M"
-131: Leaf ["g", 124; "j", 126; "m", 130]  
-132: Index 127, ["d", 131])
-133: Leaf ["d", 122; "g", 124]  
-134: Leaf ["j", 126; "m", 130]  
-135: Index 133, ["d", 134])
-*)
 
 let t0 = Mlog.make 30;;
 let kvs =  [
@@ -51,37 +33,36 @@ let kvs =  [
   "g", "G"; 
   "j", "J";
   "m", "M";
-(*  "q", "Q";
+  "q", "Q";
   "t", "T";
-  "w", "W"; *)
-(*  "z", "Z"; 
-  "z1","Z1";
-  "z2","Z2";
-  "z3","Z3";
-  "z4","z4";
-  "z5","z5";
-  "z6","Z6";
-  "z7","Z7";
-  "z8","Z8";
-  "z9","Z9";
-  "z10","Z10"; *)
+  "w", "W"; 
+  
 (*  
-
-
+    "z", "Z"; 
+    "z1","Z1";
+    "z2","Z2";
+    "z3","Z3";
+    "z4","z4";
+    "z5","z5";
+    "z6","Z6";
+    "z7","Z7";
+    "z8","Z8";
+    "z9","Z9";
+    "z10","Z10"; 
 *)
-  ];;
+
+];;
 
 let () = List.iter 
   (fun (k,v) -> 
     let () = MDB.set t0 k v in
-    let _ = MDot.view_tree t0 in 
     ()
   ) kvs;;
-
 let check () = List.iter (fun (k,v) -> assert (MDB.get t0 k =v)) kvs;;
 let () = check ();;
-(* MDB.delete t0 "a";;
-MDot.view_tree t0;; *)
+MDot.view_tree t0;;
+MDB.delete t0 "w";;
+MDot.view_tree t0;; 
 (*
 
 let _  = MDot.view_tree t0;; 

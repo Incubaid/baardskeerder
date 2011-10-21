@@ -152,6 +152,7 @@ module DB = functor (L:LOG ) -> struct
 	else 
 	  let leaf' = leafz_delete z in
 	  let lpos = add_leaf slab leaf' in
+	  assert (lpos = start);
 	  delete_rest slab start rest
     and delete_rest slab start trail = match trail with
       | [] -> ()
@@ -235,21 +236,31 @@ module DB = functor (L:LOG ) -> struct
       in
       match index, rest with
 	| (_,[]) , []  -> ()
-	| index , [] -> let _ = L.add slab (Index index) in ()
+	| index , [] -> let _ = add_index slab index in ()
 	| index , Index_down z :: rest when index_below_min index -> 
 	  begin
 	    let nb = indexz_neighbours z in
-	    let s = Printf.sprintf "TODO merge with sibling: index:%s z:%s" (index2s index) (iz2s z) in
-	    let x = match nb with
+	    match nb with
 	      | NL pos ->  
-		let left = read_index pos in
-		Printf.printf "NL %i: left = %s\n" pos (index2s left)
-
-	      | NR pos ->  Printf.printf "NR %i" pos
-
-	      | N2 (l,r) -> Printf.printf "N2 (%i,%i)" l r
-	    in
-	    failwith s
+		begin
+		  let left = read_index pos in
+		  if index_mergeable left then
+		    begin
+		      let sep = indexz_separator L z in
+		      let index' = index_merge_left left sep index in
+		      let ipos' = add_index slab index' in
+		      let z' = indexz_suppress L ipos' z in
+		      match z' with
+			| _,[] -> assert (rest = []) ; ()
+			| z' -> delete_rest slab ipos' rest
+		    end
+		  else
+		    failwith "todo: underflow & cannot merge with left neigbour"
+		end
+		  
+	      | NR pos ->  Printf.printf "NR %i" pos; failwith "NR todo"
+		
+	      | N2 (l,r) -> Printf.printf "N2 (%i,%i)" l r; failwith "N2 todo"
 	  end
 	| _ -> let ipos = L.add slab (Index index) in
 	       delete_rest slab ipos rest

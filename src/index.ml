@@ -56,6 +56,11 @@ let index_find_set index k =
   in loop (Top index)
 
 
+let index_merge_left (pl,kps_left) sep (p2, kps_right) = pl, (kps_left @ ((sep,p2) :: kps_right))
+  
+let index_below_min (p0,t) = List.length t < d
+let index_mergeable (_,t) = List.length t <= d
+
 let make_indexz (p0, kps) = Top ((p0, kps))
 
 let indexz_pos = function
@@ -73,7 +78,7 @@ let indexz_replace pos z =
     in
     loop ((k,pos)::t) c
 
-let index_below_min (p0,t) = List.length t < d
+
 
 let indexz_max z = 
   let z_size = match z with
@@ -98,8 +103,22 @@ let indexz_left = function
   | Loc ((p0, h :: c), t) -> Loc ((p0, c), h::t)
 
 
+
 type merger = L | R
 
+let indexz_separator d z = 
+  match d with
+    | L -> 
+      begin
+	match z with 
+	  | Loc ((_,(kc,_)::c),_) -> kc
+      end
+    | R ->
+      begin
+	match z with
+	  | Loc ( (_,_), (kt,_)::_) -> kt
+      end
+      
 let indexz_suppress d pn z = 
   match d with 
     | R ->
