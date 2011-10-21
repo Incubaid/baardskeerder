@@ -35,7 +35,7 @@ type path = dir list
 
 let string_of_entry = function
   | NIL -> "NIL"
-  | Value v -> Printf.sprintf "Value %s" v
+  | Value v -> Printf.sprintf "Value \"%s\"" v
   | Leaf l -> Printf.sprintf "Leaf %s" (string_of_leaf l)
   | Index i -> Printf.sprintf "Index %s" (string_of_index i)
 
