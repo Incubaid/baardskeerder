@@ -52,9 +52,11 @@ let seq2s s =
       
 let process result = 
   let p2s p = string_of_path p in
+  let cn p  = string_of_node (List.hd (List.rev p)) in
+  let tn p = string_of_path (List.rev (List.tl(List.tl (List.rev p)))) in
   let testcase p st b =
-    tag "testcase" ["classname", (p2s p); 
-		    "name", (p2s p);
+    tag "testcase" ["classname", cn p; 
+		    "name", tn p;
 		    "time", "0";
 		    "status", st;
 		   ] b 
