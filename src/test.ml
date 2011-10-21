@@ -290,5 +290,16 @@ let suite =
   ]
 
 
-let _ = 
-  run_test_tt_main suite;;
+let () = 
+  let xml = ref false in
+  let arg_specs = [("--hudson", Arg.Set xml, "       output something hudson can understand"); 
+		  ]
+  in
+  let result = run_test_tt_main ~arg_specs suite in
+  if !xml then
+    Hudson_xml.process result
+  else
+    ()
+ 
+
+
