@@ -60,5 +60,4 @@ let dump ?out:(o=stdout) (t:t) =
       Printf.fprintf o "%2i: %s\n" i s)
     t.es
 
-let string_of_slab s =
-  Pretty.string_of_list string_of_entry s._es
+let string_of_slab s = Pretty.string_of_list entry2s s._es

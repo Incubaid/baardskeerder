@@ -20,6 +20,4 @@
 let string_of_list f l = Printf.sprintf "[%s]"
   (String.concat "; " (List.map f l))
 
-let string_of_pair f1 f2 (a, b) = Printf.sprintf "(%s, %s)" (f1 a) (f2 b)
-
 let id x = x

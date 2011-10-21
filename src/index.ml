@@ -192,14 +192,4 @@ let indexz_split lpos sep rpos z =
   in
   r
 
-let string_of_kp_list =
-  Pretty.string_of_list (Pretty.string_of_pair Pretty.id string_of_int)
 
-let string_of_index = Pretty.string_of_pair string_of_int string_of_kp_list
-
-let string_of_index_z = function
-  | Top i -> Printf.sprintf "Top %s"
-      (Pretty.string_of_pair string_of_int string_of_kp_list i)
-  | Loc ((p, kp1), kp2) ->
-      Printf.sprintf "Loc ((%d, %s), %s)"
-        p (string_of_kp_list kp1) (string_of_kp_list kp2)

@@ -103,8 +103,3 @@ let leaf_find_set leaf k =
   loop ([],leaf)
 
 let leafz_insert k p (c,t) = (List.rev c) @ (k,p) :: t
-
-let string_of_leaf =
-    Pretty.string_of_list (Pretty.string_of_pair Pretty.id string_of_int)
-
-let string_of_leaf_z = Pretty.string_of_pair string_of_leaf string_of_leaf

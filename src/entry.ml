@@ -33,13 +33,12 @@ type dir =
 
 type path = dir list
 
-let string_of_entry = function
+let entry2s = function
   | NIL -> "NIL"
   | Value v -> Printf.sprintf "Value %s" v
-  | Leaf l -> Printf.sprintf "Leaf %s" (string_of_leaf l)
-  | Index i -> Printf.sprintf "Index %s" (string_of_index i)
+  | Leaf l -> Printf.sprintf "Leaf %s" (leaf2s l)
+  | Index i -> Printf.sprintf "Index %s" (index2s i)
 
 let string_of_dir = function
-  | Leaf_down l -> Printf.sprintf "Leaf_down %s" (string_of_leaf_z l)
-  | Index_down i ->
-      Printf.sprintf "Index_down (%s)" (string_of_index_z i)
+  | Leaf_down l  -> Printf.sprintf "Leaf_down %s" (lz2s l)
+  | Index_down i -> Printf.sprintf "Index_down (%s)" (iz2s i)
