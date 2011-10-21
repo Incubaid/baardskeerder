@@ -122,6 +122,7 @@ module DB = functor (L:LOG ) -> struct
 
 
   let delete (t:L.t) k = 
+    let add_leaf  s l = L.add s (Leaf l) in
     let rec descend pos trail = 
       let e = L.read t pos in
       match e with
@@ -150,7 +151,7 @@ module DB = functor (L:LOG ) -> struct
 	else 
 	  let leaf' = leafz_delete z in
 	  let () = Printf.printf "leaf'=%s\n%!" (leaf2s leaf') in
-	  let lpos = L.add slab (Leaf leaf') in
+	  let lpos = add_leaf slab leaf' in
 	  delete_rest slab start rest
     and delete_rest slab start trail = match trail with
       | [] -> ()
@@ -161,7 +162,7 @@ module DB = functor (L:LOG ) -> struct
 
     and leaf_underflow slab start leafz rest = 
       match rest with 
-	| [] -> let _ = L.add slab (Leaf (leafz_delete leafz)) in ()
+	| [] -> let _ = add_leaf slab (leafz_delete leafz) in ()
 	| Index_down z :: rest -> 
 	  begin
 	    let read_leaf pos = 
@@ -179,12 +180,19 @@ module DB = functor (L:LOG ) -> struct
 		  then 
 		    begin
 		      let left = leafz_delete leafz in
-		      let h  =  Leaf (leaf_merge left right) in
-		      let hpos = L.add slab h in
+		      let h  =  leaf_merge left right in
+		      let hpos = add_leaf slab h in
 		      let z' = indexz_suppress R hpos z in
 		      leaves_merged slab hpos z' rest
 		    end
-		  else failwith "??"
+		  else (* borrow from right *)
+		    begin
+		      let left = leafz_delete leafz in
+		      let left', right' = leaf_borrow_right left right in
+		      let lpos = add_leaf slab left' in
+		      let rpos = add_leaf slab right' in
+		      leaf_borrowed_right slab lpos rpos z rest
+		    end
 		end
 	      | NL pos ->
 		begin
@@ -204,6 +212,12 @@ module DB = functor (L:LOG ) -> struct
 	      | N2 (p0,p1) -> failwith "n2"
 	  end
 	| _ -> failwith "corrupt"
+    and leaf_borrowed_right slab lpos rpos z rest = 
+      let z' = indexz_borrowed_right lpos rpos z in
+      let ipos = L.add slab (Index (indexz_close z')) in
+      delete_rest slab ipos rest
+
+
     and leaves_merged slab start index rest = 
       let read_index pos = 
 	let e = L.read t pos in

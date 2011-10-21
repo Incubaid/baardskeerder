@@ -82,7 +82,8 @@ let indexz_max z =
   in
   z_size = 2  (* in function of d *)
   
-
+let indexz_borrowed_right lpos rpos = function
+  | Top (p0, (k0,p1)::t) -> Top (lpos,(k0,rpos) ::t)
 
 let indexz_right = function
   | Top (p0  ,h :: t)          -> Loc ((p0,[h]),t)

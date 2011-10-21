@@ -1,4 +1,5 @@
 # directory "_build";;
+# load "pretty.cmo";;
 # load "base.cmo";;
 # load "leaf.cmo";;
 # load "index.cmo";;

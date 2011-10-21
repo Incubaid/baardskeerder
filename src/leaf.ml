@@ -38,6 +38,13 @@ let leaf_find_delete leaf k =
 let leaf_min t = List.length t = d
 let leaf_merge left right = left @ right
 
+let leaf_borrow_right left right = match right with
+  | [] -> failwith "leaf_borrow_right"
+  | h::t -> let rev = List.rev left in 
+	    let left' = List.rev (h :: rev) in
+	    left', t
+
+
 let leafz_delete = function
   | c,h::t -> (List.rev c) @ t
   | _ -> failwith "leafz_delete"
