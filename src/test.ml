@@ -28,7 +28,7 @@ module MDB = DB(Mlog)
 
 type 'a q = 'a * ('a -> k -> v -> unit) * ('a -> k -> v) * ('a -> k -> unit)
 
-let mem_setup () =  (Mlog.make 512, MDB.set, MDB.get, MDB.delete)
+let mem_setup () =  (Mlog.make 4096, MDB.set, MDB.get, MDB.delete)
 
 let mem_teardown q = ()
 

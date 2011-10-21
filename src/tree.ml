@@ -123,6 +123,7 @@ module DB = functor (L:LOG ) -> struct
 
   let delete (t:L.t) k = 
     let add_leaf  s l = L.add s (Leaf l) in
+    let add_index s i = L.add s (Index i) in
     let rec descend pos trail = 
       let e = L.read t pos in
       match e with
@@ -144,20 +145,19 @@ module DB = functor (L:LOG ) -> struct
     and delete_start slab start trail = 
       match trail with
       | [] -> failwith "corrupt" 
-      | [Leaf_down z ]-> let _ = L.add slab (Leaf (leafz_delete z)) in ()
+      | [Leaf_down z ]-> let _ = add_leaf slab (leafz_delete z) in ()
       | Leaf_down z :: rest ->
 	if leafz_min z 
 	then leaf_underflow slab start z rest
 	else 
 	  let leaf' = leafz_delete z in
-	  let () = Printf.printf "leaf'=%s\n%!" (leaf2s leaf') in
 	  let lpos = add_leaf slab leaf' in
 	  delete_rest slab start rest
     and delete_rest slab start trail = match trail with
       | [] -> ()
       | Index_down z :: rest -> 	
 	let index = indexz_replace start z in
-	let ipos = L.add slab (Index index) in
+	let ipos = add_index slab index in
 	delete_rest slab ipos rest
 
     and leaf_underflow slab start leafz rest = 
@@ -201,23 +201,31 @@ module DB = functor (L:LOG ) -> struct
 		  then
 		    begin
 		      let right = leafz_delete leafz in
-		      let h = Leaf (leaf_merge left right) in
-		      let hpos = L.add slab h in
+		      let h = leaf_merge left right  in
+		      let hpos = add_leaf slab h in
 		      let index' = indexz_suppress L hpos z in
 		      leaves_merged slab hpos index' rest
 		    end
-		  else
-		    failwith "??"
+		  else (* borrow from left *)
+		    begin
+		      let right = leafz_delete leafz in
+		      let left', sep',right' = leaf_borrow_left left right in
+		      let lpos = add_leaf slab left' in
+		      let rpos = add_leaf slab right' in
+		      leaf_borrowed_left slab lpos sep' rpos z rest
+		    end
 		end
 	      | N2 (p0,p1) -> failwith "n2"
 	  end
 	| _ -> failwith "corrupt"
     and leaf_borrowed_right slab lpos sep rpos z rest = 
       let z' = indexz_borrowed_right lpos sep rpos z in
-      let ipos = L.add slab (Index (indexz_close z')) in
+      let ipos = add_index slab (indexz_close z')    in
       delete_rest slab ipos rest
-
-
+    and leaf_borrowed_left slab lpos sep rpos z rest = 
+      let z' = indexz_borrowed_left lpos sep rpos z in
+      let ipos = add_index slab (indexz_close z') in
+      delete_rest slab ipos rest
     and leaves_merged slab start index rest = 
       let read_index pos = 
 	let e = L.read t pos in

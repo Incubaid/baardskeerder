@@ -85,6 +85,10 @@ let indexz_max z =
 let indexz_borrowed_right lpos sep rpos = function
   | Top (p0, (k0,p1)::t) -> Top (lpos,(sep,rpos) ::t)
 
+let indexz_borrowed_left lpos sep rpos = function
+  | Loc((p0, [k0,p1]),[]) -> Loc ((lpos, [sep,rpos]),[])
+  | z -> let () = Printf.printf "z=%s\n%!" (iz2s z) in failwith "indexz_borrowed_right"
+
 let indexz_right = function
   | Top (p0  ,h :: t)          -> Loc ((p0,[h]),t)
   | Loc ((p0, c), h :: t)      -> Loc ((p0, h :: c), t)
