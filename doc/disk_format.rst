@@ -115,7 +115,7 @@ containing the CRC32 checksum of all the previous bytes (including the size
 field!).
 
 Diagram
-~~~~~~~
++++++++
 ::
 
     +----------------------------------------------------+
@@ -125,7 +125,7 @@ Diagram
     +----------------------------------------------------+
 
 Node Entries
---------------
+~~~~~~~~~~~~
 Node entries contain internal nodes of the tree. Similar to leaf entries
 and commit entries, they start with a 32 (or 24?) bit LSB unsigned integer
 denoting the length of the entry, not including its own size, but including
@@ -152,7 +152,7 @@ TODO Encode value length in (key, offset, length) tuples, so splice(2) can be
 used efficiently?
 
 Diagram
-~~~~~~~
++++++++
 ::
 
     +------------------------------------------------------------------------------------------------------------------------------------+
@@ -162,7 +162,7 @@ Diagram
     +------------------------------------------------------------------------------------------------------------------------------------+
 
 Commit Entries
---------------
+~~~~~~~~~~~~~~
 Whenever a slab has been written to all spindles, a commit entry should be
 created. The commit entry starts with a 32 bit LSB unsigned integer containing
 the length of the entry, similar to other entry formats. Then follows a single
@@ -189,7 +189,7 @@ Finally, 4-byte CRC32 checksum of all this data (including the length
 specifier) is appended.
 
 Diagram
-~~~~~~~
++++++++
 ::
 
     +-----------------------------------------------------------------------------+
