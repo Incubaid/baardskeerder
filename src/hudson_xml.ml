@@ -30,6 +30,20 @@ let tab = Lit "  "
 let lit s = Lit s
 let (<<) s0 s1 = App (s0,s1)
 
+
+let xml_escape s = 
+  let b = Buffer.create (String.length s) in
+  let add_s s = Buffer.add_string b s in
+  String.iter 
+    (function
+      | '"'  -> add_s "&quot;"
+      | '\'' -> add_s "&apos;"
+      | '<'  -> add_s "&lt;"
+      | '>'  -> add_s "&gt;"
+      | c -> Buffer.add_char b c) s;
+  Buffer.contents b
+
+
 let tag t attrs body = Tag (t,attrs,body)
 let seq2s s = 
   let b0 = Buffer.create 1024 in
@@ -41,7 +55,9 @@ let seq2s s =
     | Eol -> add "\n"
   and add_tag t attr body =
     add (Printf.sprintf "<%s " t);
-    List.iter (fun (k,v) -> add (Printf.sprintf "%s=%S " k v)) attr;
+    List.iter (fun (k,v) -> 
+      let esc = xml_escape v in
+      add (Printf.sprintf "%s=%S " k esc)) attr;
     add (Printf.sprintf ">");
     walk body;
     add (Printf.sprintf "</%s>" t)
@@ -77,3 +93,8 @@ let process result =
   Pervasives.output_string chout(seq2s s);
   close_out chout
 
+
+let run_test suite = 
+  let cb test_event _ = () in
+  let result = OUnit.perform_test cb suite in
+  process result

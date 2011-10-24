@@ -19,10 +19,11 @@
 
 open Entry
 
-type t = { es : entry array; mutable next:int}
+type t = { mutable es : entry array; 
+	   mutable next:int}
 type slab = {mutable _es: entry list; mutable pos : int}
 
-let make cap = {es = Array.make cap NIL; next = 0}
+let make ?(cap=32) () = {es = Array.make cap NIL; next = 0}
 
 let make_slab t = {_es=[]; pos = t.next}
 
@@ -38,6 +39,16 @@ let write t slab =
     t.es.(t.next) <- e;
     t.next <- t.next + 1
   in
+  let current = Array.length t.es in
+  let needed = t.next + List.length slab._es in
+  if needed > current
+  then
+    begin
+      let new_size = max (current * 2) needed in
+      let bigger = Array.make new_size NIL in
+      Array.blit t.es 0 bigger 0 current;
+      t.es <- bigger
+    end;
   List.iter do_one (List.rev slab._es)
     
 let root t = t.next -1

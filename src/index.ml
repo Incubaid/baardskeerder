@@ -49,15 +49,15 @@ let index_find_set index k =
 						 loop z'
 
     | Loc (_, [])                             -> z
-    | Loc (_ , (ki,pi) :: _) when k < ki      -> z
+    | Loc (_ , (ki,pi) :: _) when k <= ki     -> z
     | Loc ( (p0,c) , ((ki,pi) as h :: t))     -> let pre  = p0, (h :: c) in
 						 let z' = Loc (pre, t) in
 						 loop z'
   in loop (Top index)
 
 
-let index_merge_left (pl,kps_left) sep (p2, kps_right) = pl, (kps_left @ ((sep,p2) :: kps_right))
-  
+let index_merge (pl,kps_left) sep  (p2, kps_right) = pl, (kps_left @ ((sep,p2) :: kps_right))
+
 let index_below_min (p0,t) = List.length t < d
 let index_mergeable (_,t) = List.length t <= d
 
@@ -91,8 +91,8 @@ let indexz_borrowed_right lpos sep rpos = function
   | Top (p0, (k0,p1)::t) -> Top (lpos,(sep,rpos) ::t)
 
 let indexz_borrowed_left lpos sep rpos = function
-  | Loc((p0, [k0,p1]),[]) -> Loc ((lpos, [sep,rpos]),[])
-  | z -> let () = Printf.printf "z=%s\n%!" (iz2s z) in failwith "indexz_borrowed_right"
+  | Loc((p0, [k0,p1]),t) -> Loc ((lpos, [sep,rpos]),t)
+  | z -> let s= Printf.sprintf "indexz_borrowed_left %i %s %i z=%s\n%!" lpos sep rpos (iz2s z) in failwith s
 
 let indexz_right = function
   | Top (p0  ,h :: t)          -> Loc ((p0,[h]),t)
@@ -117,6 +117,8 @@ let indexz_separator d z =
       begin
 	match z with
 	  | Loc ( (_,_), (kt,_)::_) -> kt
+	  | Top (p0, (k0,p1):: t)   -> k0
+	  | _ -> let s = Printf.sprintf "indexz_separator R (%s)\n" (iz2s z) in failwith s
       end
       
 let indexz_suppress d pn z = 
@@ -129,9 +131,10 @@ let indexz_suppress d pn z =
       end
     | L ->
       match z with
-	| Loc ((p0,[k0, p1]),[]) -> pn,[]
+	| Loc ((p0,[k0, p1]),[])             -> pn,[]
 	| Loc ((p0, (kl,pl)::(kr,pr)::c),[]) -> p0, (List.rev ((kr,pn):: c))
-	| _ -> let s = Printf.sprintf "L: z=%s\n" (iz2s z) in failwith s
+	| Loc ((p0,[_]), r)                  -> pn, r
+	| _ -> let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s
 
 
 type neigbours = 
@@ -143,8 +146,8 @@ type neigbours =
 
 let indexz_neighbours = function
   | Top (p0, (k,p1)::t)        -> NR p1
-  | Loc ((p0, [kc,pc]),[])  -> NL p0
-  | Loc ((p0, (kc,pc) ::c), (kt,pt) :: t) -> N2 (pc,pt)
+  | Loc ((p0, [_]), [])  -> NL p0
+  | Loc ((p0, [_]), [_,pr])  -> N2 (p0,pr)
   | Loc ((p0, (kr,pr) :: (kl,pl) ::c), [] ) -> NL pl
   | z -> Printf.printf "z=%s\n" (iz2s z); failwith "??"
 

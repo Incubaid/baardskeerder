@@ -36,6 +36,7 @@ let leaf_find_delete leaf k =
   loop ([],leaf)
 
 let leaf_min t = List.length t = d
+let leaf_mergeable t = List.length t <= d
 let leaf_merge left right = left @ right
 
 let leaf_borrow_right left right = match right with
