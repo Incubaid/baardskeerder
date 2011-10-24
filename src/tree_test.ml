@@ -28,7 +28,7 @@ module MDB = DB(Mlog)
 
 type 'a q = 'a * ('a -> k -> v -> unit) * ('a -> k -> v) * ('a -> k -> unit)
 
-let mem_setup () =  (Mlog.make 4096, MDB.set, MDB.get, MDB.delete)
+let mem_setup () =  (Mlog.make (), MDB.set, MDB.get, MDB.delete)
 
 let mem_teardown q = ()
 
@@ -237,27 +237,23 @@ let insert_delete_permutations_1 ((log,set,get,delete) as q) =
   loop (fac l)
 
 let debug_info_wrap f = fun ((log, _, _, _) as q) ->
-  let b = Printexc.backtrace_status () in
-  Printexc.record_backtrace true;
+  try 
+    f q 
+  with 
+      e ->
+	begin
+	  Printf.fprintf stderr "Exception: %s\n" (Printexc.to_string e);
+	  Printf.fprintf stderr "%s\n" (Printexc.get_backtrace ());
+	  Printf.fprintf stderr "Tree:\n%!";
+	  Mlog.dump ~out:stderr log;
+	  flush stderr;
+	  raise e
+	end
 
-  try
-    f q
-  with e ->
-    (try
-      Printf.fprintf stderr "Exception: %s\n" (Printexc.to_string e);
-      Printf.fprintf stderr "%s\n" (Printexc.get_backtrace ());
-      Printf.fprintf stderr "Tree:\n";
-      Mlog.dump ~out:stderr log
-    with _ ->
-      Printexc.record_backtrace b);
 
-    flush stderr;
-    raise e
 
-  Printexc.record_backtrace b
-
-let insert_static_delete_permutations_1 ((log, set, get, delete) as q) =
-  let kvs = take 5 in (* TODO *)
+let insert_static_delete_permutations_generic  n ((log, set, get, delete) as q) =
+  let kvs = take n in 
   let kvs' = Array.of_list kvs in
   Array.fast_sort (fun (k1, _) (k2, _) -> compare k1 k2) kvs';
 
@@ -279,6 +275,9 @@ let insert_static_delete_permutations_1 ((log, set, get, delete) as q) =
   in
   loop (fac l)
 
+let all_n n q = insert_static_delete_permutations_generic n q 
+
+
 let tests = [
     "index_neighbours" >:: t_neigbours;
     "index_suppress" >:: t_suppress;
@@ -298,6 +297,6 @@ let tests = [
     "insert_delete_8" >:: mem_wrap insert_delete_8;
     "insert_delete_permutations_1" >::
       mem_wrap (debug_info_wrap insert_delete_permutations_1);
-    "insert_static_delete_permutations_1" >::
-      mem_wrap (debug_info_wrap insert_static_delete_permutations_1);
+    "insert_static_delete_permutations_1" >:: mem_wrap (debug_info_wrap (all_n 5));
+    "insert_static_delete_permutations_2" >:: mem_wrap (debug_info_wrap (all_n 6)); 
 ]
