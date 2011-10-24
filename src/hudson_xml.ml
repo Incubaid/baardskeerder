@@ -77,3 +77,8 @@ let process result =
   Pervasives.output_string chout(seq2s s);
   close_out chout
 
+
+let run_test suite = 
+  let cb test_event _ = () in
+  let result = OUnit.perform_test cb suite in
+  process result

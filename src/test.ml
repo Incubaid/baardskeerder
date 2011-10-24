@@ -122,7 +122,6 @@ let underflow_n2 ((log,_,_, delete) as q) =
   set_all q kvs;
   delete log "g"
   
-  
 let fac =
   let rec helper acc = function
     | 0 -> acc
@@ -321,15 +320,10 @@ let suite =
 
 
 let () = 
-  let xml = ref false in
-  let arg_specs = [("--hudson", Arg.Set xml, "       output something hudson can understand"); 
-		  ]
-  in
-  let result = run_test_tt_main ~arg_specs suite in
-  if !xml then
-    Hudson_xml.process result
-  else
-    ()
+  if Array.length Sys.argv = 2 && Sys.argv.(1) = "--hudson"
+  then Hudson_xml.run_test suite
+  else let _ = run_test_tt_main suite in ()
+
  
 
 
