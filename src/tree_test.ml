@@ -60,54 +60,6 @@ let insert_delete_1 ((log,set,get,delete) as q) =
   check_not q ["a","A"]
 
 
-let t_neigbours () = 
-  let z = Loc ((7, [("j", 15); ("d", 14)]), []) in
-  let nb = Index.indexz_neighbours z in
-  OUnit.assert_equal (NL 14) nb
-
-let t_suppress () = 
-  let z = Loc ((7, [("j", 15); ("d", 14)]), []) in
-  let nb = Index.indexz_neighbours z in
-  match nb with 
-    | NL 14 ->
-      let index = Index.indexz_suppress L 17 z in
-      Printf.printf "index = %s\n" (index2s index)
-    | _ -> failwith "should be NL 14"
-
-let t_suppress2 () = 
-  let z = Loc ((7,["d", 8]),[]) in
-  let nb = Index.indexz_neighbours z in
-  match nb with 
-    | NL 7 ->
-      let index = Index.indexz_suppress L 17 z in
-      Printf.printf "index = %s\n" (index2s index)
-    | _ -> failwith "should be NL 7"
-
-let t_balance() =
-  let z = Loc ((7,["q", 22; "j", 21; "d", 14]),[]) in
-  let z' = Index.indexz_balance z in
-  match z' with
-    | Loc ((_,l),r) -> let ls = List.length l in
-		       let rs = List.length r in
-		       OUnit.assert_equal (ls+1) rs
-    | _ -> failwith "should be Loc"
-
-let t_split () = 
-  let lpos = 21
-  and sep = "q"
-  and rpos = 22
-  and z = Loc ((7, [("j", 18); ("d", 14)]), [])
-  in
-  let left,sep', right = indexz_split lpos sep rpos z in
-  let () = Printf.printf "left = %s\n" (index2s left) in
-  let () = Printf.printf "right =%s\n" (index2s right) in
-  OUnit.assert_equal (7, ["d",14]) left
-
-
-let t_replace () = 
-  let z = Loc ((7, [("d", 14)]), [("m", 15)]) in
-  let index = Index.indexz_replace 18 z in
-  OUnit.assert_equal ~printer:index2s index (7,("d",18) :: ("m",15)::[])
 
       
 let set_all (log,set,_,_) kvs = List.iter (fun (k,v) -> 
@@ -297,13 +249,8 @@ let insert_static_delete_permutations_generic  n ((log, set, get, delete) as q) 
 let all_n n q = insert_static_delete_permutations_generic n q 
 
 
-let tests = [
-    "index_neighbours" >:: t_neigbours;
-    "index_suppress" >:: t_suppress;
-    "index_suppress2" >:: t_suppress2;
-    "index_balance"    >:: t_balance;
-    "index_split"     >:: t_split;
-    "index_replace"   >:: t_replace;
+let suite =
+  "Tree" >::: [
     "insert_delete_1" >:: mem_wrap insert_delete_1;
     "insert_delete_2" >:: mem_wrap insert_delete_2;
     "insert_delete_3" >:: mem_wrap insert_delete_3;

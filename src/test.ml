@@ -61,9 +61,10 @@ let serialize_deserialize_1 () =
 
 let suite = 
   "correctness" >::: 
-    (Tree_test.tests @ [
+    [ Index_test.suite;
+      Tree_test.suite;
       "serialize_deserialize_1" >:: serialize_deserialize_1;
-    ])
+    ]
 
 
 let () = 
