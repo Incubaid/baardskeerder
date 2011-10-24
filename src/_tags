@@ -1,4 +1,5 @@
 true: annot
 true: debug
 <test.{ml,byte,native}>: package(oUnit)
+<tree_test.{ml}>: package(oUnit)
 <hudson_xml.{*}>: package(oUnit)
