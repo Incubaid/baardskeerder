@@ -1,6 +1,6 @@
 true: annot
 true: debug
-<test.*>: package(oUnit)
+<test.*>: package(oUnit), use_posix
 <*_test.*>: package(oUnit)
 <flog_test.*>: use_posix
 <hudson_xml.{*}>: package(oUnit)
