@@ -174,6 +174,12 @@ let underflow_n2 ((log,_,_, delete) as q) =
   let kvs = ["a","A"; "d","D"; "g","G"; "j","J"; "m","M";"q","Q"] in
   set_all q kvs;
   delete log "g"
+
+let underflow_n2_2 ((log,_,_,delete) as q) = 
+  let kvs = ["a","A"; "d","D"; "g","G"; "j","J"; "m","M";"q","Q"] in
+  set_all q kvs;
+  delete log "j"
+
   
 let fac =
   let rec helper acc = function
@@ -291,6 +297,7 @@ let tests = [
     "split_1" >:: mem_wrap split_1;
     "split_2" >:: mem_wrap split_2;
     "underflow_n2" >:: mem_wrap underflow_n2;
+    "underflow_n2_2" >:: mem_wrap underflow_n2_2;
     "insert_delete_5" >:: mem_wrap insert_delete_5;
     "insert_delete_6" >:: mem_wrap insert_delete_6;
     "insert_delete_7" >:: mem_wrap insert_delete_7;

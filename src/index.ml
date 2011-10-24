@@ -49,7 +49,7 @@ let index_find_set index k =
 						 loop z'
 
     | Loc (_, [])                             -> z
-    | Loc (_ , (ki,pi) :: _) when k < ki      -> z
+    | Loc (_ , (ki,pi) :: _) when k <= ki     -> z
     | Loc ( (p0,c) , ((ki,pi) as h :: t))     -> let pre  = p0, (h :: c) in
 						 let z' = Loc (pre, t) in
 						 loop z'
