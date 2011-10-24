@@ -129,9 +129,10 @@ let indexz_suppress d pn z =
       end
     | L ->
       match z with
-	| Loc ((p0,[k0, p1]),[]) -> pn,[]
+	| Loc ((p0,[k0, p1]),[])             -> pn,[]
 	| Loc ((p0, (kl,pl)::(kr,pr)::c),[]) -> p0, (List.rev ((kr,pn):: c))
-	| _ -> let s = Printf.sprintf "L: z=%s\n" (iz2s z) in failwith s
+	| Loc ((p0,[_]), r)                  -> pn, r
+	| _ -> let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s
 
 
 type neigbours = 
@@ -143,8 +144,8 @@ type neigbours =
 
 let indexz_neighbours = function
   | Top (p0, (k,p1)::t)        -> NR p1
-  | Loc ((p0, [kc,pc]),[])  -> NL p0
-  | Loc ((p0, (kc,pc) ::c), (kt,pt) :: t) -> N2 (pc,pt)
+  | Loc ((p0, [_]), [])  -> NL p0
+  | Loc ((p0, [_]), [_,pr])  -> N2 (p0,pr)
   | Loc ((p0, (kr,pr) :: (kl,pl) ::c), [] ) -> NL pl
   | z -> Printf.printf "z=%s\n" (iz2s z); failwith "??"
 

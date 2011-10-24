@@ -216,7 +216,36 @@ module DB = functor (L:LOG ) -> struct
 		      leaf_borrowed_left slab lpos sep' rpos z rest
 		    end
 		end
-	      | N2 (p0,p1) -> failwith "n2"
+	      | N2 (p0,p1) -> 
+		begin
+		  let left = read_leaf p0 in
+		  let right = read_leaf p1 in
+		  match (leaf_mergeable left, leaf_mergeable right) with
+		    | true,_ ->
+		      begin
+			let right = leafz_delete leafz in
+			let h = leaf_merge left right in
+			let hpos = add_leaf slab h in
+			let index' = indexz_suppress L hpos z in
+			leaves_merged slab hpos index' rest
+		      end
+		    | _, true ->
+		      begin
+			let left = leafz_delete leafz in
+			let h = leaf_merge left right in
+			let hpos = add_leaf slab h in
+			let index' = indexz_suppress R hpos z in
+			leaves_merged slab hpos index' rest
+		      end
+		    | _,_ -> (* borrow from left *)
+		      begin
+			let right = leafz_delete leafz in
+			let left', sep', right' = leaf_borrow_left left right in
+			let lpos = add_leaf slab left' in
+			let rpos = add_leaf slab right' in
+			leaf_borrowed_left slab lpos sep' rpos z rest
+		      end		    
+		end
 	  end
 	| _ -> failwith "corrupt"
     and leaf_borrowed_right slab lpos sep rpos z rest = 
