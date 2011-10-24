@@ -1,4 +1,6 @@
 true: annot
 true: debug
 <test.{ml,byte,native}>: package(oUnit)
+<*_test.{ml,byte,native}>: package(oUnit)
+<flog*.*>: use_posix
 <hudson_xml.{*}>: package(oUnit)
