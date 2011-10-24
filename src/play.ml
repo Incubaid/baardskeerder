@@ -34,8 +34,8 @@ let kvs =  [
   "j", "J";
   "m", "M";
   "q", "Q";
-  "t", "T";
-  "w", "W"; 
+ (* "t", "T";
+  "w", "W"; *)
   
 (*  
     "z", "Z"; 
@@ -61,8 +61,10 @@ let () = List.iter
 let check () = List.iter (fun (k,v) -> assert (MDB.get t0 k =v)) kvs;;
 let () = check ();;
 MDot.view_tree t0;;
-MDB.delete t0 "w";;
-MDot.view_tree t0;; 
+MDB.delete t0 "g";;
+
+(*MDB.delete t0 "w";;
+MDot.view_tree t0;; *)
 (*
 
 let _  = MDot.view_tree t0;; 
