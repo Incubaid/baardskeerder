@@ -84,7 +84,8 @@ let indexz_borrowed_right lpos sep rpos = function
   | Top (p0, (k0,p1)::t) -> Top (lpos,(sep,rpos) ::t)
 
 let indexz_borrowed_left lpos sep rpos = function
-  | Loc((p0, [k0,p1]),t) -> Loc ((lpos, [sep,rpos]),t)
+  | Loc((p0, [k0,p1]),t)                -> Loc ((lpos, [sep,rpos]),t)
+  | Loc((p0, (kx,px):: (ky,py) :: c),t) -> Loc ((p0,(sep,rpos)::(ky,lpos)::c), t)
   | z -> let s= Printf.sprintf "indexz_borrowed_left %i %s %i z=%s\n%!" lpos sep rpos (iz2s z) in failwith s
 
 let indexz_right = function

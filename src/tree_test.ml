@@ -266,7 +266,7 @@ let suite =
     "insert_delete_8" >:: mem_wrap insert_delete_8;
     "insert_delete_permutations_1" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 5));
     "insert_delete_permutations_2" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 6));
-    (* "insert_delete_permutations_2" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 7)); *)
+    "insert_delete_permutations_2" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 7));
     "insert_static_delete_permutations_1" >:: mem_wrap (debug_info_wrap (all_n 5));
     "insert_static_delete_permutations_2" >:: mem_wrap (debug_info_wrap (all_n 6)); 
     "insert_static_delete_permutations_3" >:: mem_wrap (debug_info_wrap (all_n 7)); 
