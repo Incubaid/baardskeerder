@@ -69,15 +69,8 @@ let indexz_pos = function
 
 let indexz_replace pos z = 
   match z with
-  | Top (p0, kps)                         -> (pos,kps)
-  | Loc ((p0, (k,pi) :: t ), []         ) -> (p0, List.rev ((k,pos):: t))
-  | Loc ((p0,            c), (k,px) :: t) ->
-    let rec loop acc = function
-      | [] -> p0, acc
-      | h :: t -> loop ( h :: acc) t
-    in
-    loop ((k,pos)::t) c
-
+  | Top (p0, kps)                -> (pos,kps)
+  | Loc ((p0, (k,pi) :: c ), t ) -> (p0, (List.rev ((k,pos) :: c)) @ t)
 
 
 let indexz_max z = 
