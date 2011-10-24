@@ -307,7 +307,6 @@ let tests = [
     "insert_static_delete_permutations_1" >:: mem_wrap (debug_info_wrap (all_n 5));
     "insert_static_delete_permutations_2" >:: mem_wrap (debug_info_wrap (all_n 6)); 
     "insert_static_delete_permutations_3" >:: mem_wrap (debug_info_wrap (all_n 7)); 
-    (* "insert_static_delete_permutations_4" >:: mem_wrap (debug_info_wrap (all_n 8)); 
-       (* takes about 500 s *)
-    *)
+    "insert_static_delete_permutations_4" >:: mem_wrap (debug_info_wrap (all_n 8)); (* takes about 500 s *)
+    
 ]

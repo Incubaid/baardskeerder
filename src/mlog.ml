@@ -44,7 +44,7 @@ let write t slab =
   if needed > current
   then
     begin
-      let new_size = max (current + 100) needed in
+      let new_size = max (current * 2) needed in
       let bigger = Array.make new_size NIL in
       Array.blit t.es 0 bigger 0 current;
       t.es <- bigger
