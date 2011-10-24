@@ -129,7 +129,7 @@ let insert_delete_generic q kvs =
 
 
 
-let kvs = ["a","A";"d","D";"g","G";"j","J";"m","M";"q","Q";"t","T";"w","W"]
+let kvs = ["a","A";"d","D";"g","G";"j","J";"m","M";"q","Q";"t","T";"w","W"; "z", "Z"]
 
 let take n  = 
   let rec fill acc es = function
@@ -179,7 +179,14 @@ let underflow_n2_2 ((log,_,_,delete) as q) =
   set_all q kvs;
   delete log "j"
 
-  
+let insert_overflow ((log,set,get,delete) as q) = 
+  let kvs =  ["a", "A"; "d", "D"; "g", "G"; "m", "M";
+	      "q", "Q"; "t", "T"; "j", "J";
+	     ]  
+  in
+  set_all q kvs;
+  check q kvs
+
 let fac =
   let rec helper acc = function
     | 0 -> acc
@@ -216,8 +223,8 @@ let next_permutation a =
       decr j;
   done
 
-let insert_delete_permutations_1 ((log,set,get,delete) as q) =
-  let kvs = take 5 in (* TODO *)
+let insert_delete_permutations_generic  n ((log,set,get,delete) as q) =
+  let kvs = take n in 
   let kvs' = Array.of_list kvs in
   Array.fast_sort (fun (k1, _) (k2, _) -> compare k1 k2) kvs';
 
@@ -296,17 +303,21 @@ let tests = [
     "insert_delete_4" >:: mem_wrap insert_delete_4;
     "split_1" >:: mem_wrap split_1;
     "split_2" >:: mem_wrap split_2;
+    "insert_overflow" >:: mem_wrap insert_overflow;
     "underflow_n2" >:: mem_wrap underflow_n2;
     "underflow_n2_2" >:: mem_wrap underflow_n2_2;
     "insert_delete_5" >:: mem_wrap insert_delete_5;
     "insert_delete_6" >:: mem_wrap insert_delete_6;
     "insert_delete_7" >:: mem_wrap insert_delete_7;
     "insert_delete_8" >:: mem_wrap insert_delete_8;
-    "insert_delete_permutations_1" >::
-      mem_wrap (debug_info_wrap insert_delete_permutations_1);
+    "insert_delete_permutations_1" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 5));
+    "insert_delete_permutations_2" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 6));
+    (* "insert_delete_permutations_2" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 7)); *)
     "insert_static_delete_permutations_1" >:: mem_wrap (debug_info_wrap (all_n 5));
     "insert_static_delete_permutations_2" >:: mem_wrap (debug_info_wrap (all_n 6)); 
     "insert_static_delete_permutations_3" >:: mem_wrap (debug_info_wrap (all_n 7)); 
-    "insert_static_delete_permutations_4" >:: mem_wrap (debug_info_wrap (all_n 8)); (* takes about 500 s *)
+    "insert_static_delete_permutations_4" >:: mem_wrap (debug_info_wrap (all_n 8));
+    "insert_static_delete_permutations_5" >:: mem_wrap (debug_info_wrap (all_n 9));
+    
     
 ]
