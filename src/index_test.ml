@@ -49,7 +49,18 @@ let t_balance() =
   match z' with
     | Loc ((_,l),r) -> let ls = List.length l in
 		       let rs = List.length r in
-		       OUnit.assert_equal (ls+1) rs
+		       OUnit.assert_equal ~printer:string_of_int ls 2;
+		       OUnit.assert_equal ~printer:string_of_int rs 1
+    | _ -> failwith "should be Loc"
+
+let t_balance2 () =
+  let z = Top (0,["d", 1; "j", 2; "q", 3]) in
+  let z' = Index.indexz_balance z in
+  match z' with
+    | Loc ((_,l),r) -> let ls = List.length l in
+		       let rs = List.length r in
+		       OUnit.assert_equal ~printer:string_of_int ls 2;
+		       OUnit.assert_equal ~printer:string_of_int rs 1
     | _ -> failwith "should be Loc"
 
 let t_split () = 
@@ -59,10 +70,17 @@ let t_split () =
   and z = Loc ((7, [("j", 18); ("d", 14)]), [])
   in
   let left,sep', right = indexz_split lpos sep rpos z in
-  let () = Printf.printf "left = %s\n" (index2s left) in
-  let () = Printf.printf "right =%s\n" (index2s right) in
-  OUnit.assert_equal (7, ["d",14]) left
+  OUnit.assert_equal ~printer:index2s (7, ["d",14]) left
 
+let t_split2() = 
+  let lpos = 21 
+  and sep = "j"
+  and rpos = 22 
+  and z = Loc ((7, [("d", 18)]), [("q", 15)]) in
+  let left,sep',right = indexz_split lpos sep rpos z in
+  let printer = index2s in
+  OUnit.assert_equal ~printer (7,["d",21]) left;
+  OUnit.assert_equal ~printer (22,["q",15]) right
 
 let t_replace () = 
   let z = Loc ((7, [("d", 14)]), [("m", 15)]) in
@@ -75,6 +93,8 @@ let suite =
     "suppress"   >:: t_suppress;
     "suppress2"  >:: t_suppress2;
     "balance"    >:: t_balance;
+    "balance2"   >:: t_balance2;
     "split"      >:: t_split;
+    "split2"     >:: t_split2;
     "replace"    >:: t_replace;
   ]

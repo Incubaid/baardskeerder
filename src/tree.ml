@@ -122,6 +122,7 @@ module DB = functor (L:LOG ) -> struct
 
 
   let delete (t:L.t) k = 
+    (* let () = Printf.eprintf "delete %S\n%!" k in *)
     let add_leaf  s l = L.add s (Leaf l) in
     let add_index s i = L.add s (Index i) in
     let rec descend pos trail = 

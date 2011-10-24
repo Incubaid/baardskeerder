@@ -151,16 +151,15 @@ let indexz_close = function
   | Loc ((p0,c), t) -> p0, (List.rev c) @ t
     
 let indexz_balance z = 
-  let ls,rs = match z with
-    | Top ((_,c))    -> 0 , List.length c
-    | Loc ((_,c), r) -> List.length c, List.length r
-  in 
-  let n, move = 
-    if ls > rs
-    then
-      ls - rs - 1, indexz_left
-    else
-      rs - ls -1 , indexz_right
+  let move, n = match z with
+    | Top ((_,c))    -> indexz_right, d
+    | Loc ((_,c), r) ->
+      let cs = List.length c 
+      and rs = List.length r 
+      in 
+      if cs > rs 
+      then indexz_left, (cs - d)
+      else indexz_right,  (d -1 - rs)
   in
   let rec loop z = function
     | 0 -> z
@@ -173,8 +172,8 @@ exception IZ of index_z
 let indexz_insert lpos sep rpos z = 
   match z with
   | Top ((p0,t)) -> Top (lpos, ((sep,rpos) :: t))
-  | Loc ((p0,(k,p)::t),[]) -> Loc ( (p0, (sep,rpos):: (k,lpos) :: t), [])
-  | z -> raise (IZ z)
+  | Loc ((p0,(k,p)::c),t) -> Loc ((p0, (sep,rpos):: (k,lpos) :: c), t)
+  | z -> let s = Printf.sprintf "indexz_insert %i %s %i %s" lpos sep rpos (iz2s z) in failwith s
 
 
 let indexz_split lpos sep rpos z = 
@@ -182,10 +181,12 @@ let indexz_split lpos sep rpos z =
   let z2 = indexz_balance z1 in 
   let r = 
     match z2 with
-      | Loc ((p0, c), (ks,ps):: t) -> 
-	let left =  (p0, List.rev c) in
-	let right = (ps, t) in
-	left, ks, right
+      | Loc ((p0, (k,p)::c), t) ->
+	let left = p0, List.rev c in
+	let right = p, t in
+	left, k,right
+      | z -> let s = Printf.sprintf "indexz_split %i %s %i %s=> %s \n" lpos sep rpos (iz2s z) (iz2s z2) in
+	     failwith s
   in
   r
 
