@@ -104,6 +104,12 @@ let t_split () =
   OUnit.assert_equal (7, ["d",14]) left
 
 
+let t_replace () = 
+  let z = Loc ((7, [("d", 14)]), [("m", 15)]) in
+  let index = Index.indexz_replace 18 z in
+  OUnit.assert_equal ~printer:index2s index (7,("d",18) :: ("m",15)::[])
+
+      
 let set_all (log,set,_,_) kvs = List.iter (fun (k,v) -> 
   Printf.printf "set %S %S\n%!" k v;
   set log k v) kvs
@@ -297,6 +303,7 @@ let tests = [
     "index_suppress2" >:: t_suppress2;
     "index_balance"    >:: t_balance;
     "index_split"     >:: t_split;
+    "index_replace"   >:: t_replace;
     "insert_delete_1" >:: mem_wrap insert_delete_1;
     "insert_delete_2" >:: mem_wrap insert_delete_2;
     "insert_delete_3" >:: mem_wrap insert_delete_3;
