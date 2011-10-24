@@ -306,4 +306,5 @@ let tests = [
       mem_wrap (debug_info_wrap insert_delete_permutations_1);
     "insert_static_delete_permutations_1" >:: mem_wrap (debug_info_wrap (all_n 5));
     "insert_static_delete_permutations_2" >:: mem_wrap (debug_info_wrap (all_n 6)); 
+    "insert_static_delete_permutations_3" >:: mem_wrap (debug_info_wrap (all_n 7)); 
 ]
