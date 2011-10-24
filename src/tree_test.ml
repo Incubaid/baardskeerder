@@ -38,7 +38,6 @@ let mem_wrap t = OUnit.bracket mem_setup t mem_teardown
 
 let check (log,_,get,_) kvs = 
   List.iter (fun (k,v) -> 
-    Printf.printf "get %S\n%!" k;
     OUnit.assert_equal v (get log k)) kvs 
 
 let check_empty (log,_,get,_) =
@@ -265,7 +264,8 @@ let insert_static_delete_permutations_generic  n ((log, set, get, delete) as q) 
 
   let l = Array.length kvs' in
 
-  let do_test a =
+  let do_test n a =
+    if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
     List.iter (fun (k, v) -> set log k v) kvs;
     check q kvs;
     Array.iter (fun (k, v) -> delete log k) a;
@@ -275,7 +275,7 @@ let insert_static_delete_permutations_generic  n ((log, set, get, delete) as q) 
   let rec loop = function
     | 0 -> ()
     | n ->
-        do_test kvs';
+        do_test n kvs';
         if n > 1 then next_permutation kvs' else ();
         loop (pred n)
   in
@@ -307,4 +307,7 @@ let tests = [
     "insert_static_delete_permutations_1" >:: mem_wrap (debug_info_wrap (all_n 5));
     "insert_static_delete_permutations_2" >:: mem_wrap (debug_info_wrap (all_n 6)); 
     "insert_static_delete_permutations_3" >:: mem_wrap (debug_info_wrap (all_n 7)); 
+    (* "insert_static_delete_permutations_4" >:: mem_wrap (debug_info_wrap (all_n 8)); 
+       (* takes about 500 s *)
+    *)
 ]

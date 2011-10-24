@@ -276,7 +276,7 @@ module DB = functor (L:LOG ) -> struct
 		  if index_mergeable left then
 		    begin
 		      let sep = indexz_separator L z in
-		      let index' = index_merge_left left sep index in
+		      let index' = index_merge left sep index in
 		      let ipos' = add_index slab index' in
 		      let z' = indexz_suppress L ipos' z in
 		      match z' with
@@ -287,7 +287,22 @@ module DB = functor (L:LOG ) -> struct
 		    failwith "todo: underflow & cannot merge with left neigbour"
 		end
 		  
-	      | NR pos ->  Printf.printf "NR %i" pos; failwith "NR todo"
+	      | NR pos ->  
+		begin
+		  let right = read_index pos in
+		  if index_mergeable right then
+		    begin
+		      let sep = indexz_separator R z in
+		      let index' = index_merge index sep right in
+		      let ipos' = add_index slab index' in
+		      let z' = indexz_suppress R ipos' z in
+		      match z' with
+			| _,[] -> assert(rest = []); ()
+			| z' -> delete_rest slab ipos' rest
+		    end
+		  else
+		    failwith "todo: underflow & cannot merge with right neighbour"
+		end
 		
 	      | N2 (l,r) -> Printf.printf "N2 (%i,%i)" l r; failwith "N2 todo"
 	  end

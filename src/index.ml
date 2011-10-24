@@ -56,8 +56,8 @@ let index_find_set index k =
   in loop (Top index)
 
 
-let index_merge_left (pl,kps_left) sep (p2, kps_right) = pl, (kps_left @ ((sep,p2) :: kps_right))
-  
+let index_merge (pl,kps_left) sep  (p2, kps_right) = pl, (kps_left @ ((sep,p2) :: kps_right))
+
 let index_below_min (p0,t) = List.length t < d
 let index_mergeable (_,t) = List.length t <= d
 
@@ -117,6 +117,8 @@ let indexz_separator d z =
       begin
 	match z with
 	  | Loc ( (_,_), (kt,_)::_) -> kt
+	  | Top (p0, (k0,p1):: t)   -> k0
+	  | _ -> let s = Printf.sprintf "indexz_separator R (%s)\n" (iz2s z) in failwith s
       end
       
 let indexz_suppress d pn z = 
