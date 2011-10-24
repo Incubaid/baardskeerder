@@ -57,7 +57,7 @@ let seq2s s =
     add (Printf.sprintf "<%s " t);
     List.iter (fun (k,v) -> 
       let esc = xml_escape v in
-      add (Printf.sprintf "%s=%S" k esc)) attr;
+      add (Printf.sprintf "%s=%S " k esc)) attr;
     add (Printf.sprintf ">");
     walk body;
     add (Printf.sprintf "</%s>" t)
