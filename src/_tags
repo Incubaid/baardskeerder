@@ -3,4 +3,5 @@ true: debug
 <test.*>: package(oUnit), use_posix
 <*_test.*>: package(oUnit)
 <flog_test.*>: use_posix
+<benchmark.*>: package(unix), use_posix
 <hudson_xml.{*}>: package(oUnit)
