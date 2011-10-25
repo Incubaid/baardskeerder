@@ -17,6 +17,7 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _XOPEN_SOURCE 500
 #define _FILE_OFFSET_BITS 64
 
 #include <unistd.h>
