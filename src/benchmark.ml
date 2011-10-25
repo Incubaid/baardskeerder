@@ -28,27 +28,42 @@ let clock f =
 
 module FDB = DB(Flog)
 
+let make_key i = Printf.sprintf "key_%08i" i 
+
 let set_loop db vs n = 
   let v = String.make vs 'x' in
-  let set k v = () in
+  let set k v = FDB.set db k v in
   let rec loop i = 
-    if i = n then ()
+    if i = n 
+    then ()
     else
-      let key = Printf.sprintf "key_%08i" i in 
-      let () = FDB.set db key v in
+      let key = make_key i in
+      let () = set key v in
       loop (i+1)
   in
-  loop 0;;
+  loop 0
 
-  
-
+let get_loop db n = 
+  let get k = FDB.get db k in
+  let rec loop i =
+    if i = n 
+    then ()
+    else
+      let key = make_key i in
+      let v = get key in
+      loop (i+1)
+  in
+  loop 0
 
 let () = 
-  let n = 100000 in
+  let n = 1_000 in
   let vs = 1000 in
   let fn = "test.db" in
   let () = Flog.create fn 4096 in
   let db = Flog.make fn in
   let d = clock (fun () -> set_loop db vs n) in
+  Printf.printf "%i sets of (%i bytes) took:%fs\n%!" n vs d;
+  let d2 = clock (fun () -> get_loop db n) in
+  Printf.printf "%i gets took:%fs\n%!" n d2;
   let () = Flog.close db in
-  Printf.printf "%n sets of (%i bytes) took:%f\n" n vs d;;
+  ();;
