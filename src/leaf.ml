@@ -35,8 +35,8 @@ let leaf_find_delete leaf k =
   in
   loop ([],leaf)
 
-let leaf_min t = List.length t = d
-let leaf_mergeable t = List.length t <= d
+let leaf_min d t = List.length t = d
+let leaf_mergeable d t = List.length t <= d
 let leaf_merge left right = left @ right
 
 let leaf_borrow_right left right = match right with
@@ -57,8 +57,8 @@ let leafz_delete = function
   | c,h::t -> (List.rev c) @ t
   | _ -> failwith "leafz_delete"
 
-let leafz_max (c,t) = List.length c + List.length t = 2 * d - 1
-let leafz_min (c,t) = List.length c + List.length t = d
+let leafz_max d (c,t) = List.length c + List.length t = 2 * d - 1
+let leafz_min d (c,t) = List.length c + List.length t = d
 
 
 let leafz_left (c,t) = 
@@ -73,7 +73,7 @@ let leafz_right (c,t) =
 
 let leafz_close (c,t) = (List.rev c) @ t
 
-let leafz_balance ((c,t) as z) = 
+let leafz_balance d ((c,t) as z) = 
   let ls = List.length  c in
   let n,move = 
     if ls > d 
@@ -89,8 +89,8 @@ let leafz_balance ((c,t) as z) =
   loop z n
 
 
-let leafz_split k pos (c,t) = 
-  let l,r = leafz_balance (c, (k,pos)::t) in
+let leafz_split d k pos (c,t) = 
+  let l,r = leafz_balance d (c, (k,pos)::t) in
   let lift = List.hd l in
   List.rev l, lift, r
 

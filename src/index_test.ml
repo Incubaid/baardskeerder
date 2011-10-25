@@ -44,8 +44,9 @@ let t_suppress2 () =
     | _ -> failwith "should be NL 7"
 
 let t_balance() =
+  let d = 2 in
   let z = Loc ((7,["q", 22; "j", 21; "d", 14]),[]) in
-  let z' = Index.indexz_balance z in
+  let z' = Index.indexz_balance d z in
   match z' with
     | Loc ((_,l),r) -> let ls = List.length l in
 		       let rs = List.length r in
@@ -54,8 +55,9 @@ let t_balance() =
     | _ -> failwith "should be Loc"
 
 let t_balance2 () =
+  let d = 2 in
   let z = Top (0,["d", 1; "j", 2; "q", 3]) in
-  let z' = Index.indexz_balance z in
+  let z' = Index.indexz_balance d z in
   match z' with
     | Loc ((_,l),r) -> let ls = List.length l in
 		       let rs = List.length r in
@@ -64,20 +66,22 @@ let t_balance2 () =
     | _ -> failwith "should be Loc"
 
 let t_split () = 
-  let lpos = 21
+  let d = 2 
+  and lpos = 21
   and sep = "q"
   and rpos = 22
   and z = Loc ((7, [("j", 18); ("d", 14)]), [])
   in
-  let left,sep', right = indexz_split lpos sep rpos z in
+  let left,sep', right = indexz_split d lpos sep rpos z in
   OUnit.assert_equal ~printer:index2s (7, ["d",14]) left
 
 let t_split2() = 
-  let lpos = 21 
+  let d = 2 
+  and lpos = 21 
   and sep = "j"
   and rpos = 22 
   and z = Loc ((7, [("d", 18)]), [("q", 15)]) in
-  let left,sep',right = indexz_split lpos sep rpos z in
+  let left,sep',right = indexz_split d lpos sep rpos z in
   let printer = index2s in
   OUnit.assert_equal ~printer (7,["d",21]) left;
   OUnit.assert_equal ~printer (22,["q",15]) right

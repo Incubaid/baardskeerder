@@ -25,7 +25,7 @@ open Leaf
 open Index
 
 module DB = functor (L:LOG ) -> struct
-
+  let d = 2
 
   let get (t:L.t) k = 
     let rec descend pos = 
@@ -81,9 +81,9 @@ module DB = functor (L:LOG ) -> struct
 	      let _    = add_leaf  slab [k,vpos] in
 	      ()
       | Leaf_down z :: rest -> 
-	if leafz_max z 
+	if leafz_max d z 
 	then 
-	  let left, (sep,ps) , right = leafz_split k start z in
+	  let left, (sep,ps) , right = leafz_split d k start z in
 	  let _    = add_value slab v     in
 	  let lpos = add_leaf  slab left  in
 	  let rpos = add_leaf  slab right in
@@ -105,7 +105,7 @@ module DB = functor (L:LOG ) -> struct
       | Index_down z :: rest -> 
 	if indexz_max z 
 	then 
-	  let left, sep', right  = indexz_split lpos sep rpos z in
+	  let left, sep', right  = indexz_split d lpos sep rpos z in
 	  let lpos' = add_index slab left  in
 	  let rpos' = add_index slab right in
 	  set_overflow slab lpos' sep' rpos' rest
@@ -148,7 +148,7 @@ module DB = functor (L:LOG ) -> struct
       | [] -> failwith "corrupt" 
       | [Leaf_down z ]-> let _ = add_leaf slab (leafz_delete z) in ()
       | Leaf_down z :: rest ->
-	if leafz_min z 
+	if leafz_min d z 
 	then leaf_underflow slab start z rest
 	else 
 	  let leaf' = leafz_delete z in
@@ -178,7 +178,7 @@ module DB = functor (L:LOG ) -> struct
 	      | NR pos     -> 
 		begin
 		  let right = read_leaf pos in
-		  if leaf_min right
+		  if leaf_min d right
 		  then 
 		    begin
 		      let left = leafz_delete leafz in
@@ -199,7 +199,7 @@ module DB = functor (L:LOG ) -> struct
 	      | NL pos ->
 		begin
 		  let left = read_leaf pos in
-		  if leaf_min left 
+		  if leaf_min d left 
 		  then
 		    begin
 		      let right = leafz_delete leafz in
@@ -221,7 +221,7 @@ module DB = functor (L:LOG ) -> struct
 		begin
 		  let left = read_leaf p0 in
 		  let right = read_leaf p1 in
-		  match (leaf_mergeable left, leaf_mergeable right) with
+		  match (leaf_mergeable d left, leaf_mergeable d right) with
 		    | true,_ ->
 		      begin
 			let right = leafz_delete leafz in
@@ -267,14 +267,14 @@ module DB = functor (L:LOG ) -> struct
       match index, rest with
 	| (_,[]) , []  -> ()
 	| index , [] -> let _ = add_index slab index in ()
-	| index , Index_down z :: rest when index_below_min index -> 
+	| index , Index_down z :: rest when index_below_min d index -> 
 	  begin
 	    let nb = indexz_neighbours z in
 	    match nb with
 	      | NL pos ->  
 		begin
 		  let left = read_index pos in
-		  if index_mergeable left then
+		  if index_mergeable d left then
 		    begin
 		      let sep = indexz_separator L z in
 		      let index' = index_merge left sep index in
@@ -291,7 +291,7 @@ module DB = functor (L:LOG ) -> struct
 	      | NR pos ->  
 		begin
 		  let right = read_index pos in
-		  if index_mergeable right then
+		  if index_mergeable d right then
 		    begin
 		      let sep = indexz_separator R z in
 		      let index' = index_merge index sep right in

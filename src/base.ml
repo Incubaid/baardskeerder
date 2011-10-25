@@ -19,8 +19,6 @@
 
 (* .. *)
 
-let d = 2
-
 type pos = int
 type k = string
 

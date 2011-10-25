@@ -58,8 +58,8 @@ let index_find_set index k =
 
 let index_merge (pl,kps_left) sep  (p2, kps_right) = pl, (kps_left @ ((sep,p2) :: kps_right))
 
-let index_below_min (p0,t) = List.length t < d
-let index_mergeable (_,t) = List.length t <= d
+let index_below_min d (p0,t) = List.length t < d
+let index_mergeable d (_,t)  = List.length t <= d
 
 let make_indexz (p0, kps) = Top ((p0, kps))
 
@@ -150,7 +150,7 @@ let indexz_close = function
   | Top index -> index
   | Loc ((p0,c), t) -> p0, (List.rev c) @ t
     
-let indexz_balance z = 
+let indexz_balance d z = 
   let move, n = match z with
     | Top ((_,c))    -> indexz_right, d
     | Loc ((_,c), r) ->
@@ -176,9 +176,9 @@ let indexz_insert lpos sep rpos z =
   | z -> let s = Printf.sprintf "indexz_insert %i %s %i %s" lpos sep rpos (iz2s z) in failwith s
 
 
-let indexz_split lpos sep rpos z = 
+let indexz_split d lpos sep rpos z = 
   let z1 = indexz_insert lpos sep rpos z in
-  let z2 = indexz_balance z1 in 
+  let z2 = indexz_balance d z1 in 
   let r = 
     match z2 with
       | Loc ((p0, (k,p)::c), t) ->
