@@ -245,32 +245,32 @@ let insert_static_delete_permutations_generic  n ((log, set, get, delete) as q) 
 
 let all_n n q = insert_static_delete_permutations_generic n q 
 
+let template =
+  ["insert_delete_1",  insert_delete_1;
+   "insert_delete_2",  insert_delete_2;
+    "insert_delete_3", insert_delete_3;
+    "insert_delete_4", insert_delete_4;
+    "split_1", split_1;
+    "split_2", split_2;
+    "insert_overflow",insert_overflow;
+    "underflow_n2", underflow_n2;
+    "underflow_n2_2", underflow_n2_2;
+    "insert_delete_5", insert_delete_5;
+    "insert_delete_6", insert_delete_6;
+    "insert_delete_7", insert_delete_7;
+    "insert_delete_8", insert_delete_8;
+    "insert_delete_permutations_1", debug_info_wrap (insert_delete_permutations_generic 5);
+    "insert_delete_permutations_2", debug_info_wrap (insert_delete_permutations_generic 6);
+    "insert_delete_permutations_2", debug_info_wrap (insert_delete_permutations_generic 7);
+    "insert_delete_permutations_3", debug_info_wrap (insert_delete_permutations_generic 8);
+    "insert_delete_permutations_4", debug_info_wrap (insert_delete_permutations_generic 9);
+    "insert_static_delete_permutations_1", debug_info_wrap (all_n 5);
+    "insert_static_delete_permutations_2", debug_info_wrap (all_n 6); 
+    "insert_static_delete_permutations_3", debug_info_wrap (all_n 7); 
+    "insert_static_delete_permutations_4", debug_info_wrap (all_n 8);
+    "insert_static_delete_permutations_5", debug_info_wrap (all_n 9);
+  ]
 
 let suite =
-  "Tree" >::: [
-    "insert_delete_1" >:: mem_wrap insert_delete_1;
-    "insert_delete_2" >:: mem_wrap insert_delete_2;
-    "insert_delete_3" >:: mem_wrap insert_delete_3;
-    "insert_delete_4" >:: mem_wrap insert_delete_4;
-    "split_1" >:: mem_wrap split_1;
-    "split_2" >:: mem_wrap split_2;
-    "insert_overflow" >:: mem_wrap insert_overflow;
-    "underflow_n2" >:: mem_wrap underflow_n2;
-    "underflow_n2_2" >:: mem_wrap underflow_n2_2;
-    "insert_delete_5" >:: mem_wrap insert_delete_5;
-    "insert_delete_6" >:: mem_wrap insert_delete_6;
-    "insert_delete_7" >:: mem_wrap insert_delete_7;
-    "insert_delete_8" >:: mem_wrap insert_delete_8;
-    "insert_delete_permutations_1" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 5));
-    "insert_delete_permutations_2" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 6));
-    "insert_delete_permutations_2" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 7));
-    "insert_delete_permutations_3" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 8));
-    "insert_delete_permutations_4" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 9));
-    "insert_static_delete_permutations_1" >:: mem_wrap (debug_info_wrap (all_n 5));
-    "insert_static_delete_permutations_2" >:: mem_wrap (debug_info_wrap (all_n 6)); 
-    "insert_static_delete_permutations_3" >:: mem_wrap (debug_info_wrap (all_n 7)); 
-    "insert_static_delete_permutations_4" >:: mem_wrap (debug_info_wrap (all_n 8));
-    "insert_static_delete_permutations_5" >:: mem_wrap (debug_info_wrap (all_n 9));
-    
-    
-]
+  "Tree" >::: (List.map (fun (n,t) -> n >:: mem_wrap t) template);;
+
