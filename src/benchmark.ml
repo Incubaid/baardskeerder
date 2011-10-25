@@ -55,8 +55,20 @@ let get_loop db n =
   in
   loop 0
 
+let delete_loop db n = 
+  let delete k = FDB.delete db k in
+  let rec loop i = 
+    if i = n 
+    then ()
+    else
+      let key = make_key i in
+      let () = delete key in
+      loop (i+1)
+  in
+  loop 0
+
 let () = 
-  let n = 1_000 in
+  let n = 1000_000 in
   let vs = 1000 in
   let fn = "test.db" in
   let () = Flog.create fn 4096 in
@@ -65,5 +77,7 @@ let () =
   Printf.printf "%i sets of (%i bytes) took:%fs\n%!" n vs d;
   let d2 = clock (fun () -> get_loop db n) in
   Printf.printf "%i gets took:%fs\n%!" n d2;
+  let d3 = clock (fun () -> delete_loop db n) in
+  Printf.printf "%i deletes took:%fs\n%!" n d3;
   let () = Flog.close db in
   ();;
