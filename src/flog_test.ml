@@ -79,19 +79,23 @@ let test_serialize_deserialize_entries () =
 
   let leaf = kps
   and index = (54321, kps)
-  and value = "This is a test value" in
+  and value = "This is a test value"
+  and commit = 54321 in
 
   let sl = Flog.serialize_leaf leaf
   and si = Flog.serialize_index index
-  and sv = Flog.serialize_value value in
+  and sv = Flog.serialize_value value
+  and sc = Flog.serialize_commit commit in
 
   let leaf' = Flog.deserialize_leaf sl 5
   and index' = Flog.deserialize_index si 5
-  and value' = Flog.deserialize_value sv 5 in
+  and value' = Flog.deserialize_value sv 5
+  and commit' = Flog.deserialize_commit sc 5 in
 
   OUnit.assert_equal ~printer:Entry.entry2s (Entry.Leaf leaf) leaf';
   OUnit.assert_equal ~printer:Entry.entry2s (Entry.Index index) index';
-  OUnit.assert_equal ~printer:Entry.entry2s (Entry.Value value) value'
+  OUnit.assert_equal ~printer:Entry.entry2s (Entry.Value value) value';
+  OUnit.assert_equal ~printer:commit2s (Commit commit) commit'
 
 let entries =
   "entries" >::: [
@@ -134,7 +138,7 @@ let with_database f =
     let db = make fn in
 
     try
-      f db;
+      f fn db;
       close db
     with e ->
       close db;
@@ -142,10 +146,10 @@ let with_database f =
   in
   with_tempfile f'
 
-let test_database_set db =
+let test_database_set _ db =
   MDB.set db "foo" "bar"
 
-let test_database_set_get db =
+let test_database_set_get _ db =
   let k = "foo"
   and v = "bar" in
 
@@ -155,12 +159,54 @@ let test_database_set_get db =
 
   OUnit.assert_equal v v'
 
+let test_database_multi_action _ db =
+  let k1 = "foo"
+  and v1 = "bar"
+  and v1' = "bal"
+  and k2 = "bat"
+  and v2 = "baz" in
+
+  MDB.set db k1 v1;
+  MDB.set db k2 v2;
+
+  OUnit.assert_equal v1 (MDB.get db k1);
+  OUnit.assert_equal v2 (MDB.get db k2);
+
+  MDB.set db k1 v1';
+  OUnit.assert_equal v1' (MDB.get db k1);
+
+  MDB.delete db k2;
+  OUnit.assert_raises (Base.NOT_FOUND k2) (fun () -> MDB.get db k2)
+
+
+let test_database_reopen fn db =
+  let k1 = "foo"
+  and v1 = "bar"
+  and k2 = "bat"
+  and v2 = "baz" in
+
+  MDB.set db k1 v1;
+  MDB.set db k2 v2;
+
+  close db;
+
+  let db' = make fn in
+  let v1' = MDB.get db' k1
+  and v2' = MDB.get db' k2 in
+
+  OUnit.assert_equal v1 v1';
+  OUnit.assert_equal v2 v2';
+
+  close db'
+
 let database =
   "database" >::: [
     "create" >:: with_tempfile test_database_create;
     "make" >:: with_tempfile test_database_make;
     "set" >:: with_database test_database_set;
     "set_get" >:: with_database test_database_set_get;
+    "reopen" >:: with_database test_database_reopen;
+    "multi_action" >:: with_database test_database_multi_action;
   ]
 
 let suite =

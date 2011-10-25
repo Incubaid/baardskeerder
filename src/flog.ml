@@ -28,6 +28,7 @@ type t = {
   fd_random: file_descr;
   mutable offset: int;
   mutable root_offset: int;
+  mutable closed: bool;
 }
 
 type slab = {
@@ -192,11 +193,11 @@ let create (f: string) (b: blocksize) =
 
 type commit = Commit of offset
 
-let serialize_commit (Commit o) =
+let serialize_commit o =
   let s = String.create (4 + 1 + 8 + 4) in
 
   write_uint32 (1 + 8 + 4) s 0;
-  String.set s 8 chr4;
+  String.set s 4 chr4;
   write_uint64 o s (4 + 1);
   let crc = crc32 s (4 + 1 + 8) in
   write_uint32 o s (4 + 1 + 8);
@@ -205,6 +206,8 @@ let serialize_commit (Commit o) =
 
 and deserialize_commit s o =
   Commit (read_uint64 s o)
+
+and commit2s (Commit o) = Printf.sprintf "Commit %d" o
 
 let find_root f o =
   let s = String.create 4
@@ -223,10 +226,12 @@ let find_root f o =
         | i when i = chr3 -> loop a (o + 4 + s')
         | i when i = chr4 ->
             let b = String.create (s' - 1) in
-            pread_into_exactly f b (o + 4 + 1) (o + 4 + 1);
+            pread_into_exactly f b (s' - 1) (o + 4 + 1);
             let (Commit c) = deserialize_commit b 0 in
             loop c (o + 4 + s')
-        | _ -> failwith "Flog.find_root: unknown entry type"
+        | c -> failwith
+                (Printf.sprintf "Flog.find_root: unknown entry type: %d"
+                  (Char.code c))
 
     with End_of_file ->
       a
@@ -272,12 +277,17 @@ let make (f: string): t =
   let root = find_root fd_in (2 * bs) in
 
   { fd_in=fd_in; fd_append=fd_append; fd_random=fd_random; offset=offset;
-    root_offset=root }
+    root_offset=root; closed=false; }
 
 let close db =
-  Unix.close db.fd_in;
-  Unix.close db.fd_append;
-  Unix.close db.fd_random
+  if db.closed
+  then ()
+  else begin
+    Unix.close db.fd_in;
+    Unix.close db.fd_append;
+    Unix.close db.fd_random;
+    db.closed <- true
+  end
 
 let int8_placeholder = '0'
 let int32_placeholder = "0123"
@@ -438,7 +448,7 @@ let write t slab =
   List.iter write_slab (List.rev slab.entries);
 
   let ro = t.root_offset in
-  let s = serialize_commit (Commit ro) in
+  let s = serialize_commit ro in
   let sl = String.length s in
   let w = write t.fd_append s 0 sl in
   assert (w = sl);
