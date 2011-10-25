@@ -17,31 +17,5 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-open Ocamlbuild_pack
-open Ocamlbuild_plugin
-open Command
-
-let _ = dispatch & function
-  | After_rules ->
-      flag ["ocaml"; "byte"; "link"] (S[A"-custom"]);
-
-      flag ["compile"; "c";]
-        (S[
-          A"-ccopt"; A"-Wall";
-          A"-ccopt"; A"-Wextra";
-          A"-ccopt"; A"-Werror";
-          A"-ccopt"; A"-O3";
-        ]);
-
-      dep ["ocaml"; "link"; "use_posix"]
-        ["posix.o"];
-
-      dep ["ocaml"; "link"; "use_crc32"]
-        ["libcrc32c.a"];
-      flag ["ocaml"; "link"; "use_crc32"]
-        (S[A"libcrc32c.a"]);
-
-      flag ["compile"; "c"]
-        (S[A"-ccopt"; A"-I.."; A"-ccopt"; A"-msse4.2"]);
-
-  | _ -> ()
+external calculate_crc32c : string -> int -> int -> int32 = "calculate_crc32c"
+external update_crc32c : int32 -> string -> int -> int -> int32 = "update_crc32c"

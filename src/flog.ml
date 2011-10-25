@@ -75,6 +75,13 @@ let read_uint32 s o =
 
   i0 + (i1 lsl 8) + (i2 lsl 16) + (i3 lsl 24)
 
+let write_crc32 c s o =
+  let c' = c + 0x80000000 in
+  write_uint32 c' s o
+and read_crc32 s o =
+  let c = read_uint32 s o in
+  c - 0x80000000
+
 let write_uint64 i s o =
   assert (i >= 0);
   assert (i <= 0X3FFFFFFFFFFFFFFF); (* max_int *)
@@ -111,7 +118,7 @@ let lseek_set f o =
   let o' = lseek f o SEEK_SET in
   if o' <> o then failwith "Flog.seek_set: seek failed" else ()
 
-let crc32 s o l = 0xDEADBEEF (* TODO *)
+let crc32 s o l = Int32.to_int (Crc32c.calculate_crc32c s o l)
 
 let safe_write f s o l =
   let rec helper o = function
@@ -151,7 +158,7 @@ let serialize_metadata md =
   String.blit metadata_suffix 0 s (pl + 18) sl;
 
   let crc = crc32 s 0 (pl + 18 + sl) in
-  write_uint32 crc s (pl + 18 + sl);
+  write_crc32 crc s (pl + 18 + sl);
 
   (s, md.md_blocksize)
 
@@ -176,7 +183,7 @@ and deserialize_metadata s =
 
   assert (p2 = metadata_suffix);
 
-  let crc = read_uint32 s (pl + 18 + sl) in
+  let crc = read_crc32 s (pl + 18 + sl) in
 
   if (crc32 s 0 (pl + 18 + sl) = crc)
   then Some { md_blocksize=bs; md_spindle=sp; md_offset=o; md_count=c }
@@ -208,8 +215,8 @@ let serialize_commit o =
   write_uint32 (1 + 8 + 4) s 0;
   String.set s 4 chr4;
   write_uint64 o s (4 + 1);
-  let crc = crc32 s (4 + 1 + 8) in
-  write_uint32 o s (4 + 1 + 8);
+  let crc = crc32 s 0 (4 + 1 + 8) in
+  write_crc32 crc s (4 + 1 + 8);
 
   s
 
@@ -333,7 +340,9 @@ let serialize_leaf l =
 
   write_uint32 (sl - 4) s 0;
   write_uint8 (!c) s 6;
-  write_uint32 0 s (sl - 4); (* TODO *)
+
+  let crc = crc32 s 0 (sl - 4) in
+  write_crc32 crc s (sl - 4);
 
   s
 
@@ -386,7 +395,9 @@ let serialize_index (p, kps) =
   write_uint32 (sl - 4) s 0;
   write_uint64 p s 6;
   write_uint8 (!c) s 14;
-  write_uint32 0 s (sl - 4); (* TODO *)
+
+  let crc = crc32 s 0 (sl - 4) in
+  write_crc32 crc s (sl - 4);
 
   s
 
@@ -419,8 +430,9 @@ let serialize_value v =
   String.set s 4 chr1;
   String.set s 5 chr0;
   String.blit v 0 s 6 l;
-  (* TODO CRC32 *)
-  write_uint32 0 s (tl - 4);
+
+  let crc = crc32 s 0 (tl - 4) in
+  write_crc32 crc s (tl - 4);
 
   s
 

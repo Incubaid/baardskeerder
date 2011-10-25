@@ -1,4 +1,4 @@
-(*
+/*
  * This file is part of Baardskeerder.
  *
  * Copyright (C) 2011 Incubaid BVBA
@@ -15,33 +15,14 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
- *)
+ */
 
-open Ocamlbuild_pack
-open Ocamlbuild_plugin
-open Command
+#ifndef _CPUDETECT_H_
+#define _CPUDETECT_H_
 
-let _ = dispatch & function
-  | After_rules ->
-      flag ["ocaml"; "byte"; "link"] (S[A"-custom"]);
+extern int has_sse_2;
+extern int has_sse_3;
+extern int has_sse_4_2;
 
-      flag ["compile"; "c";]
-        (S[
-          A"-ccopt"; A"-Wall";
-          A"-ccopt"; A"-Wextra";
-          A"-ccopt"; A"-Werror";
-          A"-ccopt"; A"-O3";
-        ]);
 
-      dep ["ocaml"; "link"; "use_posix"]
-        ["posix.o"];
-
-      dep ["ocaml"; "link"; "use_crc32"]
-        ["libcrc32c.a"];
-      flag ["ocaml"; "link"; "use_crc32"]
-        (S[A"libcrc32c.a"]);
-
-      flag ["compile"; "c"]
-        (S[A"-ccopt"; A"-I.."; A"-ccopt"; A"-msse4.2"]);
-
-  | _ -> ()
+#endif
