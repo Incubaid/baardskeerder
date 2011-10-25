@@ -28,6 +28,7 @@ let suite =
   "correctness" >::: 
     [ Index_test.suite;
       Tree_test.suite;
+      Flog_test.suite;
     ]
 
 

@@ -163,9 +163,10 @@ let database =
     "set_get" >:: with_database test_database_set_get;
   ]
 
-let () =
-  let run s = let _ = run_test_tt_main s in () in
-  run base_serialization;
-  run metadata;
-  run entries;
-  run database
+let suite =
+  "Flog" >::: [
+    base_serialization;
+    metadata;
+    entries;
+    database;
+  ]
