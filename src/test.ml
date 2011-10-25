@@ -24,46 +24,10 @@ open Entry
 open Base
 open Index
 
-
-
-
-
-      
-
-
-let serialize_deserialize_1 () =
-  (* TODO This isn't a nice unit-test, since it tests multiple types/functions.
-   * Some QuickCheck-like mechanism generating nodes at random, then performing
-   * a comparison after serialization/deserialization might be useful.
-   *)
-  let kps = [("a", 1); ("b", 2); ("c", 0xFFFFFFFF); ("def", max_int)] in
-
-  let leaf = kps
-  and index = (54321, kps)
-  and value = "This is a test value" in
-
-  let sl = Flog.serialize_leaf leaf
-  and si = Flog.serialize_index index
-  and sv = Flog.serialize_value value in
-
-  let leaf' = Flog.deserialize_leaf sl 5
-  and index' = Flog.deserialize_index si 5
-  and value' = Flog.deserialize_value sv 5 in
-
-  OUnit.assert_equal ~printer:entry2s (Leaf leaf) leaf';
-  OUnit.assert_equal ~printer:entry2s (Index index) index';
-  OUnit.assert_equal ~printer:entry2s (Value value) value'
-
-
-
-
-
-
 let suite = 
   "correctness" >::: 
     [ Index_test.suite;
       Tree_test.suite;
-      "serialize_deserialize_1" >:: serialize_deserialize_1;
     ]
 
 
