@@ -271,6 +271,6 @@ let template =
     "insert_static_delete_permutations_5", debug_info_wrap (all_n 9);
   ]
 
-let suite =
-  "Tree" >::: (List.map (fun (n,t) -> n >:: mem_wrap t) template);;
+let make_suite wrap = (List.map (fun (n,t) -> n >:: mem_wrap t) template)
+let suite = "Tree" >::: make_suite mem_wrap
 
