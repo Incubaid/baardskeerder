@@ -113,6 +113,15 @@ let lseek_set f o =
 
 let crc32 s o l = 0xDEADBEEF (* TODO *)
 
+let safe_write f s o l =
+  let rec helper o = function
+    | 0 -> ()
+    | l ->
+        let c = Unix.single_write f s o l in
+        helper (o + c) (l - c)
+  in
+  helper o l
+
 let metadata_prefix = "BaArDsKeErDeR"
 let metadata_suffix = "bAaRdSkEeRdEr"
 let metadata_version = 0x01
@@ -186,8 +195,8 @@ let create (f: string) (b: blocksize) =
 
   lseek_set fd 0;
   ftruncate fd (2 * b);
-  let _ = write fd metadata1 0 b1 in
-  let _ = write fd metadata2 0 b2 in
+  safe_write fd metadata1 0 b1;
+  safe_write fd metadata2 0 b2;
 
   close fd
 
@@ -426,8 +435,7 @@ let write t slab =
   let update_offset i = t.offset <- t.offset + i in
   let do_write s =
     let sl = String.length s in
-    let w = write t.fd_append s 0 sl in
-    assert (w = sl);
+    safe_write t.fd_append s 0 sl;
     t.root_offset <- t.offset;
     update_offset sl
   in
@@ -450,8 +458,7 @@ let write t slab =
   let ro = t.root_offset in
   let s = serialize_commit ro in
   let sl = String.length s in
-  let w = write t.fd_append s 0 sl in
-  assert (w = sl);
+  safe_write t.fd_append s 0 sl;
   update_offset sl
 
 let root t = t.root_offset
