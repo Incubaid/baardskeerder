@@ -62,15 +62,12 @@ let insert_delete_1 ((log,set,get,delete) as q) =
 
 
       
-let set_all (log,set,_,_) kvs = List.iter (fun (k,v) -> 
-  Printf.printf "set %S %S\n%!" k v;
-  set log k v) kvs
+let set_all (log,set,_,_) kvs = List.iter (fun (k,v) -> set log k v) kvs
 
 let delete_all_check ((log,set,get,delete) as q) kvs = 
   let rec loop acc = function
     | [] -> ()
     | (k,v) as h :: t -> 
-      Printf.printf "delete %S\n%!" k;
       delete log k;
       let acc' = h :: acc in
       check_not q acc';
@@ -268,6 +265,7 @@ let suite =
     "insert_delete_permutations_2" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 6));
     "insert_delete_permutations_2" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 7));
     "insert_delete_permutations_3" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 8));
+    "insert_delete_permutations_4" >:: mem_wrap (debug_info_wrap (insert_delete_permutations_generic 9));
     "insert_static_delete_permutations_1" >:: mem_wrap (debug_info_wrap (all_n 5));
     "insert_static_delete_permutations_2" >:: mem_wrap (debug_info_wrap (all_n 6)); 
     "insert_static_delete_permutations_3" >:: mem_wrap (debug_info_wrap (all_n 7)); 
