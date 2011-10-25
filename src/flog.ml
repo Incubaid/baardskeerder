@@ -42,6 +42,11 @@ let chr2 = Char.chr 2
 let chr3 = Char.chr 3
 let chr4 = Char.chr 4
 
+let value_tag = chr1
+and leaf_tag = chr2
+and index_tag = chr3
+and commit_tag = chr4
+
 let write_uint8 i s o =
   assert (i >= 0);
   assert (i < 0x100);
@@ -213,7 +218,7 @@ let serialize_commit o =
   let s = String.create (4 + 1 + 8 + 4) in
 
   write_uint32 (1 + 8 + 4) s 0;
-  String.set s 4 chr4;
+  String.set s 4 commit_tag;
   write_uint64 o s (4 + 1);
   let crc = crc32 s 0 (4 + 1 + 8) in
   write_crc32 crc s (4 + 1 + 8);
@@ -225,26 +230,33 @@ and deserialize_commit s o =
 
 and commit2s (Commit o) = Printf.sprintf "Commit %d" o
 
+let marker = 0x0baadeed
+let marker' =
+  let s = String.create 4 in
+  write_uint32 marker s 0;
+  s
+
 let find_root f o =
-  let s = String.create 4
-  and t = String.create 1 in
+  let s = String.create 5 in
 
   let rec loop a o =
     try
       pread_into_exactly f s 4 o;
-      pread_into_exactly f t 1 (o + 4);
+      assert (read_uint32 s 0 = marker);
+
+      pread_into_exactly f s 5 (o + 4);
 
       let s' = read_uint32 s 0 in
 
-      match String.get t 0 with
-        | i when i = chr1 -> loop a (o + 4 + s')
-        | i when i = chr2 -> loop a (o + 4 + s')
-        | i when i = chr3 -> loop a (o + 4 + s')
-        | i when i = chr4 ->
+      match String.get s 4 with
+        | i when i = leaf_tag -> loop a (o + 8 + s')
+        | i when i = index_tag -> loop a (o + 8 + s')
+        | i when i = value_tag -> loop a (o + 8 + s')
+        | i when i = commit_tag ->
             let b = String.create (s' - 1) in
-            pread_into_exactly f b (s' - 1) (o + 4 + 1);
+            pread_into_exactly f b (s' - 1) (o + 8 + 1);
             let (Commit c) = deserialize_commit b 0 in
-            loop c (o + 4 + s')
+            loop c (o + 8 + s')
         | c -> failwith
                 (Printf.sprintf "Flog.find_root: unknown entry type: %d"
                   (Char.code c))
@@ -309,8 +321,6 @@ let int8_placeholder = '0'
 let int32_placeholder = "0123"
 let int64_placeholder = "01234567"
 
-let marker = 0x0baadeed
-
 let serialize_leaf l =
   let b = Buffer.create 256 in
 
@@ -318,7 +328,7 @@ let serialize_leaf l =
   and s64 = String.create 8 in
 
   Buffer.add_string b int32_placeholder;
-  Buffer.add_char b chr2;
+  Buffer.add_char b leaf_tag;
   Buffer.add_char b chr0;
 
   Buffer.add_char b int8_placeholder;
@@ -370,7 +380,7 @@ let serialize_index (p, kps) =
   and s64 = String.create 8 in
 
   Buffer.add_string b int32_placeholder;
-  Buffer.add_char b chr3;
+  Buffer.add_char b index_tag;
   Buffer.add_char b chr0;
 
   Buffer.add_string b int64_placeholder;
@@ -427,7 +437,7 @@ let serialize_value v =
   and el = tl - 4 in
 
   write_uint32 el s 0;
-  String.set s 4 chr1;
+  String.set s 4 value_tag;
   String.set s 5 chr0;
   String.blit v 0 s 6 l;
 
@@ -446,10 +456,11 @@ let deserialize_value s o =
 let write t slab =
   let update_offset i = t.offset <- t.offset + i in
   let do_write s =
+    safe_write t.fd_append marker' 0 4;
     let sl = String.length s in
     safe_write t.fd_append s 0 sl;
     t.root_offset <- t.offset;
-    update_offset sl
+    update_offset (sl + 4)
   in
 
   let write_slab = function
@@ -470,26 +481,30 @@ let write t slab =
   let ro = t.root_offset in
   let s = serialize_commit ro in
   let sl = String.length s in
+  safe_write t.fd_append marker' 0 4;
   safe_write t.fd_append s 0 sl;
-  update_offset sl
+  update_offset (sl + 4)
 
 let root t = t.root_offset
 let next t = t.offset
 let read t pos =
   if pos = 0 then NIL
   else
-  let s = String.create 4 in
+  let s = String.create 9 in
 
-  pread_into_exactly t.fd_in s 4 pos;
+  pread_into_exactly t.fd_in s 9 pos;
 
-  let l = read_uint32 s 0 in
-  let s = String.create l in
-  pread_into_exactly t.fd_in s l (pos + 4);
+  let m = read_uint32 s 0
+  and l = read_uint32 s 4 in
+  assert (m = marker);
 
-  match String.get s 0 with
-    | i when i = chr1 -> deserialize_value s 1
-    | i when i = chr2 -> deserialize_leaf s 1
-    | i when i = chr3 -> deserialize_index s 1
+  let s' = String.create (l - 1) in
+  pread_into_exactly t.fd_in s' (l - 1) (pos + 4 + 4 + 1);
+
+  match String.get s 8 with
+    | i when i = value_tag -> deserialize_value s' 0
+    | i when i = leaf_tag -> deserialize_leaf s' 0
+    | i when i = index_tag -> deserialize_index s' 0
     | _ -> failwith "Flog.read: unknown node type"
 
 (* TODO Don't really need to serialize! *)
