@@ -37,27 +37,12 @@ let kvs_x =
   in
   loop [] 30
 
-(*
- 0: Value "A"
- 2: Value "B"
- 4: Value "C"
- 6: Value "D"
-10: Value "E"
-13: Value "G"
-17: Value "J"
-20: Value "M"
-26: Value "Q"
-30: Value "T"
-35: Value "W"
-39: Value "Z"
-
-// delete "a" has problems
-
-*)
-
-let kvs = ["a";"b"; "c"; "d";"e"; 
-	   "g";"j"; "m"; "q"; "t";
-	   "w";"z"]
+let kvs =
+  ["a";"b";"c";"d";"e";
+   "f";"g";"h";"i";"j";
+   "k";"l";"m";"n";"o";
+   "p";]
+    
 
 let () = List.iter 
   (fun k -> 

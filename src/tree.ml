@@ -185,7 +185,7 @@ module DB = functor (L:LOG ) -> struct
 		      let h  =  leaf_merge left right in
 		      let hpos = add_leaf slab h in
 		      let z' = indexz_suppress R hpos z in
-		      leaves_merged slab hpos z' rest
+		      xxx_merged slab hpos z' rest
 		    end
 		  else (* borrow from right *)
 		    begin
@@ -206,7 +206,7 @@ module DB = functor (L:LOG ) -> struct
 		      let h = leaf_merge left right  in
 		      let hpos = add_leaf slab h in
 		      let index' = indexz_suppress L hpos z in
-		      leaves_merged slab hpos index' rest
+		      xxx_merged slab hpos index' rest
 		    end
 		  else (* borrow from left *)
 		    begin
@@ -228,7 +228,7 @@ module DB = functor (L:LOG ) -> struct
 			let h = leaf_merge left right in
 			let hpos = add_leaf slab h in
 			let index' = indexz_suppress L hpos z in
-			leaves_merged slab hpos index' rest
+			xxx_merged slab hpos index' rest
 		      end
 		    | _, true ->
 		      begin
@@ -236,7 +236,7 @@ module DB = functor (L:LOG ) -> struct
 			let h = leaf_merge left right in
 			let hpos = add_leaf slab h in
 			let index' = indexz_suppress R hpos z in
-			leaves_merged slab hpos index' rest
+			xxx_merged slab hpos index' rest
 		      end
 		    | _,_ -> (* borrow from left *)
 		      begin
@@ -257,7 +257,7 @@ module DB = functor (L:LOG ) -> struct
       let z' = indexz_borrowed_left lpos sep rpos z in
       let ipos = add_index slab (indexz_close z') in
       delete_rest slab ipos rest
-    and leaves_merged slab start index rest = 
+    and xxx_merged slab start index rest = 
       let read_index pos = 
 	let e = L.read t pos in
 	match e with
@@ -279,10 +279,8 @@ module DB = functor (L:LOG ) -> struct
 		      let sep = indexz_separator L z in
 		      let index' = index_merge left sep index in
 		      let ipos' = add_index slab index' in
-		      let z' = indexz_suppress L ipos' z in
-		      match z' with
-			| _,[] -> assert (rest = []) ; ()
-			| z' -> delete_rest slab ipos' rest
+		      let z2 = indexz_suppress L ipos' z in
+		      xxx_merged slab ipos' z2 rest
 		    end
 		  else
 		    failwith "todo: underflow & cannot merge with left neigbour"
@@ -297,10 +295,7 @@ module DB = functor (L:LOG ) -> struct
 		      let index' = index_merge index sep right in
 		      let ipos' = add_index slab index' in
 		      let z2 = indexz_suppress R ipos' z in
-		      match z2 with
-			| _,[] -> assert(rest = []); ()
-			| z2 -> let z2pos = add_index slab z2 in
-				delete_rest slab z2pos rest
+		      xxx_merged slab ipos' z2 rest
 		    end
 		  else
 		    failwith "todo: underflow & cannot merge with right neighbour"
