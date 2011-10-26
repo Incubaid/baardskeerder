@@ -296,10 +296,11 @@ module DB = functor (L:LOG ) -> struct
 		      let sep = indexz_separator R z in
 		      let index' = index_merge index sep right in
 		      let ipos' = add_index slab index' in
-		      let z' = indexz_suppress R ipos' z in
-		      match z' with
+		      let z2 = indexz_suppress R ipos' z in
+		      match z2 with
 			| _,[] -> assert(rest = []); ()
-			| z' -> delete_rest slab ipos' rest
+			| z2 -> let z2pos = add_index slab z2 in
+				delete_rest slab z2pos rest
 		    end
 		  else
 		    failwith "todo: underflow & cannot merge with right neighbour"

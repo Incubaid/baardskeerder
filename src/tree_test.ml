@@ -84,7 +84,8 @@ let insert_delete_generic q kvs =
 
 
 
-let kvs = ["a","A";"d","D";"g","G";"j","J";"m","M";"q","Q";"t","T";"w","W"; "z", "Z";"b","B"]
+let kvs = ["a","A";"d","D";"g","G";"j","J";"m","M";"q","Q";"t","T";"w","W"; "z", "Z";
+	   "b","B";"c","C";"e","E"]
 
 let take n  = 
   let rec fill acc es = function
@@ -118,7 +119,18 @@ let insert_delete_bug ((log, set, get, delete,_) as q) =
   delete log "b";
   delete log "j"
   
-      
+let insert_delete_bug2 ((log,set,get,delete,_) as q) =
+  let kvs = ["a";"b"; "c"; "d";"e"; 
+	   "g";"j"; "m"; "q"; "t";
+	   "w";"z"]
+  in
+  List.iter (fun k -> let v = String.uppercase k in set log k v) kvs;
+  delete log "a";
+  let kvs' = List.filter ( (<>) "a") kvs in
+  List.iter (fun k -> let v = String.uppercase k in 
+		      let v2 = get log k in
+		      OUnit.assert_equal v v2) kvs'
+
 
 let split_1 ((log,set,get,delete,_) as q) =   
   let kvs0 = ["a","A"; "d","D"; "g","G";] in
@@ -275,12 +287,13 @@ let template =
     "insert_delete_7", insert_delete_7;
     "insert_delete_8", insert_delete_8;
     "insert_delete_bug", insert_delete_bug;
+    "insert_delete_bug2", insert_delete_bug2;
     "insert_delete_permutations_1", debug_info_wrap (insert_delete_permutations_generic 5);
     "insert_delete_permutations_2", debug_info_wrap (insert_delete_permutations_generic 6);
     "insert_delete_permutations_3", debug_info_wrap (insert_delete_permutations_generic 7);
     "insert_delete_permutations_4", debug_info_wrap (insert_delete_permutations_generic 8);
     "insert_delete_permutations_5", debug_info_wrap (insert_delete_permutations_generic 9);
-   (* "insert_delete_permutations_6", debug_info_wrap (insert_delete_permutations_generic 10); *)
+    (* "insert_delete_permutations_6", debug_info_wrap (insert_delete_permutations_generic 12); *)
     "insert_static_delete_permutations_1", debug_info_wrap (all_n 5);
     "insert_static_delete_permutations_2", debug_info_wrap (all_n 6); 
     "insert_static_delete_permutations_3", debug_info_wrap (all_n 7); 

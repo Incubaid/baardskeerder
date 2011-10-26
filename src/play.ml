@@ -38,73 +38,41 @@ let kvs_x =
   loop [] 30
 
 (*
-519024: Value "A"
-519026: Value "B"
-519028: Value "J"
-519030: Value "D"
-519034: Value "G"
-519037: Value "M"
-519041: Value "Q"
-519044: Value "T"
-519050: Value "W"
-519054: Value "Z"
-// delete a
-// delete b
-519059: Leaf ["b", 519026; "d", 519030; "g", 519034]
-519060: Index 519059, ["g", 519045; "m", 519055; "t", 519056])
-519061: Leaf ["d", 519030; "g", 519034]
-519062: Index 519061, ["g", 519045; "m", 519055; "t", 519056])
+ 0: Value "A"
+ 2: Value "B"
+ 4: Value "C"
+ 6: Value "D"
+10: Value "E"
+13: Value "G"
+17: Value "J"
+20: Value "M"
+26: Value "Q"
+30: Value "T"
+35: Value "W"
+39: Value "Z"
+
+// delete "a" has problems
 
 *)
 
-let kvs_bug = ["a";"b"; "j"; "d";
-	       "g"; "m"; "q"; "t";
-	       "w";"z"]
-
-let kvs =  [
-  "t";
-  "a";
-  "d";
-  "g";
-  "q";
-  "w";
-  "j";
-
-(*  
-
-    "z", "Z"; 
-    "z1","Z1";
-    "z2","Z2";
-    "z3","Z3";
-    "z4","z4";
-    "z5","z5";
-    "z6","Z6";
-    "z7","Z7";
-
-    "z8","Z8";
-    "z9","Z9";
-    "z10","Z10"; 
-*)
-
-];;
+let kvs = ["a";"b"; "c"; "d";"e"; 
+	   "g";"j"; "m"; "q"; "t";
+	   "w";"z"]
 
 let () = List.iter 
   (fun k -> 
     let v = String.uppercase k in
     let () = MDB.set t0 k v in
-    (*let _ = MDot.view_tree t0 in *)
+    (* let _ = MDot.view_tree t0 in  *)
     ()
-  ) kvs_bug;;
+  ) kvs;;
 (*
 let check () = List.iter (fun (k,v) -> assert (MDB.get t0 k =v)) kvs;;
 let () = check ();;*)
 (* MDB.set t0 "m" "M";; *)
 MDot.view_tree t0;;
 MDB.delete t0 "a";;
-MDB.delete t0 "b";;
 MDot.view_tree t0;;
-MDB.delete t0 "j";;
-
 (* MDB.delete t0 "t";; *)
 
 (* MDB.delete t0 "w";;
