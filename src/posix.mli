@@ -20,3 +20,7 @@
 (* pread *)
 external pread_into_exactly: Unix.file_descr -> string -> int -> int -> unit
     = "_bs_posix_pread_into_exactly"
+
+(* fsync *)
+external fsync: Unix.file_descr -> unit
+    = "_bs_posix_fsync"

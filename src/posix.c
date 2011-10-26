@@ -20,6 +20,7 @@
 #define _XOPEN_SOURCE 500
 #define _FILE_OFFSET_BITS 64
 
+#include <string.h>
 #include <unistd.h>
 
 #include <caml/mlvalues.h>
@@ -27,6 +28,8 @@
 #include <caml/memory.h>
 #include <caml/fail.h>
 #include <caml/unixsupport.h>
+#include <caml/signals.h>
+
 
 void _bs_posix_pread_into_exactly(value fd, value buf, value count,
         value offset) {
@@ -34,7 +37,6 @@ void _bs_posix_pread_into_exactly(value fd, value buf, value count,
         CAMLparam4(fd, buf, count, offset);
 
         int c_fd = 0;
-        char *c_buf = NULL;
         size_t c_count = 0;
         off_t c_offset = 0;
 
@@ -42,23 +44,52 @@ void _bs_posix_pread_into_exactly(value fd, value buf, value count,
 
         ssize_t r = 0;
 
-        c_fd = Int_val(fd);
-        c_buf = String_val(buf);
-        c_count = Long_val(count);
-        c_offset = Long_val(offset);
+        char iobuf[UNIX_BUFFER_SIZE];
 
-        while(read < c_count) {
-                r = pread(c_fd, c_buf + read, c_count - read, c_offset + read);
+        Begin_root(buf);
 
-                if(r == 0) {
-                        caml_raise_end_of_file();
-                }
+          c_fd = Int_val(fd);
+          c_count = Long_val(count);
+          c_offset = Long_val(offset);
 
-                if(r < 0) {
-                        uerror("pread", Nothing);
-                }
+          while(read < c_count) {
+                  enter_blocking_section();
+                    r = pread(c_fd, iobuf,
+                            UNIX_BUFFER_SIZE < c_count - read ?
+                                    UNIX_BUFFER_SIZE :
+                                    c_count - read,
+                            c_offset + read);
+                  leave_blocking_section();
 
-                read += r;
+                  if(r == 0) {
+                          caml_raise_end_of_file();
+                  }
+
+                  if(r < 0) {
+                          uerror("pread", Nothing);
+                  }
+
+                  memmove(&Byte(buf, read), iobuf, r);
+
+                  read += r;
+          }
+
+        End_roots();
+
+        CAMLreturn0;
+}
+
+void _bs_posix_fsync(value fd) {
+        int ret = 0;
+
+        CAMLparam1(fd);
+
+        enter_blocking_section();
+          ret = fsync(Int_val(fd));
+        leave_blocking_section();
+
+        if(ret < 0) {
+                uerror("fsync", Nothing);
         }
 
         CAMLreturn0;

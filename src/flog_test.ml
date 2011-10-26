@@ -199,6 +199,25 @@ let test_database_reopen fn db =
 
   close db'
 
+let test_database_sync fn db =
+  let k = "foo"
+  and v = "bar" in
+
+  MDB.set db k v;
+
+  (* Set both metadata field *)
+  Flog.sync db;
+  Flog.sync db;
+
+  OUnit.assert_equal (MDB.get db k) v;
+
+  close db;
+
+  let db' = make fn in
+  OUnit.assert_equal (MDB.get db' k) v;
+
+  close db'
+
 let database =
   "database" >::: [
     "create" >:: with_tempfile test_database_create;
@@ -207,6 +226,7 @@ let database =
     "set_get" >:: with_database test_database_set_get;
     "reopen" >:: with_database test_database_reopen;
     "multi_action" >:: with_database test_database_multi_action;
+    "sync" >:: with_database test_database_sync;
   ]
 
 let suite =

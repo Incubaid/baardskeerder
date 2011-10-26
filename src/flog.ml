@@ -22,13 +22,29 @@ open Unix
 open Entry
 open Posix
 
+type blocksize = int
+type spindle = int
+type offset = int
+type count = int
+
+type metadata = {
+  md_blocksize: blocksize;
+  md_spindle: spindle;
+  md_offset: offset;
+  md_count: count;
+}
+
 type t = {
   fd_in: file_descr;
   fd_append: file_descr;
   fd_random: file_descr;
-  mutable offset: int;
-  mutable root_offset: int;
+  mutable offset: offset;
+  mutable root_offset: offset;
+  mutable commit_offset: offset;
   mutable closed: bool;
+
+  mutable last_metadata: int;
+  mutable metadata: metadata * metadata;
 }
 
 type slab = {
@@ -138,18 +154,6 @@ let metadata_prefix = "BaArDsKeErDeR"
 let metadata_suffix = "bAaRdSkEeRdEr"
 let metadata_version = 0x01
 
-type blocksize = int
-type spindle = int
-type offset = int
-type count = int
-
-type metadata = {
-  md_blocksize: blocksize;
-  md_spindle: spindle;
-  md_offset: offset;
-  md_count: count;
-}
-
 let serialize_metadata md =
   let s = String.make md.md_blocksize chr0
   and pl = String.length metadata_prefix
@@ -236,7 +240,7 @@ let marker' =
   write_uint32 marker s 0;
   s
 
-let find_root f o =
+let find_commit f o =
   let s = String.create 5 in
 
   let rec loop a o =
@@ -252,11 +256,7 @@ let find_root f o =
         | i when i = leaf_tag -> loop a (o + 8 + s')
         | i when i = index_tag -> loop a (o + 8 + s')
         | i when i = value_tag -> loop a (o + 8 + s')
-        | i when i = commit_tag ->
-            let b = String.create (s' - 1) in
-            pread_into_exactly f b (s' - 1) (o + 8 + 1);
-            let (Commit c) = deserialize_commit b 0 in
-            loop c (o + 8 + s')
+        | i when i = commit_tag -> loop o (o + 8 + s')
         | c -> failwith
                 (Printf.sprintf "Flog.find_root: unknown entry type: %d"
                   (Char.code c))
@@ -302,10 +302,34 @@ let make (f: string): t =
 
   let offset = lseek fd_append 0 SEEK_END in
 
-  let root = find_root fd_in (2 * bs) in
+  let s =
+    if md1.md_count > md2.md_count
+    then md1.md_offset
+    else md2.md_offset
+  in
+  let s = if s = 0 then (2 * bs) else s in
+  let co = find_commit fd_in s in
+
+  let root =
+    if co = 0 then 0
+    else begin
+      let s = String.create 9 in
+      pread_into_exactly fd_in s 9 co;
+      assert (read_uint32 s 0 = marker);
+      let l = (read_uint32 s 4) - 1 in
+      assert (String.get s 8 = commit_tag);
+      let s = String.create l in
+      pread_into_exactly fd_in s l (co + 9);
+      let (Commit root) = deserialize_commit s 0 in
+      root end
+  in
+
+  (* TODO Choose correct last_metadata *)
+  (* TODO Write 'best' metadata into both blocks *)
 
   { fd_in=fd_in; fd_append=fd_append; fd_random=fd_random; offset=offset;
-    root_offset=root; closed=false; }
+    commit_offset=co; root_offset=root; closed=false;
+    last_metadata=0; metadata=(md1, md2); }
 
 let close db =
   if db.closed
@@ -483,7 +507,8 @@ let write t slab =
   let sl = String.length s in
   safe_write t.fd_append marker' 0 4;
   safe_write t.fd_append s 0 sl;
-  update_offset (sl + 4)
+  update_offset (sl + 4);
+  t.commit_offset <- t.offset - sl - 4
 
 let root t = t.root_offset
 let next t = t.offset
@@ -506,6 +531,40 @@ let read t pos =
     | i when i = leaf_tag -> deserialize_leaf s' 0
     | i when i = index_tag -> deserialize_index s' 0
     | _ -> failwith "Flog.read: unknown node type"
+
+let sync t =
+  (* Retrieve current commit offset *)
+  let c = t.commit_offset in
+
+  (* Sync file *)
+  flush (out_channel_of_descr t.fd_append);
+  Posix.fsync t.fd_append;
+
+  (* Figure out which metadata to overwrite *)
+  let i = (t.last_metadata + 1) mod 2 in
+  let m = (if i = 0 then fst else snd) t.metadata in
+
+  (* Update metadata *)
+  let m' = { m with md_offset=c; md_count=(m.md_count + 2) mod 0xFFFFFFFF } in
+
+  (* Write to disk *)
+  let s, bs = serialize_metadata m' in
+  lseek_set t.fd_random (if i = 0 then 0 else m.md_blocksize);
+  safe_write t.fd_random s 0 bs;
+
+  (* Sync again *)
+  flush (out_channel_of_descr t.fd_random);
+  Posix.fsync t.fd_random;
+
+  (* Update in-memory representation *)
+  let md' =
+    let a = (if i = 0 then m' else fst t.metadata)
+    and b = (if i = 1 then m' else snd t.metadata) in
+    (a, b)
+  in
+
+  t.metadata <- md';
+  t.last_metadata <- i
 
 (* TODO Don't really need to serialize! *)
 let size = function
