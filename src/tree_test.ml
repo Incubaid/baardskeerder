@@ -37,7 +37,8 @@ let mem_wrap t = OUnit.bracket mem_setup t mem_teardown
 
 
 let check ((log,_,get,_,_)) kvs = 
-  List.iter (fun (k,v) -> 
+  List.iter (fun k ->
+    let v = String.uppercase k in
     OUnit.assert_equal v (get log k)) kvs 
 
 let check_empty (log,_,get,_,_) =
@@ -48,28 +49,28 @@ let check_empty (log,_,get,_,_) =
 
     
 let check_not (log,_,get,_,_) kvs = 
-  List.iter (fun (k,_) -> 
+  List.iter (fun k -> 
     OUnit.assert_raises ~msg:k (NOT_FOUND k) (fun () -> get log k)) kvs    
     
     
 
 let insert_delete_1 ((log,set,get,delete,_) as q) = 
   set log "a" "A";
-  check q ["a","A"];
+  check q ["a"];
   delete log "a";
-  check_not q ["a","A"]
+  check_not q ["a"]
 
 
 
       
-let set_all (log,set,_,_,_) kvs = List.iter (fun (k,v) -> set log k v) kvs
+let set_all (log,set,_,_,_) kvs = List.iter (fun k -> let v = String.uppercase k in set log k v) kvs
 
 let delete_all_check ((log,set,get,delete,_) as q) kvs = 
   let rec loop acc = function
     | [] -> ()
-    | (k,v) as h :: t -> 
+    | k :: t -> 
       delete log k;
-      let acc' = h :: acc in
+      let acc' = k :: acc in
       check_not q acc';
       check q t;
       loop acc' t
@@ -84,8 +85,8 @@ let insert_delete_generic q kvs =
 
 
 
-let kvs = ["a","A";"d","D";"g","G";"j","J";"m","M";"q","Q";"t","T";"w","W"; "z", "Z";
-	   "b","B";"c","C";"e","E"]
+let kvs = ["a";"d";"g";"j";"m";"q";"t";"w";"z";
+	   "b";"c";"e"]
 
 let take n  = 
   let rec fill acc es = function
@@ -107,6 +108,7 @@ let insert_delete_6 q = insert_delete_generic q (take 6)
 let insert_delete_7 q = insert_delete_generic q (take 7)
 
 let insert_delete_8 q = insert_delete_generic q (take 8)
+
 
 let insert_delete_bug ((log, set, get, delete,_) as q) = 
   let kvs =  
@@ -131,39 +133,47 @@ let insert_delete_bug2 ((log,set,get,delete,_) as q) =
 		      let v2 = get log k in
 		      OUnit.assert_equal v v2) kvs'
 
+let insert_delete_bug3 ((log,set,get,delete,_) as q) = 
+  let kvs = ["a";"b";"c";"d";"e";
+	     "f";"g";"h";"i";"j";
+	     "k";"l";"m";"n";"o";
+	     "p";]
+  in
+  List.iter (fun k -> let v = String.uppercase k in set log k v) kvs;
+  set_all q kvs;
+  check q kvs;
+  delete log "a";
+  ()
 
 let split_1 ((log,set,get,delete,_) as q) =   
-  let kvs0 = ["a","A"; "d","D"; "g","G";] in
+  let kvs0 = ["a"; "d"; "g"] in
   set_all q kvs0;
   set log "j" "J";
-  check q (("j","J")::kvs0);
+  check q ("j"::kvs0);
   delete log "j";
   check q kvs0
 
   
 let split_2 ((log,set,get,delete,_) as q) = 
-  let kvs0 = ["a","A"; "d","D"; "g","G"; "j","J"; "m","M";] in
+  let kvs0 = ["a"; "d"; "g"; "j"; "m";] in
   set_all q kvs0;
   set log "q" "Q";
-  check q (("q","Q")::kvs0);
+  check q ("q"::kvs0);
   delete log "q";
   check q kvs0
 
 let underflow_n2 ((log,_,_, delete,_) as q) = 
-  let kvs = ["a","A"; "d","D"; "g","G"; "j","J"; "m","M";"q","Q"] in
+  let kvs = ["a"; "d"; "g"; "j"; "m";"q"] in
   set_all q kvs;
   delete log "g"
 
 let underflow_n2_2 ((log,_,_,delete,_) as q) = 
-  let kvs = ["a","A"; "d","D"; "g","G"; "j","J"; "m","M";"q","Q"] in
+  let kvs = ["a";"d"; "g"; "j";"m"; "q"] in
   set_all q kvs;
   delete log "j"
 
 let insert_overflow ((log,set,get,delete,_) as q) = 
-  let kvs =  ["a", "A"; "d", "D"; "g", "G"; "m", "M";
-	      "q", "Q"; "t", "T"; "j", "J";
-	     ]  
-  in
+  let kvs =  ["a"; "d"; "g"; "m";"q"; "t"; "j";] in
   set_all q kvs;
   check q kvs
 
@@ -206,7 +216,7 @@ let next_permutation a =
 let insert_delete_permutations_generic  n ((log,set,get,delete, clear) as q) =
   let kvs = take n in 
   let kvs' = Array.of_list kvs in
-  Array.fast_sort (fun (k1, _) (k2, _) -> compare k1 k2) kvs';
+  Array.fast_sort String.compare kvs';
 
   let l = Array.length kvs' in
 
@@ -214,9 +224,9 @@ let insert_delete_permutations_generic  n ((log,set,get,delete, clear) as q) =
 
   let do_test a =
     clear log;
-    Array.iter (fun (k, v) -> set log k v) a;
+    Array.iter (fun k -> set log k (String.uppercase k)) a;
     check q (Array.to_list a);
-    Array.iter (fun (k, v) -> (* Printf.eprintf "delete %s\n" k; *) delete log k) a;
+    Array.iter (fun k -> (* Printf.eprintf "delete %s\n" k; *) delete log k) a;
     check_empty q
   in
 
@@ -248,16 +258,16 @@ let debug_info_wrap f = fun ((log, _, _, _,_) as q) ->
 let insert_static_delete_permutations_generic  n ((log, set, get, delete, clear) as q) =
   let kvs = take n in 
   let kvs' = Array.of_list kvs in
-  Array.fast_sort (fun (k1, _) (k2, _) -> compare k1 k2) kvs';
+  Array.fast_sort String.compare kvs';
 
   let l = Array.length kvs' in
 
   let do_test n a =
     clear log;
     if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
-    List.iter (fun (k, v) -> set log k v) kvs;
+    List.iter (fun k -> set log k (String.uppercase k)) kvs;
     check q kvs;
-    Array.iter (fun (k, v) -> delete log k) a;
+    Array.iter (fun k -> delete log k) a;
     check_empty q
   in
 
@@ -288,6 +298,7 @@ let template =
     "insert_delete_8", insert_delete_8;
     "insert_delete_bug", insert_delete_bug;
     "insert_delete_bug2", insert_delete_bug2;
+    "insert_delete_bug3", insert_delete_bug3;
     "insert_delete_permutations_1", debug_info_wrap (insert_delete_permutations_generic 5);
     "insert_delete_permutations_2", debug_info_wrap (insert_delete_permutations_generic 6);
     "insert_delete_permutations_3", debug_info_wrap (insert_delete_permutations_generic 7);

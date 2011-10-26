@@ -68,7 +68,7 @@ let delete_loop db n =
   loop 0
 
 let () = 
-  let n = 1000_000 in
+  let n = 16 in
   let vs = 1000 in
   let fn = "test.db" in
   let () = Flog.create fn 4096 in
