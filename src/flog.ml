@@ -518,7 +518,7 @@ let make_slab t = { entries=[]; pos=next t }
 let add s e =
   s.entries <- e :: s.entries;
   let c = s.pos in
-  s.pos <- c + size e;
+  s.pos <- c + size e + 4;
   c
 
 let clear (t:t) = ()
