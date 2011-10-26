@@ -19,6 +19,7 @@
 
 open Unix
 open Tree
+open Arg
 
 let clock f = 
   let t0 = Unix.gettimeofday () in
@@ -68,22 +69,25 @@ let delete_loop db n =
   loop 0
 
 let () = 
-  let n = 
-    if Array.length Sys.argv = 2 
-    then int_of_string Sys.argv.(1)
-    else
-      1_000_000
+  let n  = ref 1_000_000 in
+  let vs = ref 2_000 in
+  let () = 
+    Arg.parse [
+      ("--value-size",Set_int vs, Printf.sprintf "size of the values in bytes (%i)" !vs);
+      ("--bench-size",Set_int n,  Printf.sprintf "number of sets/gets/deletes (%i)" !n);
+    ]
+      (fun _ ->()) 
+      "simple baardskeerder benchmark"
   in
-  let vs = 1000 in
   let fn = "test.db" in
   let () = Flog.create fn 4096 in
   let db = Flog.make fn in
-  let () = Printf.printf "n=%i iterations; value size=%i\n%!" n vs in
-  let d = clock (fun () -> set_loop db vs n) in
-  Printf.printf "%i sets of (%i bytes) took:%fs\n%!" n vs d;
-  let d2 = clock (fun () -> get_loop db n) in
-  Printf.printf "%i gets took:%fs\n%!" n d2;
-  let d3 = clock (fun () -> delete_loop db n) in
-  Printf.printf "%i deletes took:%fs\n%!" n d3;
+  let () = Printf.printf "\n%i iterations\nvalue size=%i\n%!" !n !vs in
+  let d = clock (fun () -> set_loop db !vs !n) in
+  Printf.printf "%i sets of (%i bytes) took:%fs\n%!" !n !vs d;
+  let d2 = clock (fun () -> get_loop db !n) in
+  Printf.printf "%i gets took:%fs\n%!" !n d2;
+  let d3 = clock (fun () -> delete_loop db !n) in
+  Printf.printf "%i deletes took:%fs\n%!" !n d3;
   let () = Flog.close db in
   ();;

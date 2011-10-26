@@ -85,8 +85,11 @@ let insert_delete_generic q kvs =
 
 
 
-let kvs = ["a";"d";"g";"j";"m";"q";"t";"w";"z";
-	   "b";"c";"e"]
+let kvs = ["a";"d";"g";"j";"m";
+	   "q";"t";"w";"z";"b";
+	   "c";"e";"f";"h";"i";
+	   "k";"l";
+	  ]
 
 let take n  = 
   let rec fill acc es = function
@@ -222,8 +225,9 @@ let insert_delete_permutations_generic  n ((log,set,get,delete, clear) as q) =
 
   let fst (a, _) = a in
 
-  let do_test a =
+  let do_test n a =
     clear log;
+    if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
     Array.iter (fun k -> set log k (String.uppercase k)) a;
     check q (Array.to_list a);
     Array.iter (fun k -> (* Printf.eprintf "delete %s\n" k; *) delete log k) a;
@@ -233,7 +237,7 @@ let insert_delete_permutations_generic  n ((log,set,get,delete, clear) as q) =
   let rec loop = function
     | 0 -> ()
     | n ->
-        do_test kvs';
+        do_test n kvs';
         if n > 1 then next_permutation kvs' else ();
         loop (pred n)
   in
@@ -304,7 +308,7 @@ let template =
     "insert_delete_permutations_3", debug_info_wrap (insert_delete_permutations_generic 7);
     "insert_delete_permutations_4", debug_info_wrap (insert_delete_permutations_generic 8);
     "insert_delete_permutations_5", debug_info_wrap (insert_delete_permutations_generic 9);
-    (* "insert_delete_permutations_6", debug_info_wrap (insert_delete_permutations_generic 12); *)
+    (* "insert_delete_permutations_6", debug_info_wrap (insert_delete_permutations_generic 17);  *)
     "insert_static_delete_permutations_1", debug_info_wrap (all_n 5);
     "insert_static_delete_permutations_2", debug_info_wrap (all_n 6); 
     "insert_static_delete_permutations_3", debug_info_wrap (all_n 7); 
