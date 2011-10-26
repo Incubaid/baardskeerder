@@ -68,11 +68,17 @@ let delete_loop db n =
   loop 0
 
 let () = 
-  let n = 16 in
+  let n = 
+    if Array.length Sys.argv = 2 
+    then int_of_string Sys.argv.(1)
+    else
+      1_000_000
+  in
   let vs = 1000 in
   let fn = "test.db" in
   let () = Flog.create fn 4096 in
   let db = Flog.make fn in
+  let () = Printf.printf "n=%i iterations; value size=%i\n%!" n vs in
   let d = clock (fun () -> set_loop db vs n) in
   Printf.printf "%i sets of (%i bytes) took:%fs\n%!" n vs d;
   let d2 = clock (fun () -> get_loop db n) in
