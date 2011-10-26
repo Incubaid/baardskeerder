@@ -212,7 +212,11 @@ let create (f: string) (b: blocksize) =
   lseek_set fd 0;
   ftruncate fd (2 * b);
   safe_write fd metadata1 0 b1;
+  flush (out_channel_of_descr fd);
+  Posix.fsync fd;
   safe_write fd metadata2 0 b2;
+  flush (out_channel_of_descr fd);
+  Posix.fsync fd;
 
   close fd
 
