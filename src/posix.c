@@ -78,3 +78,19 @@ void _bs_posix_pread_into_exactly(value fd, value buf, value count,
 
         CAMLreturn0;
 }
+
+void _bs_posix_fsync(value fd) {
+        int ret = 0;
+
+        CAMLparam1(fd);
+
+        enter_blocking_section();
+          ret = fsync(Int_val(fd));
+        leave_blocking_section();
+
+        if(ret < 0) {
+                uerror("fsync", Nothing);
+        }
+
+        CAMLreturn0;
+}
