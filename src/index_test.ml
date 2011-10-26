@@ -20,10 +20,20 @@
 open Index
 open OUnit
 
-let t_neigbours () = 
+let t_neighbours () = 
   let z = Loc ((7, [("j", 15); ("d", 14)]), []) in
-  let nb = Index.indexz_neighbours z in
+  let nb = indexz_neighbours z in
   OUnit.assert_equal (NL 14) nb
+
+let t_neighbours2 () = 
+  let z = Loc ((37,["g", 21]),["m", 31; "t", 32]) in
+  let nb = Index.indexz_neighbours z in
+  OUnit.assert_equal (N2(37,31)) nb
+
+let t_neighbours3 () = 
+  let z =  Loc ((0,["m", 1; "g", 2]),["t", 3]) in
+  let nb = Index.indexz_neighbours z in
+  OUnit.assert_equal (N2(2,3)) nb
 
 let t_suppress () = 
   let z = Loc ((7, [("j", 15); ("d", 14)]), []) in
@@ -42,6 +52,11 @@ let t_suppress2 () =
       let index = Index.indexz_suppress L 17 z in
       Printf.printf "index = %s\n" (index2s index)
     | _ -> failwith "should be NL 7"
+
+let t_suppress3 () = 
+  let z = Loc ((0,["m", 1; "g", 2]),["t", 3]) in
+  let r = indexz_suppress L 4 z in
+  ()
 
 let t_balance() =
   let d = 2 in
@@ -93,9 +108,12 @@ let t_replace () =
 
 let suite = 
   "Index" >:::[
-    "neighbours" >:: t_neigbours;
+    "neighbours" >:: t_neighbours;
+    "neighbours2" >:: t_neighbours2;
+    "neighbours3" >:: t_neighbours3;
     "suppress"   >:: t_suppress;
     "suppress2"  >:: t_suppress2;
+    "suppress3"  >:: t_suppress3;
     "balance"    >:: t_balance;
     "balance2"   >:: t_balance2;
     "split"      >:: t_split;

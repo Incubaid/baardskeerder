@@ -521,5 +521,6 @@ let add s e =
   s.pos <- c + size e;
   c
 
+let clear (t:t) = ()
 let string_of_slab s =
   Pretty.string_of_list entry2s s.entries

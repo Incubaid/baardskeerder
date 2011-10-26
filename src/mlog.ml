@@ -71,4 +71,12 @@ let dump ?out:(o=stdout) (t:t) =
       Printf.fprintf o "%2i: %s\n" i s)
     t.es
 
+let clear (t:t) = 
+  let rec loop i = 
+    if i = t.next then ()
+    else let () = t.es.(i) <- NIL in loop (i+1) 
+  in
+  loop 0;
+  t.next <- 0
+
 let string_of_slab s = Pretty.string_of_list entry2s s._es

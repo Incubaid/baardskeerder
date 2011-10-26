@@ -26,9 +26,9 @@ open Entry
 
 module MDB = DB(Mlog)
 
-type 'a q = 'a * ('a -> k -> v -> unit) * ('a -> k -> v) * ('a -> k -> unit)
+type 'a q = 'a * ('a -> k -> v -> unit) * ('a -> k -> v) * ('a -> k -> unit) * (unit -> 'a)
 
-let mem_setup () =  (Mlog.make (), MDB.set, MDB.get, MDB.delete)
+let mem_setup () =  (Mlog.make (), MDB.set, MDB.get, MDB.delete, Mlog.clear)
 
 let mem_teardown q = ()
 
@@ -36,24 +36,24 @@ let mem_wrap t = OUnit.bracket mem_setup t mem_teardown
 
 
 
-let check (log,_,get,_) kvs = 
+let check ((log,_,get,_,_)) kvs = 
   List.iter (fun (k,v) -> 
     OUnit.assert_equal v (get log k)) kvs 
 
-let check_empty (log,_,get,_) =
+let check_empty (log,_,get,_,_) =
   let i = Mlog.root log in
   let n = Mlog.read log i in
   OUnit.assert_equal n (Leaf [])
 
 
     
-let check_not (log,_,get,_) kvs = 
+let check_not (log,_,get,_,_) kvs = 
   List.iter (fun (k,_) -> 
     OUnit.assert_raises ~msg:k (NOT_FOUND k) (fun () -> get log k)) kvs    
     
     
 
-let insert_delete_1 ((log,set,get,delete) as q) = 
+let insert_delete_1 ((log,set,get,delete,_) as q) = 
   set log "a" "A";
   check q ["a","A"];
   delete log "a";
@@ -62,9 +62,9 @@ let insert_delete_1 ((log,set,get,delete) as q) =
 
 
       
-let set_all (log,set,_,_) kvs = List.iter (fun (k,v) -> set log k v) kvs
+let set_all (log,set,_,_,_) kvs = List.iter (fun (k,v) -> set log k v) kvs
 
-let delete_all_check ((log,set,get,delete) as q) kvs = 
+let delete_all_check ((log,set,get,delete,_) as q) kvs = 
   let rec loop acc = function
     | [] -> ()
     | (k,v) as h :: t -> 
@@ -84,7 +84,7 @@ let insert_delete_generic q kvs =
 
 
 
-let kvs = ["a","A";"d","D";"g","G";"j","J";"m","M";"q","Q";"t","T";"w","W"; "z", "Z"]
+let kvs = ["a","A";"d","D";"g","G";"j","J";"m","M";"q","Q";"t","T";"w","W"; "z", "Z";"b","B"]
 
 let take n  = 
   let rec fill acc es = function
@@ -107,7 +107,20 @@ let insert_delete_7 q = insert_delete_generic q (take 7)
 
 let insert_delete_8 q = insert_delete_generic q (take 8)
 
-let split_1 ((log,set,get,delete) as q) =   
+let insert_delete_bug ((log, set, get, delete,_) as q) = 
+  let kvs =  
+    ["a";"b"; "j"; "d";
+     "g"; "m"; "q"; "t";
+     "w";"z"]
+  in
+  List.iter (fun k -> let v = String.uppercase k in set log k v) kvs;
+  delete log "a";
+  delete log "b";
+  delete log "j"
+  
+      
+
+let split_1 ((log,set,get,delete,_) as q) =   
   let kvs0 = ["a","A"; "d","D"; "g","G";] in
   set_all q kvs0;
   set log "j" "J";
@@ -116,7 +129,7 @@ let split_1 ((log,set,get,delete) as q) =
   check q kvs0
 
   
-let split_2 ((log,set,get,delete) as q) = 
+let split_2 ((log,set,get,delete,_) as q) = 
   let kvs0 = ["a","A"; "d","D"; "g","G"; "j","J"; "m","M";] in
   set_all q kvs0;
   set log "q" "Q";
@@ -124,17 +137,17 @@ let split_2 ((log,set,get,delete) as q) =
   delete log "q";
   check q kvs0
 
-let underflow_n2 ((log,_,_, delete) as q) = 
+let underflow_n2 ((log,_,_, delete,_) as q) = 
   let kvs = ["a","A"; "d","D"; "g","G"; "j","J"; "m","M";"q","Q"] in
   set_all q kvs;
   delete log "g"
 
-let underflow_n2_2 ((log,_,_,delete) as q) = 
+let underflow_n2_2 ((log,_,_,delete,_) as q) = 
   let kvs = ["a","A"; "d","D"; "g","G"; "j","J"; "m","M";"q","Q"] in
   set_all q kvs;
   delete log "j"
 
-let insert_overflow ((log,set,get,delete) as q) = 
+let insert_overflow ((log,set,get,delete,_) as q) = 
   let kvs =  ["a", "A"; "d", "D"; "g", "G"; "m", "M";
 	      "q", "Q"; "t", "T"; "j", "J";
 	     ]  
@@ -178,7 +191,7 @@ let next_permutation a =
       decr j;
   done
 
-let insert_delete_permutations_generic  n ((log,set,get,delete) as q) =
+let insert_delete_permutations_generic  n ((log,set,get,delete, clear) as q) =
   let kvs = take n in 
   let kvs' = Array.of_list kvs in
   Array.fast_sort (fun (k1, _) (k2, _) -> compare k1 k2) kvs';
@@ -188,9 +201,10 @@ let insert_delete_permutations_generic  n ((log,set,get,delete) as q) =
   let fst (a, _) = a in
 
   let do_test a =
+    clear log;
     Array.iter (fun (k, v) -> set log k v) a;
     check q (Array.to_list a);
-    Array.iter (fun (k, v) -> delete log k) a;
+    Array.iter (fun (k, v) -> (* Printf.eprintf "delete %s\n" k; *) delete log k) a;
     check_empty q
   in
 
@@ -203,7 +217,7 @@ let insert_delete_permutations_generic  n ((log,set,get,delete) as q) =
   in
   loop (fac l)
 
-let debug_info_wrap f = fun ((log, _, _, _) as q) ->
+let debug_info_wrap f = fun ((log, _, _, _,_) as q) ->
   try 
     f q 
   with 
@@ -219,7 +233,7 @@ let debug_info_wrap f = fun ((log, _, _, _) as q) ->
 
 
 
-let insert_static_delete_permutations_generic  n ((log, set, get, delete) as q) =
+let insert_static_delete_permutations_generic  n ((log, set, get, delete, clear) as q) =
   let kvs = take n in 
   let kvs' = Array.of_list kvs in
   Array.fast_sort (fun (k1, _) (k2, _) -> compare k1 k2) kvs';
@@ -227,6 +241,7 @@ let insert_static_delete_permutations_generic  n ((log, set, get, delete) as q) 
   let l = Array.length kvs' in
 
   let do_test n a =
+    clear log;
     if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
     List.iter (fun (k, v) -> set log k v) kvs;
     check q kvs;
@@ -259,11 +274,13 @@ let template =
     "insert_delete_6", insert_delete_6;
     "insert_delete_7", insert_delete_7;
     "insert_delete_8", insert_delete_8;
+    "insert_delete_bug", insert_delete_bug;
     "insert_delete_permutations_1", debug_info_wrap (insert_delete_permutations_generic 5);
     "insert_delete_permutations_2", debug_info_wrap (insert_delete_permutations_generic 6);
-    "insert_delete_permutations_2", debug_info_wrap (insert_delete_permutations_generic 7);
-    "insert_delete_permutations_3", debug_info_wrap (insert_delete_permutations_generic 8);
-    "insert_delete_permutations_4", debug_info_wrap (insert_delete_permutations_generic 9);
+    "insert_delete_permutations_3", debug_info_wrap (insert_delete_permutations_generic 7);
+    "insert_delete_permutations_4", debug_info_wrap (insert_delete_permutations_generic 8);
+    "insert_delete_permutations_5", debug_info_wrap (insert_delete_permutations_generic 9);
+   (* "insert_delete_permutations_6", debug_info_wrap (insert_delete_permutations_generic 10); *)
     "insert_static_delete_permutations_1", debug_info_wrap (all_n 5);
     "insert_static_delete_permutations_2", debug_info_wrap (all_n 6); 
     "insert_static_delete_permutations_3", debug_info_wrap (all_n 7); 

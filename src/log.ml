@@ -28,6 +28,6 @@ module type LOG = sig
   val read  : t -> pos -> entry
   val make_slab : t -> slab
   val add : slab -> entry -> pos
-
+  val clear: t -> unit
   val string_of_slab : slab -> string
 end
