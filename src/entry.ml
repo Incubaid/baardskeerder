@@ -26,6 +26,7 @@ type entry =
   | Value of v
   | Leaf of leaf
   | Index of index
+  | Commit of pos
 
 type dir = 
   | Leaf_down of leaf_z
