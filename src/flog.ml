@@ -220,8 +220,6 @@ let create (f: string) (b: blocksize) =
 
   close fd
 
-type commit = Commit of offset
-
 let serialize_commit o =
   let s = String.create (4 + 1 + 8 + 4) in
 
@@ -534,6 +532,7 @@ let read t pos =
     | i when i = value_tag -> deserialize_value s' 0
     | i when i = leaf_tag -> deserialize_leaf s' 0
     | i when i = index_tag -> deserialize_index s' 0
+    | i when i = commit_tag -> deserialize_commit s' 0
     | _ -> failwith "Flog.read: unknown node type"
 
 let sync t =

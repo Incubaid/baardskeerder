@@ -20,6 +20,7 @@
 open OUnit
 open Unix
 
+open Entry
 open Tree
 open Flog
 
