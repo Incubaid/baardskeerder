@@ -103,7 +103,7 @@ module DB = functor (L:LOG ) -> struct
       match trail with 
       | [] -> let _ = add_index slab  (lpos, [sep,rpos]) in ()
       | Index_down z :: rest -> 
-	if indexz_max z 
+	if indexz_max d z 
 	then 
 	  let left, sep', right  = indexz_split d lpos sep rpos z in
 	  let lpos' = add_index slab left  in
