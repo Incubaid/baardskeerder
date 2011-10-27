@@ -54,7 +54,8 @@ module DB = functor (L:LOG ) -> struct
     descend (L.root t)
 
 
-  let set (t:L.t) k v = 
+
+  let _set (t:L.t) slab k v = 
     let add_value s v = L.add s (Value v) in
     let add_leaf  s l = L.add s (Leaf l) in
     let add_index s i = L.add s (Index i) in
@@ -116,12 +117,15 @@ module DB = functor (L:LOG ) -> struct
 	  set_rest slab start' rest
     in
     let trail = descend_set (L.root t) [] in
+    set_start slab (L.next t) trail
+
+
+  let set (t:L.t) k v =
     let slab = L.make_slab t in
-    let () = set_start slab (L.next t) trail in
+    let () = _set t slab k v in
     L.write t slab
 
-
-  let delete (t:L.t) k = 
+  let _delete (t:L.t) slab k = 
     (* let () = Printf.eprintf "delete %S\n%!" k in *)
     let add_leaf  s l = L.add s (Leaf l) in
     let add_index s i = L.add s (Index i) in
@@ -307,8 +311,42 @@ module DB = functor (L:LOG ) -> struct
 	       delete_rest slab ipos rest
     in
     let trail = descend (L.root t) [] in
-    let slab = L.make_slab t in
     let start = L.next t in
-    let () = delete_start slab start trail in
+    let () = delete_start slab start trail 
+    in ()
+
+
+  let delete (t:L.t) k =
+    let slab = L.make_slab t in
+    let () = _delete t slab k in
     L.write t slab
+
 end 
+
+module DBX(L:LOG) = struct
+
+  type tx = { log: L.t; slab: L.slab; info: (k,v) Hashtbl.t}
+
+  module DBL = DB(L)
+
+  let get tx k = 
+    try Hashtbl.find tx.info k 
+    with | Not_found -> DBL.get tx.log k
+
+  let set tx k v = 
+    Hashtbl.add tx.info k v;
+    DBL._set tx.log tx.slab k v
+      
+  let delete tx k = 
+    Hashtbl.remove tx.info k;
+    DBL._delete tx.log tx.slab
+
+  let with_tx log f = 
+    let slab = L.make_slab log in
+    let info = Hashtbl.create 127 in
+    let tx = {log;slab;info} in
+    let () = f tx in
+    L.write log tx.slab
+
+end
+
