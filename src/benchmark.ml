@@ -51,7 +51,7 @@ let get_loop db n =
     then ()
     else
       let key = make_key i in
-      let v = get key in
+      let _ = get key in
       loop (i+1)
   in
   loop 0
@@ -71,17 +71,18 @@ let delete_loop db n =
 let () = 
   let n  = ref 1_000_000 in
   let vs = ref 2_000 in
+  let fn = ref "test.db" in
   let () = 
     Arg.parse [
       ("--value-size",Set_int vs, Printf.sprintf "size of the values in bytes (%i)" !vs);
+      ("--file", Set_string fn, Printf.sprintf "file name for database (%S)" !fn);
       ("--bench-size",Set_int n,  Printf.sprintf "number of sets/gets/deletes (%i)" !n);
     ]
       (fun _ ->()) 
       "simple baardskeerder benchmark"
   in
-  let fn = "test.db" in
-  let () = Flog.create fn 4096 in
-  let db = Flog.make fn in
+  let () = Flog.create !fn 4096 in
+  let db = Flog.make !fn in
   let () = Printf.printf "\n%i iterations\nvalue size=%i\n%!" !n !vs in
   let d = clock (fun () -> set_loop db !vs !n) in
   Printf.printf "%i sets of (%i bytes) took:%fs\n%!" !n !vs d;
