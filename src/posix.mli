@@ -24,6 +24,9 @@ external pread_into_exactly: Unix.file_descr -> string -> int -> int -> unit
 (* fsync *)
 external fsync: Unix.file_descr -> unit
     = "_bs_posix_fsync"
+(* fdatasync *)
+external fdatasync: Unix.file_descr -> unit
+    = "_bs_posix_fdatasync"
 
 (* fallocate *)
 external fallocate_FALLOC_FL_KEEP_SIZE: unit -> int

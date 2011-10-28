@@ -99,6 +99,23 @@ void _bs_posix_fsync(value fd) {
         CAMLreturn0;
 }
 
+void _bs_posix_fdatasync(value fd) {
+        int ret = 0;
+
+        CAMLparam1(fd);
+
+        enter_blocking_section();
+          ret = fdatasync(Int_val(fd));
+        leave_blocking_section();
+
+        if(ret < 0) {
+                uerror("fdatasync", Nothing);
+        }
+
+        CAMLreturn0;
+}
+
+
 CAMLprim value _bs_posix_fallocate_FALLOC_FL_KEEP_SIZE(value unit) {
         CAMLparam1(unit);
         CAMLlocal1(ret);
