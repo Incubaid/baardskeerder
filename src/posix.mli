@@ -35,3 +35,14 @@ external fallocate_FALLOC_FL_PUNCH_HOLE: unit -> int
     = "_bs_posix_fallocate_FALLOC_FL_PUNCH_HOLE"
 external fallocate: Unix.file_descr -> int -> int -> int -> unit
     = "_bs_posix_fallocate"
+
+(* posix_fadvise *)
+type posix_fadv = POSIX_FADV_NORMAL
+                | POSIX_FADV_SEQUENTIAL
+                | POSIX_FADV_RANDOM
+                | POSIX_FADV_NOREUSE
+                | POSIX_FADV_WILLNEED
+                | POSIX_FADV_DONTNEED
+
+external posix_fadvise: Unix.file_descr -> int -> int -> posix_fadv -> unit
+    = "_bs_posix_fadvise" "noalloc"

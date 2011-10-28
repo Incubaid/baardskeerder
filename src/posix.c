@@ -17,7 +17,7 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define _XOPEN_SOURCE 500
+#define _XOPEN_SOURCE 600
 #define _FILE_OFFSET_BITS 64
 #define _GNU_SOURCE
 
@@ -154,6 +154,56 @@ void _bs_posix_fallocate(value fd, value mode, value offset,
 
         if(ret < 0) {
                 uerror("fallocate", Nothing);
+        }
+
+        CAMLreturn0;
+}
+
+
+void _bs_posix_fadvise(value fd, value offset, value len, value advice) {
+        int ret = 0;
+
+        int c_fd = -1;
+        off_t c_offset = 0;
+        off_t c_len = 0;
+        int c_advice = 0;
+
+        CAMLparam4(fd, offset, len, advice);
+
+        c_fd = Int_val(fd);
+        c_offset = Long_val(offset);
+        c_len = Long_val(len);
+
+        switch(Int_val(advice)) {
+                case 0:
+                        c_advice = POSIX_FADV_NORMAL;
+                        break;
+                case 1:
+                        c_advice = POSIX_FADV_SEQUENTIAL;
+                        break;
+                case 2:
+                        c_advice = POSIX_FADV_RANDOM;
+                        break;
+                case 3:
+                        c_advice = POSIX_FADV_NOREUSE;
+                        break;
+                case 4:
+                        c_advice = POSIX_FADV_WILLNEED;
+                        break;
+                case 5:
+                        c_advice = POSIX_FADV_DONTNEED;
+                        break;
+                default:
+                        caml_invalid_argument("advice");
+                        break;
+        }
+
+        enter_blocking_section();
+          ret = posix_fadvise(c_fd, c_offset, c_len, c_advice);
+        leave_blocking_section();
+
+        if(ret != 0) {
+                uerror("posix_fadvise", Nothing);
         }
 
         CAMLreturn0;
