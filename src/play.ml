@@ -40,24 +40,30 @@ let kvs_x =
 let kvs =
   ["a";"b";"c";"d";"e";
    "f";"g";"h";"i";"j";
-   "k";"l";"m";"n";"o";
-   "p";]
+   "k";"l";"m";"n";"o";]
+   (* "p";] *)
     
 
 let () = List.iter 
   (fun k -> 
     let v = String.uppercase k in
     let () = MDB.set t0 k v in
-    (* let _ = MDot.view_tree t0 in  *)
+    let _ = MDot.view_tree t0 in 
     ()
   ) kvs;;
+
 (*
 let check () = List.iter (fun (k,v) -> assert (MDB.get t0 k =v)) kvs;;
 let () = check ();;*)
 (* MDB.set t0 "m" "M";; *)
+
 MDot.view_tree t0;;
+MDB.set t0 "p" "P";;
+
+(*
 MDB.delete t0 "a";;
 MDot.view_tree t0;;
+*)
 (* MDB.delete t0 "t";; *)
 
 (* MDB.delete t0 "w";;

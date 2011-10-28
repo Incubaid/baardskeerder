@@ -73,12 +73,12 @@ let indexz_replace pos z =
   | Loc ((p0, (k,pi) :: c ), t ) -> (p0, (List.rev ((k,pos) :: c)) @ t)
 
 
-let indexz_max z = 
+let indexz_max d z = 
   let z_size = match z with
     | Top (_,kps) -> List.length kps
     | Loc ((_,c),t) -> List.length c + List.length t 
   in
-  z_size = 2  (* in function of d *)
+  z_size = d  
   
 let indexz_borrowed_right lpos sep rpos = function
   | Top (p0, (k0,p1)::t) -> Top (lpos,(sep,rpos) ::t)
@@ -95,6 +95,7 @@ let indexz_right = function
 
 let indexz_left = function
   | Loc ((p0, h :: c), t) -> Loc ((p0, c), h::t)
+  | z -> let s = Printf.sprintf "cannot go left: %s\n" (iz2s z) in failwith s
 
 
 

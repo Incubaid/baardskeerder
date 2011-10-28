@@ -18,26 +18,20 @@
  *)
 
 open OUnit
-open Log
-open Tree
-open Entry
-open Base
-open Index
-
-let suite = 
-  "correctness" >::: 
-    [ Index_test.suite;
-      Tree_test.suite;
-      Flog_test.suite;
-      Dbx_test.suite;
-    ]
+open Dbx
+module MDBX = DBX(Mlog)
 
 
-let () = 
-  if Array.length Sys.argv = 2 && Sys.argv.(1) = "--hudson"
-  then Hudson_xml.run_test suite
-  else let _ = run_test_tt_main suite in ()
+let get_after_delete () = 
+  let mlog = Mlog.make () in
+  let () = MDBX.with_tx mlog (fun tx -> MDBX.set tx "a" "A") in
+  let test tx = 
+    MDBX.delete tx "a";
+    let _ = MDBX.get tx "a" in
+    ()
+  in
+  OUnit.assert_raises (Base.NOT_FOUND "a") (fun () -> MDBX.with_tx mlog test)
 
- 
 
 
+let suite = "DBX" >::: ["get_after_delete" >:: get_after_delete];
