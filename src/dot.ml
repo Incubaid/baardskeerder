@@ -114,7 +114,7 @@ module Dot = functor (L:LOG) -> struct
     close_out oc;
     let convert_cmd = Printf.sprintf "dot -Tsvg -o %s %s" svg dot in
     let _ = Sys.command convert_cmd in
-    let cmd = Printf.sprintf "firefox %s" svg in
+    let cmd = Printf.sprintf "eog %s" svg in
     Sys.command cmd
 
 
