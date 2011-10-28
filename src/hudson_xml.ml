@@ -40,6 +40,7 @@ let xml_escape s =
       | '\'' -> add_s "&apos;"
       | '<'  -> add_s "&lt;"
       | '>'  -> add_s "&gt;"
+      | '&'  -> add_s "&amp;"
       | c -> Buffer.add_char b c) s;
   Buffer.contents b
 
