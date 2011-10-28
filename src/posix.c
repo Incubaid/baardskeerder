@@ -19,9 +19,13 @@
 
 #define _XOPEN_SOURCE 500
 #define _FILE_OFFSET_BITS 64
+#define _GNU_SOURCE
 
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+
+#include <linux/falloc.h>
 
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
@@ -90,6 +94,66 @@ void _bs_posix_fsync(value fd) {
 
         if(ret < 0) {
                 uerror("fsync", Nothing);
+        }
+
+        CAMLreturn0;
+}
+
+void _bs_posix_fdatasync(value fd) {
+        int ret = 0;
+
+        CAMLparam1(fd);
+
+        enter_blocking_section();
+          ret = fdatasync(Int_val(fd));
+        leave_blocking_section();
+
+        if(ret < 0) {
+                uerror("fdatasync", Nothing);
+        }
+
+        CAMLreturn0;
+}
+
+
+CAMLprim value _bs_posix_fallocate_FALLOC_FL_KEEP_SIZE(value unit) {
+        CAMLparam1(unit);
+        CAMLlocal1(ret);
+
+        ret = Val_int(FALLOC_FL_KEEP_SIZE);
+
+        CAMLreturn(ret);
+}
+
+CAMLprim value _bs_posix_fallocate_FALLOC_FL_PUNCH_HOLE(value unit) {
+        CAMLparam1(unit);
+        CAMLlocal1(ret);
+
+        ret = Val_int(FALLOC_FL_PUNCH_HOLE);
+
+        CAMLreturn(ret);
+}
+
+void _bs_posix_fallocate(value fd, value mode, value offset,
+        value len) {
+        int ret = 0;
+
+        int c_fd = -1;
+        int c_mode = 0;
+        off_t c_offset = 0;
+        off_t c_len = 0;
+
+        CAMLparam4(fd, mode, offset, len);
+
+        c_fd = Int_val(fd);
+        c_mode = Int_val(mode);
+        c_offset = Long_val(offset);
+        c_len = Long_val(len);
+
+        ret = fallocate(c_fd, c_mode, c_offset, c_len);
+
+        if(ret < 0) {
+                uerror("fallocate", Nothing);
         }
 
         CAMLreturn0;
