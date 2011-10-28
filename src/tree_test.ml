@@ -286,6 +286,29 @@ let insert_static_delete_permutations_generic  n ((log, set, get, delete, clear)
 
 let all_n n q = insert_static_delete_permutations_generic n q 
 
+let insert_delete_bug4 ((log,set,get,delete,_) as q) =
+  let rec loop1 = function
+    | 0 -> ()
+    | n ->
+      let k = Printf.sprintf "key_%d" n
+      and v = Printf.sprintf "value_%d" n in
+      Printf.fprintf (Pervasives.stderr) "Set %s\n" k;      
+      set log k v;
+      loop1 (pred n)
+  in
+  loop1 100;
+  let rec loop2 = function
+    | 0 -> ()
+    | n ->
+      let k = Printf.sprintf "key_%d" n in
+      Printf.fprintf (Pervasives.stderr) "Delete %s\n" k;
+      
+      delete log k;
+      loop2 (pred n)
+  in
+  loop2 100
+
+
 let template =
   ["insert_delete_1",  insert_delete_1;
    "insert_delete_2",  insert_delete_2;
@@ -314,6 +337,7 @@ let template =
     "insert_static_delete_permutations_3", debug_info_wrap (all_n 7); 
     "insert_static_delete_permutations_4", debug_info_wrap (all_n 8);
     "insert_static_delete_permutations_5", debug_info_wrap (all_n 9);
+    "insert_delete_bug4", insert_delete_bug4;
   ]
 
 let make_suite wrap = (List.map (fun (n,t) -> n >:: mem_wrap t) template)

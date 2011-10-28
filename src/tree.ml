@@ -321,6 +321,8 @@ module DB = functor (L:LOG ) -> struct
     let () = _delete t slab k in
     L.write t slab
 
+  let range (t:L.t) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int) = failwith "todo"
+    
 end 
 
 module DBX(L:LOG) = struct

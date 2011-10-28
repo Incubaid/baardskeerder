@@ -23,7 +23,9 @@ open Log
 
 module DBX(L:LOG) = struct
 
-  type tx = { log: L.t; slab: L.slab; info: (k,v option) Hashtbl.t}
+  type tx = { log: L.t; 
+	      slab: L.slab; 
+	      info: (k,v option) Hashtbl.t}
 
   module DBL = DB(L)
 
@@ -41,7 +43,7 @@ module DBX(L:LOG) = struct
       
   let delete tx k = 
     Hashtbl.replace tx.info k None;
-    DBL._delete tx.log tx.slab
+    DBL._delete tx.log tx.slab k
 
   let with_tx log f = 
     let slab = L.make_slab log in
