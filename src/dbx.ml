@@ -17,27 +17,37 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-open OUnit
-open Log
-open Tree
-open Entry
 open Base
-open Index
+open Tree
+open Log
 
-let suite = 
-  "correctness" >::: 
-    [ Index_test.suite;
-      Tree_test.suite;
-      Flog_test.suite;
-      Dbx_test.suite;
-    ]
+module DBX(L:LOG) = struct
 
+  type tx = { log: L.t; slab: L.slab; info: (k,v option) Hashtbl.t}
 
-let () = 
-  if Array.length Sys.argv = 2 && Sys.argv.(1) = "--hudson"
-  then Hudson_xml.run_test suite
-  else let _ = run_test_tt_main suite in ()
+  module DBL = DB(L)
 
- 
+  let get tx k = 
+    if Hashtbl.mem tx.info k then
+      match Hashtbl.find tx.info k with
+	| None -> raise (NOT_FOUND k)
+	| Some v -> v
+    else
+      DBL.get tx.log k
 
+  let set tx k v = 
+    Hashtbl.replace tx.info k (Some v);
+    DBL._set tx.log tx.slab k v
+      
+  let delete tx k = 
+    Hashtbl.replace tx.info k None;
+    DBL._delete tx.log tx.slab
 
+  let with_tx log f = 
+    let slab = L.make_slab log in
+    let info = Hashtbl.create 127 in
+    let tx = {log;slab;info} in
+    let () = f tx in
+    L.write log tx.slab
+
+end

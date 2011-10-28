@@ -325,20 +325,24 @@ end
 
 module DBX(L:LOG) = struct
 
-  type tx = { log: L.t; slab: L.slab; info: (k,v) Hashtbl.t}
+  type tx = { log: L.t; slab: L.slab; info: (k,v option) Hashtbl.t}
 
   module DBL = DB(L)
 
   let get tx k = 
-    try Hashtbl.find tx.info k 
-    with | Not_found -> DBL.get tx.log k
+    if Hashtbl.mem tx.info k then
+      match Hashtbl.find tx.info k with
+	| None -> raise Not_found
+	| Some v -> v
+    else
+      DBL.get tx.log k
 
   let set tx k v = 
-    Hashtbl.add tx.info k v;
+    Hashtbl.replace tx.info k (Some v);
     DBL._set tx.log tx.slab k v
       
   let delete tx k = 
-    Hashtbl.remove tx.info k;
+    Hashtbl.replace tx.info k None;
     DBL._delete tx.log tx.slab
 
   let with_tx log f = 

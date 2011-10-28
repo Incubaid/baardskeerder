@@ -48,7 +48,7 @@ let () = List.iter
   (fun k -> 
     let v = String.uppercase k in
     let () = MDB.set t0 k v in
-    (* let _ = MDot.view_tree t0 in  *)
+    let _ = MDot.view_tree t0 in 
     ()
   ) kvs;;
 
