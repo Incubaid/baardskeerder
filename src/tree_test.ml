@@ -286,7 +286,7 @@ let insert_static_delete_permutations_generic  n ((log, set, get, delete, clear)
 
 let all_n n q = insert_static_delete_permutations_generic n q 
 
-let insert_delete_bug4 ((log,set,get,delete,_) as q) =
+let _insert_delete_bugx max ((log,set,get,delete,_) as q) =
   let rec loop1 = function
     | 0 -> ()
     | n ->
@@ -296,7 +296,7 @@ let insert_delete_bug4 ((log,set,get,delete,_) as q) =
       set log k v;
       loop1 (pred n)
   in
-  loop1 100;
+  loop1 max;
   let rec loop2 = function
     | 0 -> ()
     | n ->
@@ -306,7 +306,7 @@ let insert_delete_bug4 ((log,set,get,delete,_) as q) =
       delete log k;
       loop2 (pred n)
   in
-  loop2 100
+  loop2 max
 
 
 let template =
@@ -337,7 +337,8 @@ let template =
     "insert_static_delete_permutations_3", debug_info_wrap (all_n 7); 
     "insert_static_delete_permutations_4", debug_info_wrap (all_n 8);
     "insert_static_delete_permutations_5", debug_info_wrap (all_n 9);
-    "insert_delete_bug4", insert_delete_bug4;
+    "insert_delete_bug4", _insert_delete_bugx 100;
+    "insert_delete_bug5", _insert_delete_bugx 20;
   ]
 
 let make_suite wrap = (List.map (fun (n,t) -> n >:: mem_wrap t) template)

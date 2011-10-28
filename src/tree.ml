@@ -287,7 +287,7 @@ module DB = functor (L:LOG ) -> struct
 		      xxx_merged slab ipos' z2 rest
 		    end
 		  else
-		    failwith "todo: underflow & cannot merge with left neigbour"
+		    failwith "todo: underflow & cannot merge with left neighbour"
 		end
 		  
 	      | NR pos ->  

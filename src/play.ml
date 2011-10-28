@@ -42,8 +42,33 @@ let kvs =
    "f";"g";"h";"i";"j";
    "k";"l";"m";"n";"o";]
    (* "p";] *)
-    
 
+let test t0 =
+  let max = 100 in
+  let rec loop1 = function
+    | 0 -> ()
+    | n ->
+      let k = Printf.sprintf "key_%d" n
+      and v = Printf.sprintf "value_%d" n in
+      Printf.fprintf (Pervasives.stderr) "Set %s\n" k;      
+      MDB.set t0 k v;
+      loop1 (pred n)
+  in
+  loop1 max;
+  let _ = MDot.view_tree t0 in ();
+  let rec loop2 = function
+    | 0 -> ()
+    | n ->
+      let k = Printf.sprintf "key_%d" n in
+      Printf.fprintf (Pervasives.stderr) "Delete %s\n" k;
+      
+      MDB.delete t0 k;
+      loop2 (pred n)
+  in
+  loop2 max;;
+
+test t0;;
+(*
 let () = List.iter 
   (fun k -> 
     let v = String.uppercase k in
@@ -51,14 +76,11 @@ let () = List.iter
     let _ = MDot.view_tree t0 in 
     ()
   ) kvs;;
-
+*)
 (*
 let check () = List.iter (fun (k,v) -> assert (MDB.get t0 k =v)) kvs;;
 let () = check ();;*)
 (* MDB.set t0 "m" "M";; *)
-
-MDot.view_tree t0;;
-MDB.set t0 "p" "P";;
 
 (*
 MDB.delete t0 "a";;
