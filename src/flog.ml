@@ -216,7 +216,7 @@ let create (f: string) (b: blocksize) =
   Posix.fsync fd;
   safe_write fd metadata2 0 b2;
   flush (out_channel_of_descr fd);
-  Posix.fsync fd;
+  Posix.fdatasync fd;
 
   close fd
 
@@ -557,7 +557,7 @@ let sync t =
 
   (* Sync again *)
   flush (out_channel_of_descr t.fd_random);
-  Posix.fsync t.fd_random;
+  Posix.fdatasync t.fd_random;
 
   (* Update in-memory representation *)
   let md' =
