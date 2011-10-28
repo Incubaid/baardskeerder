@@ -218,6 +218,9 @@ let create (f: string) (b: blocksize) =
   flush (out_channel_of_descr fd);
   Posix.fdatasync fd;
 
+  (* If a database is created, we'll open it soon, most likely *)
+  posix_fadvise fd 0 (2 * b) POSIX_FADV_WILLNEED;
+
   close fd
 
 let serialize_commit o =
@@ -287,6 +290,8 @@ let make (f: string): t =
   set_close_on_exec fd_in;
 
   let size = 2 * 4096 in
+  posix_fadvise fd_in 0 size POSIX_FADV_WILLNEED;
+
   let mds = String.create size in
   pread_into_exactly fd_in mds size 0;
   let md1 = from_some (deserialize_metadata mds) in
@@ -294,6 +299,11 @@ let make (f: string): t =
   let mds = String.create bs in
   pread_into_exactly fd_in mds bs bs;
   let md2 = from_some (deserialize_metadata mds) in
+
+  posix_fadvise fd_in 0 (max (2 * 4096) (2 * bs)) POSIX_FADV_DONTNEED;
+
+  (* From now on, the fd_in FD will perform random IO *)
+  posix_fadvise fd_in 0 0 POSIX_FADV_RANDOM;
 
   (* TODO Use 'best' metadata instead of checking it's value *)
   assert (md1.md_blocksize == md2.md_blocksize);
