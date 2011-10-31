@@ -598,3 +598,108 @@ let add s e =
 let clear (t:t) = ()
 let string_of_slab s =
   Pretty.string_of_list entry2s s.entries
+
+(* Hole punching compaction *)
+module OffsetOrder = struct
+  type t = offset
+  let compare = Pervasives.compare
+end
+
+open OffsetOrder
+
+module OffsetSet = Set.Make(OffsetOrder)
+
+type compact_state = {
+  cs_offset: offset;
+  cs_entries: OffsetSet.t;
+}
+
+let rec compact' =
+  let punch =
+    let ks = Posix.fallocate_FALLOC_FL_KEEP_SIZE ()
+    and ph = Posix.fallocate_FALLOC_FL_PUNCH_HOLE () in
+
+    let fl = ks lor ph in
+
+    fun fd o l ->
+      Printf.fprintf Pervasives.stderr "Punch! %d %d\n%!" o l;
+      if l = 0 then () else (Posix.fallocate fd fl o l)
+
+  in
+
+  (* do_punch implementation, optimized for blocksize 4096 *)
+  let do_punch_4096 f s = function
+    | 0 -> ()
+    | n ->
+        let align_up n = if n mod 4096 = 0 then n else ((n / 4096) + 1) * 4096
+        and align_down n = (n / 4096) * 4096 in
+
+        let o1 = align_up s
+        and o2 = align_down (s + n) in
+
+        let n' = o2 - o1 in
+
+        if n' <= 0 then () else punch f o1 n'
+
+  and do_punch_generic b f s = function
+    | 0 -> ()
+    | n ->
+        let align_up n = if n mod b = 0 then n else ((n / b) + 1) * b
+        and align_down n = (n / b) * b in
+
+        let o1 = align_up s
+        and o2 = align_down (s + n) in
+
+        let n' = o2 - o1 in
+
+        if n' <= 0 then () else punch f o1 n'
+  in
+
+  fun l b s ->
+
+  let os = s.cs_entries
+  and n = s.cs_offset in
+
+  let h' = OffsetSet.max_elt os in
+  let os' = OffsetSet.remove h' os in
+
+  let e = read l h' in
+
+  let do_punch =
+    let b' = b / 2 in
+    if b' = 4096 then do_punch_4096 else do_punch_generic b'
+  in
+
+  let (e', os'') = match e with
+    | Value _ as v -> (h' + size v + 4, os')
+    | Leaf rs as l ->
+        (h' + size l + 4,
+         List.fold_right OffsetSet.add (List.map snd rs) os')
+    | Index (p, kps) as i ->
+        (h' + size i + 4,
+         List.fold_right OffsetSet.add (List.map snd kps) (OffsetSet.add p os'))
+    | Commit _ -> failwith "Flog.compact': Commit entry"
+    | NIL -> failwith "Flog.compact': NIL entry"
+  in
+
+  do_punch l.fd_random e' (n - e');
+
+  if OffsetSet.is_empty os''
+  then do_punch l.fd_random b (h' - b)
+  else compact' l b { cs_offset=h'; cs_entries=os''; }
+
+
+let compact t =
+  sync t;
+
+  let md = (if t.last_metadata = 0 then fst else snd) t.metadata in
+  let b = md.md_blocksize in
+
+  let b' = b * 2
+  and o = t.commit_offset in
+
+  match (read t o) with
+    | Commit r ->
+        compact' t b' { cs_offset=o; cs_entries=OffsetSet.singleton r; }
+    | _ ->
+        invalid_arg "Flog.compact: no commit entry at given offset"

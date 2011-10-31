@@ -131,7 +131,7 @@ let test_database_make fn =
   let db = make fn in
   close db
 
-module MDB = DB(Flog)
+module FDB = DB(Flog)
 
 let with_database f =
   let f' fn =
@@ -148,15 +148,15 @@ let with_database f =
   with_tempfile f'
 
 let test_database_set _ db =
-  MDB.set db "foo" "bar"
+  FDB.set db "foo" "bar"
 
 let test_database_set_get _ db =
   let k = "foo"
   and v = "bar" in
 
-  MDB.set db k v;
+  FDB.set db k v;
 
-  let v' = MDB.get db k in
+  let v' = FDB.get db k in
 
   OUnit.assert_equal v v'
 
@@ -167,17 +167,17 @@ let test_database_multi_action _ db =
   and k2 = "bat"
   and v2 = "baz" in
 
-  MDB.set db k1 v1;
-  MDB.set db k2 v2;
+  FDB.set db k1 v1;
+  FDB.set db k2 v2;
 
-  OUnit.assert_equal v1 (MDB.get db k1);
-  OUnit.assert_equal v2 (MDB.get db k2);
+  OUnit.assert_equal v1 (FDB.get db k1);
+  OUnit.assert_equal v2 (FDB.get db k2);
 
-  MDB.set db k1 v1';
-  OUnit.assert_equal v1' (MDB.get db k1);
+  FDB.set db k1 v1';
+  OUnit.assert_equal v1' (FDB.get db k1);
 
-  MDB.delete db k2;
-  OUnit.assert_raises (Base.NOT_FOUND k2) (fun () -> MDB.get db k2)
+  FDB.delete db k2;
+  OUnit.assert_raises (Base.NOT_FOUND k2) (fun () -> FDB.get db k2)
 
 
 let test_database_reopen fn db =
@@ -186,14 +186,14 @@ let test_database_reopen fn db =
   and k2 = "bat"
   and v2 = "baz" in
 
-  MDB.set db k1 v1;
-  MDB.set db k2 v2;
+  FDB.set db k1 v1;
+  FDB.set db k2 v2;
 
   close db;
 
   let db' = make fn in
-  let v1' = MDB.get db' k1
-  and v2' = MDB.get db' k2 in
+  let v1' = FDB.get db' k1
+  and v2' = FDB.get db' k2 in
 
   OUnit.assert_equal v1 v1';
   OUnit.assert_equal v2 v2';
@@ -204,18 +204,18 @@ let test_database_sync fn db =
   let k = "foo"
   and v = "bar" in
 
-  MDB.set db k v;
+  FDB.set db k v;
 
   (* Set both metadata field *)
   Flog.sync db;
   Flog.sync db;
 
-  OUnit.assert_equal (MDB.get db k) v;
+  OUnit.assert_equal (FDB.get db k) v;
 
   close db;
 
   let db' = make fn in
-  OUnit.assert_equal (MDB.get db' k) v;
+  OUnit.assert_equal (FDB.get db' k) v;
 
   close db'
 
@@ -230,10 +230,64 @@ let database =
     "sync" >:: with_database test_database_sync;
   ]
 
+
+let test_compaction_basic fn db =
+  let kps = [("foo", "bar"); ("baz", "bat"); ("foo", "bal")] in
+
+  List.iter (fun (k, v) -> FDB.set db k v) kps;
+
+  Flog.compact db;
+
+  close db;
+
+  let db' = make fn in
+  let id x = x in
+  OUnit.assert_equal ~printer:id (FDB.get db' "foo") "bal";
+  close db'
+
+let test_compaction_lengthy _ db =
+  let rec loop = function
+    | 0 -> ()
+    | n ->
+        let key = Printf.sprintf "key_%d" n
+        and value = Printf.sprintf "value_%d" n in
+
+        FDB.set db key value;
+
+        loop (pred n)
+  in
+
+  loop 1000;
+
+  let do_compact () =
+    Flog.compact db
+  in
+
+  do_compact ();
+
+  let rec loop2 = function
+    | 0 -> ()
+    | n ->
+        let key = Printf.sprintf "key_%d" n in
+        FDB.delete db key;
+        loop2 (pred n)
+  in
+
+  loop2 1000;
+
+  do_compact ()
+
+let compaction =
+  "Compaction" >::: [
+    "basic" >:: with_database test_compaction_basic;
+    "lengthy" >:: with_database test_compaction_lengthy;
+  ]
+
 let suite =
   "Flog" >::: [
     base_serialization;
     metadata;
     entries;
     database;
+    compaction;
   ]
