@@ -198,16 +198,18 @@ and deserialize_metadata s =
   then Some { md_blocksize=bs; md_spindle=sp; md_offset=o; md_count=c }
   else None
 
-let create (f: string) (b: blocksize) =
-  let fd = openfile f [O_WRONLY; O_EXCL; O_CREAT] 0o644
-  and metadata1, b1 = serialize_metadata
+let create (f: string) =
+  let fd = openfile f [O_WRONLY; O_EXCL; O_CREAT] 0o644 in
+
+  set_close_on_exec fd;
+  lockf fd F_TLOCK 0;
+
+  let b = Posix.fstat_blksize fd in
+
+  let metadata1, b1 = serialize_metadata
       { md_blocksize=b; md_spindle=0; md_offset=0; md_count=0 }
   and metadata2, b2 = serialize_metadata
       { md_blocksize=b; md_spindle=0; md_offset=0; md_count=1 } in
-
-  set_close_on_exec fd;
-
-  lockf fd F_TLOCK 0;
 
   lseek_set fd 0;
   ftruncate fd (2 * b);

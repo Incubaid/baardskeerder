@@ -122,12 +122,12 @@ let with_tempfile f = fun () ->
     raise e
 
 let test_database_create fn =
-  create fn 4096;
+  create fn;
   let s = Unix.stat fn in
   OUnit.assert_equal (s.st_size = 2 * 4096)
 
 let test_database_make fn =
-  let () = create fn 4096 in
+  let () = create fn in
   let db = make fn in
   close db
 
@@ -135,7 +135,7 @@ module MDB = DB(Flog)
 
 let with_database f =
   let f' fn =
-    create fn 4096;
+    create fn;
     let db = make fn in
 
     try

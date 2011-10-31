@@ -81,7 +81,7 @@ let () =
       (fun _ ->()) 
       "simple baardskeerder benchmark"
   in
-  let () = Flog.create !fn 4096 in
+  let () = Flog.create !fn in
   let db = Flog.make !fn in
   let () = Printf.printf "\n%i iterations\nvalue size=%i\n%!" !n !vs in
   let d = clock (fun () -> set_loop db !vs !n) in
