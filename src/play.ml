@@ -44,24 +44,28 @@ let kvs =
    (* "p";] *)
 
 let test t0 =
-  let max = 100 in
+  let max = 20 in
   let rec loop1 = function
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n
       and v = Printf.sprintf "value_%d" n in
-      Printf.fprintf (Pervasives.stderr) "Set %s\n" k;      
+      Printf.printf "Set %s\n%!" k;      
       MDB.set t0 k v;
       loop1 (pred n)
   in
   loop1 max;
   let _ = MDot.view_tree t0 in ();
+  (*let () = MDB.delete t0 "key_20" in
+  let _ = MDot.view_tree t0 in () *)
   let rec loop2 = function
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n in
-      Printf.fprintf (Pervasives.stderr) "Delete %s\n" k;
-      
+      Printf.printf "Delete %s\n%!" k;
+      if (n = 12 || n = 11 ) 
+      then let _ = MDot.view t0 in ()
+      else ();
       MDB.delete t0 k;
       loop2 (pred n)
   in

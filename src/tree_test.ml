@@ -292,7 +292,7 @@ let _insert_delete_bugx max ((log,set,get,delete,_) as q) =
     | n ->
       let k = Printf.sprintf "key_%d" n
       and v = Printf.sprintf "value_%d" n in
-      Printf.fprintf (Pervasives.stderr) "Set %s\n" k;      
+      Printf.printf "Set %s\n%!" k;      
       set log k v;
       loop1 (pred n)
   in
@@ -301,8 +301,7 @@ let _insert_delete_bugx max ((log,set,get,delete,_) as q) =
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n in
-      Printf.fprintf (Pervasives.stderr) "Delete %s\n" k;
-      
+      Printf.printf "Delete %s\n%!" k;
       delete log k;
       loop2 (pred n)
   in

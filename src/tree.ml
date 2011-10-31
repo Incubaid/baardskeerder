@@ -197,7 +197,7 @@ module DB = functor (L:LOG ) -> struct
 		      let left', sep', right' = leaf_borrow_right left right in
 		      let lpos = add_leaf slab left' in
 		      let rpos = add_leaf slab right' in
-		      leaf_borrowed_right slab lpos sep' rpos z rest
+		      xxx_borrowed_right slab lpos sep' rpos z rest
 		    end
 		end
 	      | NL pos ->
@@ -218,7 +218,7 @@ module DB = functor (L:LOG ) -> struct
 		      let left', sep',right' = leaf_borrow_left left right in
 		      let lpos = add_leaf slab left' in
 		      let rpos = add_leaf slab right' in
-		      leaf_borrowed_left slab lpos sep' rpos z rest
+		      xxx_borrowed_left slab lpos sep' rpos z rest
 		    end
 		end
 	      | N2 (p0,p1) -> 
@@ -248,16 +248,16 @@ module DB = functor (L:LOG ) -> struct
 			let left', sep', right' = leaf_borrow_left left right in
 			let lpos = add_leaf slab left' in
 			let rpos = add_leaf slab right' in
-			leaf_borrowed_left slab lpos sep' rpos z rest
+			xxx_borrowed_left slab lpos sep' rpos z rest
 		      end		    
 		end
 	  end
 	| _ -> failwith "corrupt"
-    and leaf_borrowed_right slab lpos sep rpos z rest = 
+    and xxx_borrowed_right slab lpos sep rpos z rest = 
       let z' = indexz_borrowed_right lpos sep rpos z in
       let ipos = add_index slab (indexz_close z')    in
       delete_rest slab ipos rest
-    and leaf_borrowed_left slab lpos sep rpos z rest = 
+    and xxx_borrowed_left slab lpos sep rpos z rest = 
       let z' = indexz_borrowed_left lpos sep rpos z in
       let ipos = add_index slab (indexz_close z') in
       delete_rest slab ipos rest
@@ -267,6 +267,24 @@ module DB = functor (L:LOG ) -> struct
 	match e with
 	  | Index i -> i
 	  | _ -> failwith "should be index"
+      in
+      let merge_left left index z rest = 
+	begin
+	  let sep = indexz_separator L z in
+	  let index' = index_merge left sep index in
+	  let ipos' = add_index slab index' in
+	  let z2 = indexz_suppress L ipos' z in
+	  xxx_merged slab ipos' z2 rest
+	end
+      in
+      let merge_right right index z rest = 
+	begin
+	  let sep = indexz_separator R z in
+	  let index' = index_merge index sep right in
+	  let ipos' = add_index slab index' in
+	  let z2 = indexz_suppress R ipos' z in
+	  xxx_merged slab ipos' z2 rest
+	end
       in
       match index, rest with
 	| (_,[]) , []  -> ()
@@ -278,34 +296,38 @@ module DB = functor (L:LOG ) -> struct
 	      | NL pos ->  
 		begin
 		  let left = read_index pos in
-		  if index_mergeable d left then
-		    begin
-		      let sep = indexz_separator L z in
-		      let index' = index_merge left sep index in
-		      let ipos' = add_index slab index' in
-		      let z2 = indexz_suppress L ipos' z in
-		      xxx_merged slab ipos' z2 rest
-		    end
-		  else
-		    failwith "todo: underflow & cannot merge with left neighbour"
+		  if index_mergeable d left 
+		  then merge_left left index z rest
+		  else (* borrow from left *)
+		    let right = indexz_delete index in
+		    let left', sep', right' = index_borrow_left left right in
+		    let lpos = add_index slab left' in
+		    let rpos = add_index slab right' in
+		    xxx_borrowed_left slab lpos sep' rpos z rest
 		end
 		  
 	      | NR pos ->  
 		begin
 		  let right = read_index pos in
-		  if index_mergeable d right then
-		    begin
-		      let sep = indexz_separator R z in
-		      let index' = index_merge index sep right in
-		      let ipos' = add_index slab index' in
-		      let z2 = indexz_suppress R ipos' z in
-		      xxx_merged slab ipos' z2 rest
-		    end
+		  if index_mergeable d right 
+		  then merge_right right index z rest
 		  else
-		    failwith "todo: underflow & cannot merge with right neighbour"
+		    let left',sep', right' = index_borrow_right index right in
+		    let lpos = add_index slab left' in
+		    let rpos = add_index slab right' in
+		    xxx_borrowed_right slab lpos sep' rpos z rest
 		end
 		
-	      | N2 (l,r) -> Printf.printf "N2 (%i,%i)" l r; failwith "N2 todo"
+	      | N2 (pl,pr) -> 
+		let left = read_index pl in
+		let right = read_index pr in
+		match (index_mergeable d left,index_mergeable d right) with
+		  | true,_ -> merge_left left index z rest
+		  | _, true -> merge_right right index z rest
+		  | _,_ -> 
+		    begin
+		      let s = Printf.sprintf "todo N2(%i,%i)" pl pr in failwith s
+		    end 
 	  end
 	| _ -> let ipos = L.add slab (Index index) in
 	       delete_rest slab ipos rest

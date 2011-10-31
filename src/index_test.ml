@@ -106,6 +106,14 @@ let t_replace () =
   let index = Index.indexz_replace 18 z in
   OUnit.assert_equal ~printer:index2s index (7,("d",18) :: ("m",15)::[])
 
+let t_merge () =
+  let index = 110,["key_3", 93] in
+  let sep = "key_3" in
+  let right = 94, ["key_5",64 ; "key_7", 54] in
+  let r = index_merge index sep right in
+  let expected = 110, ["key_3", 94; "key_5", 64; "key_7", 54] in
+  OUnit.assert_equal ~printer:index2s expected r
+
 let suite = 
   "Index" >:::[
     "neighbours" >:: t_neighbours;
@@ -119,4 +127,5 @@ let suite =
     "split"      >:: t_split;
     "split2"     >:: t_split2;
     "replace"    >:: t_replace;
+    "merge"      >:: t_merge;
   ]

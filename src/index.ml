@@ -63,6 +63,17 @@ let index_mergeable d (_,t)  = List.length t <= d
 
 let make_indexz (p0, kps) = Top ((p0, kps))
 
+let index_borrow_left left right = failwith (Printf.sprintf "index_borrowed_left %s %s" (index2s left) (index2s right))
+      
+let index_borrow_right (pl, kps_l) (pr, kps_r) = 
+  match kps_r with
+    | [] -> failwith "cannot borrow from empty index"
+    | (kr0,pr0)::r -> let lrev = List.rev kps_l in
+		      let left' =   pl, List.rev ((kr0,pr):: lrev) in
+		      let right' =  pr0, r in
+		      left', kr0, right'
+  
+
 let indexz_pos = function
   | Top ( p0,_) -> p0
   | Loc ((_, (k,pi) ::_) , _      )   -> pi
@@ -130,6 +141,8 @@ let indexz_suppress d pn z =
 	| Loc ((p0, (kl,pl)::(kr,pr)::c),t)  -> p0, (List.rev ((kr,pn):: c)) @ t
 	| Loc ((p0,[_]), r)                  -> pn, r
 	| _ -> let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s
+
+let indexz_delete index = failwith "todo"
 
 
 type neigbours = 
