@@ -24,6 +24,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <linux/falloc.h>
 
@@ -207,4 +210,24 @@ void _bs_posix_fadvise(value fd, value offset, value len, value advice) {
         }
 
         CAMLreturn0;
+}
+
+
+CAMLprim value _bs_posix_fstat_blksize(value fd) {
+        int ret = 0;
+        struct stat buf;
+
+        memset(&buf, 0, sizeof(struct stat));
+
+        ret = fstat(Int_val(fd), &buf);
+
+        if(ret < 0) {
+                uerror("fstat", Nothing);
+        }
+
+        if(buf.st_blksize > Max_long) {
+                unix_error(EOVERFLOW, "fstat", Nothing);
+        }
+
+        return Val_int(buf.st_blksize);
 }

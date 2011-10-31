@@ -45,4 +45,8 @@ type posix_fadv = POSIX_FADV_NORMAL
                 | POSIX_FADV_DONTNEED
 
 external posix_fadvise: Unix.file_descr -> int -> int -> posix_fadv -> unit
-    = "_bs_posix_fadvise" "noalloc"
+    = "_bs_posix_fadvise"
+
+(* stat blksize *)
+external fstat_blksize: Unix.file_descr -> int
+    = "_bs_posix_fstat_blksize"
