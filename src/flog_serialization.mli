@@ -19,9 +19,12 @@
 
 val write_uint8 : int -> string -> int -> unit
 val read_uint8 : string -> int -> int
+val size_uint8 : int
 
 val write_uint32 : int -> string -> int -> unit
 val read_uint32 : string -> int -> int
+val size_uint32 : int
 
 val write_uint64 : int -> string -> int -> unit
 val read_uint64 : string -> int -> int
+val size_uint64 : int
