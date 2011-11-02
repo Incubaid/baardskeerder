@@ -56,7 +56,17 @@ let index_find_set index k =
   in loop (Top index)
 
 
-let index_merge (pl,kps_left) sep  (p2, kps_right) = pl, (kps_left @ ((sep,p2) :: kps_right))
+let index_merge (pl,kps_left) sep  (p2, kps_right) = 
+  let rec check = function
+    | [] -> ()
+    | [k,s] -> if k = sep then 
+	let s = Printf.sprintf "can't merge:(%s) %S (%s)" (index2s (pl,kps_left)) sep (index2s (p2, kps_right)) in
+	failwith s
+    | h :: t -> check t
+  in 
+  let () = check kps_left in 
+  let r = (kps_left @ ((sep,p2) :: kps_right)) in
+  pl, r
 
 let index_below_min d (p0,t) = List.length t < d
 let index_mergeable d (_,t)  = List.length t <= d
@@ -138,7 +148,8 @@ let indexz_suppress d pn new_sep z =
     | L ->
       match z with
 	| Loc ((p0,[k0, p1]),[])             -> pn,[]
-	| Loc ((p0, (kl,pl)::(kr,pr)::c),t)  -> p0, (List.rev ((kr,pn):: c)) @ t
+	| Loc ((p0, (kl,pl)::(kr,pr)::c),[]) -> p0, (List.rev ((kr,pn)::c)) 
+	| Loc ((p0, (kl,pl)::(kr,pr)::c),(kx,px):: t)  -> p0, (List.rev ((kr,pn):: c)) @ ((new_sep,px)::t)
 	| Loc ((p0,[_]), r)                  -> pn, r
 	| _ -> let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s
 

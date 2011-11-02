@@ -57,7 +57,7 @@ let t_suppress3 () =
   let z = Loc ((0,["m", 1; "g", 2]),["t", 3]) in
   let r = indexz_suppress L 4 "q" z in
   let () = Printf.printf "index = %s\n" (index2s r) in
-  OUnit.assert_equal ~printer:index2s (0,["g",2;"q",3]) r;
+  OUnit.assert_equal ~printer:index2s (0,["g",4;"q",3]) r;
   ()
 
 let t_balance() =
@@ -112,9 +112,11 @@ let t_merge () =
   let index = 110,["key_3", 93] in
   let sep = "key_3" in
   let right = 94, ["key_5",64 ; "key_7", 54] in
-  let r = index_merge index sep right in
-  let expected = 110, ["key_3", 94; "key_5", 64; "key_7", 54] in
-  OUnit.assert_equal ~printer:index2s expected r
+  OUnit.assert_raises 
+    (Failure "can't merge:(110, [\"key_3\", 93]) \"key_3\" (94, [\"key_5\", 64; \"key_7\", 54])") 
+    (fun () -> index_merge index sep right)
+
+
 
 let suite = 
   "Index" >:::[
