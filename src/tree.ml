@@ -156,15 +156,16 @@ module DB = functor (L:LOG ) -> struct
 	then leaf_underflow slab start z rest
 	else 
 	  let leaf' = leafz_delete z in
+	  let sep_c = leaf_max_key leaf' in
 	  let lpos = add_leaf slab leaf' in
 	  assert (lpos = start);
-	  delete_rest slab start rest
-    and delete_rest slab start trail = match trail with
+	  delete_rest slab start sep_c rest
+    and delete_rest slab start sep_c trail = match trail with
       | [] -> ()
       | Index_down z :: rest -> 	
-	let index = indexz_replace start z in
+	let index = indexz_replace_with_sep sep_c start z in
 	let ipos = add_index slab index in
-	delete_rest slab ipos rest
+	delete_rest slab ipos sep_c rest
 
     and leaf_underflow slab start leafz rest = 
       match rest with 
@@ -259,12 +260,16 @@ module DB = functor (L:LOG ) -> struct
 	| _ -> failwith "corrupt"
     and xxx_borrowed_right slab lpos sep rpos z rest = 
       let z' = indexz_borrowed_right lpos sep rpos z in
-      let ipos = add_index slab (indexz_close z')    in
-      delete_rest slab ipos rest
+      let index' = indexz_close z' in
+      let sep_c = index_max_key index' in
+      let ipos = add_index slab index' in
+      delete_rest slab ipos sep_c rest
     and xxx_borrowed_left slab lpos sep rpos z rest = 
       let z' = indexz_borrowed_left lpos sep rpos z in
-      let ipos = add_index slab (indexz_close z') in
-      delete_rest slab ipos rest
+      let index' = indexz_close z' in
+      let sep_c = index_max_key index' in
+      let ipos = add_index slab index' in
+      delete_rest slab ipos sep_c rest
     and xxx_merged slab start sep_c index rest = 
       let read_index pos = 
 	let e = L.read t pos in
@@ -317,10 +322,10 @@ module DB = functor (L:LOG ) -> struct
 		  if index_mergeable d right 
 		  then merge_right right index z rest
 		  else
-		    let left',sep', right' = index_borrow_right index right in
+		    let left', right' = index_borrow_right index sep_c right in
 		    let lpos = add_index slab left' in
 		    let rpos = add_index slab right' in
-		    xxx_borrowed_right slab lpos sep' rpos z rest
+		    xxx_borrowed_right slab lpos sep_c rpos z rest
 		end
 		
 	      | N2 (pl,pr) -> 
@@ -335,7 +340,8 @@ module DB = functor (L:LOG ) -> struct
 		    end 
 	  end
 	| _ -> let ipos = L.add slab (Index index) in
-	       delete_rest slab ipos rest
+	       let sep_c = index_max_key index in
+	       delete_rest slab ipos sep_c rest
     in
     let trail = descend (L.root t) [] in
     let start = L.next t in
