@@ -53,6 +53,11 @@ let leaf_borrow_left left right = let rev = List.rev left in
       let left' = List.rev (h1 :: t) in
       left' , k1, right'
 
+let rec leaf_max_key = function
+  | [] -> failwith "empty"
+  | [k,_] -> k
+  | h :: t -> leaf_max_key t
+
 let leafz_delete = function
   | c,h::t -> (List.rev c) @ t
   | _ -> failwith "leafz_delete"

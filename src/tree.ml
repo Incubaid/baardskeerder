@@ -187,9 +187,10 @@ module DB = functor (L:LOG ) -> struct
 		    begin
 		      let left = leafz_delete leafz in
 		      let h  =  leaf_merge left right in
+		      let sep_c = leaf_max_key h in
 		      let hpos = add_leaf slab h in
-		      let z' = indexz_suppress R hpos z in
-		      xxx_merged slab hpos z' rest
+		      let z' = indexz_suppress R hpos sep_c z in
+		      xxx_merged slab hpos sep_c z' rest
 		    end
 		  else (* borrow from right *)
 		    begin
@@ -208,9 +209,10 @@ module DB = functor (L:LOG ) -> struct
 		    begin
 		      let right = leafz_delete leafz in
 		      let h = leaf_merge left right  in
+		      let sep_c = leaf_max_key h in (* this might become a separator *)
 		      let hpos = add_leaf slab h in
-		      let index' = indexz_suppress L hpos z in
-		      xxx_merged slab hpos index' rest
+		      let index' = indexz_suppress L hpos sep_c z in
+		      xxx_merged slab hpos sep_c index' rest
 		    end
 		  else (* borrow from left *)
 		    begin
@@ -230,17 +232,19 @@ module DB = functor (L:LOG ) -> struct
 		      begin
 			let right = leafz_delete leafz in
 			let h = leaf_merge left right in
+			let sep_c = leaf_max_key h in
 			let hpos = add_leaf slab h in
-			let index' = indexz_suppress L hpos z in
-			xxx_merged slab hpos index' rest
+			let index' = indexz_suppress L hpos sep_c z in
+			xxx_merged slab hpos sep_c index' rest
 		      end
 		    | _, true ->
 		      begin
 			let left = leafz_delete leafz in
 			let h = leaf_merge left right in
+			let sep_c = leaf_max_key h in
 			let hpos = add_leaf slab h in
-			let index' = indexz_suppress R hpos z in
-			xxx_merged slab hpos index' rest
+			let index' = indexz_suppress R hpos sep_c z in
+			xxx_merged slab hpos sep_c index' rest
 		      end
 		    | _,_ -> (* borrow from left *)
 		      begin
@@ -261,7 +265,7 @@ module DB = functor (L:LOG ) -> struct
       let z' = indexz_borrowed_left lpos sep rpos z in
       let ipos = add_index slab (indexz_close z') in
       delete_rest slab ipos rest
-    and xxx_merged slab start index rest = 
+    and xxx_merged slab start sep_c index rest = 
       let read_index pos = 
 	let e = L.read t pos in
 	match e with
@@ -273,17 +277,18 @@ module DB = functor (L:LOG ) -> struct
 	  let sep = indexz_separator L z in
 	  let index' = index_merge left sep index in
 	  let ipos' = add_index slab index' in
-	  let z2 = indexz_suppress L ipos' z in
-	  xxx_merged slab ipos' z2 rest
+	  let z2 = indexz_suppress L ipos' sep_c z in
+	  xxx_merged slab ipos' sep_c z2 rest
 	end
       in
       let merge_right right index z rest = 
 	begin
 	  let sep = indexz_separator R z in
-	  let index' = index_merge index sep right in
+	  let sep_f = if sep = k then sep_c else sep in
+	  let index' = index_merge index sep_f right in
 	  let ipos' = add_index slab index' in
-	  let z2 = indexz_suppress R ipos' z in
-	  xxx_merged slab ipos' z2 rest
+	  let z2 = indexz_suppress R ipos' sep_c z in
+	  xxx_merged slab ipos' sep_c z2 rest
 	end
       in
       match index, rest with
@@ -346,35 +351,4 @@ module DB = functor (L:LOG ) -> struct
   let range (t:L.t) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int) = failwith "todo"
     
 end 
-
-module DBX(L:LOG) = struct
-
-  type tx = { log: L.t; slab: L.slab; info: (k,v option) Hashtbl.t}
-
-  module DBL = DB(L)
-
-  let get tx k = 
-    if Hashtbl.mem tx.info k then
-      match Hashtbl.find tx.info k with
-	| None -> raise Not_found
-	| Some v -> v
-    else
-      DBL.get tx.log k
-
-  let set tx k v = 
-    Hashtbl.replace tx.info k (Some v);
-    DBL._set tx.log tx.slab k v
-      
-  let delete tx k = 
-    Hashtbl.replace tx.info k None;
-    DBL._delete tx.log tx.slab
-
-  let with_tx log f = 
-    let slab = L.make_slab log in
-    let info = Hashtbl.create 127 in
-    let tx = {log;slab;info} in
-    let () = f tx in
-    L.write log tx.slab
-
-end
 

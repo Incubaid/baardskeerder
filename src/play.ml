@@ -62,10 +62,13 @@ let test t0 =
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n in
-      Printf.printf "Delete %s\n%!" k;
-      if (n = 12 || n = 11 ) 
-      then let _ = MDot.view t0 in ()
+      if (List.mem n  [16;15;14;13;12;11])
+      then 
+	let _ = MDot.view t0 in 
+	let () = Mlog.dump t0 in
+	()
       else ();
+      Printf.printf "Delete %s\n%!" k;
       MDB.delete t0 k;
       loop2 (pred n)
   in

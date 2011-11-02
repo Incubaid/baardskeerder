@@ -127,7 +127,7 @@ let indexz_separator d z =
 	  | _ -> let s = Printf.sprintf "indexz_separator R (%s)\n" (iz2s z) in failwith s
       end
       
-let indexz_suppress d pn z = 
+let indexz_suppress d pn new_sep z = 
   match d with 
     | R ->
       begin
