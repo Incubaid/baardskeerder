@@ -23,6 +23,7 @@ open Unix
 open Entry
 open Tree
 open Flog
+open Flog_serialization (* TODO Move these tests into separate module ? *)
 
 let test_uintN wf rf l n () =
   let rec loop = function
