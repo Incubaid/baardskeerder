@@ -68,7 +68,7 @@ let test t0 =
 	let () = Mlog.dump t0 in
 	()
       else ();
-      Printf.printf "Delete %s\n%!" k;
+      Printf.printf "going to delete %s\n%!" k;
       MDB.delete t0 k;
       loop2 (pred n)
   in

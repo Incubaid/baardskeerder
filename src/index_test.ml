@@ -59,6 +59,10 @@ let t_suppress3 () =
   let () = Printf.printf "index = %s\n" (index2s r) in
   OUnit.assert_equal ~printer:index2s (0,["g",4;"q",3]) r;
   ()
+let t_suppress4() = 
+  let z =  Loc ((78, [("key_12", 79)]), [("key_16", 95)]) in
+  let r = indexz_suppress L 98 "key_15" z in
+  OUnit.assert_equal ~printer:index2s (98, ["key_15", 95]) r
 
 let t_balance() =
   let d = 2 in
@@ -126,6 +130,7 @@ let suite =
     "suppress"   >:: t_suppress;
     "suppress2"  >:: t_suppress2;
     "suppress3"  >:: t_suppress3;
+    "suppress4"  >:: t_suppress4;
     "balance"    >:: t_balance;
     "balance2"   >:: t_balance2;
     "split"      >:: t_split;

@@ -148,9 +148,9 @@ let indexz_suppress d pn new_sep z =
     | L ->
       match z with
 	| Loc ((p0,[k0, p1]),[])             -> pn,[]
+	| Loc ((p0,[_]), (kx,px)::t)          -> pn, ((new_sep,px)::t)
 	| Loc ((p0, (kl,pl)::(kr,pr)::c),[]) -> p0, (List.rev ((kr,pn)::c)) 
 	| Loc ((p0, (kl,pl)::(kr,pr)::c),(kx,px):: t)  -> p0, (List.rev ((kr,pn):: c)) @ ((new_sep,px)::t)
-	| Loc ((p0,[_]), r)                  -> pn, r
 	| _ -> let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s
 
 let indexz_delete index = failwith "todo"
