@@ -74,7 +74,22 @@ let test t0 =
   in
   loop2 max;;
 
+
+List.iter (fun k -> MDB.set t0 k (String.uppercase k)) 
+  ["g";"j";"a";"m";"d";"q";
+   "t";"w";"z"];;
+
+MDot.view t0;;
+MDB.delete t0 "g";;
+MDot.view t0;;
+MDB.delete t0 "j";;
+MDot.view t0;;
+
+
+(*
 test t0;;
+*)
+
 (*
 let () = List.iter 
   (fun k -> 

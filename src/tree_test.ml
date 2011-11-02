@@ -227,10 +227,11 @@ let insert_delete_permutations_generic  n ((log,set,get,delete, clear) as q) =
 
   let do_test n a =
     clear log;
+    (* Printf.printf "-----\n"; *)
     if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
     Array.iter (fun k -> set log k (String.uppercase k)) a;
     check q (Array.to_list a);
-    Array.iter (fun k -> (* Printf.eprintf "delete %s\n" k; *) delete log k) a;
+    Array.iter (fun k -> (* Printf.printf "delete %s\n%!" k ; *)delete log k) a;
     check_empty q
   in
 
@@ -268,10 +269,11 @@ let insert_static_delete_permutations_generic  n ((log, set, get, delete, clear)
 
   let do_test n a =
     clear log;
+    (* Printf.printf "-----\n"; *)
     if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
     List.iter (fun k -> set log k (String.uppercase k)) kvs;
     check q kvs;
-    Array.iter (fun k -> delete log k) a;
+    Array.iter (fun k -> (*Printf.printf "delete %s\n%!" k ; *) delete log k) a;
     check_empty q
   in
 

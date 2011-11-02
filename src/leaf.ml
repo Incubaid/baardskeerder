@@ -37,7 +37,10 @@ let leaf_find_delete leaf k =
 
 let leaf_min d t = List.length t = d
 let leaf_mergeable d t = List.length t <= d
-let leaf_merge left right = left @ right
+
+
+
+  
 
 let leaf_borrow_right left right = match right with
   | [] -> failwith "leaf_borrow_right"
@@ -58,8 +61,22 @@ let rec leaf_max_key = function
   | [k,_] -> k
   | h :: t -> leaf_max_key t
 
+let leaf_merge left right = 
+  let leaf = left @ right in
+  let m = leaf_max_key leaf in
+  leaf, Some m
+
 let leafz_delete = function
-  | c,h::t -> (List.rev c) @ t
+  | c,h:: t -> let leaf = ((List.rev c) @ t) in
+	       let sep_c = 
+		 if t = [] 
+		 then 
+		   match c with
+		     | [] -> None
+		     | (k,_) :: _ -> Some k
+		 else None
+
+	       in leaf, sep_c 
   | _ -> failwith "leafz_delete"
 
 let leafz_max d (c,t) = List.length c + List.length t = 2 * d - 1

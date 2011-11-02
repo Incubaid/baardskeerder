@@ -74,10 +74,12 @@ let index_mergeable d (_,t)  = List.length t <= d
 let index_borrow_left left right = 
   failwith (Printf.sprintf "index_borrowed_left %s %s" (index2s left) (index2s right))
 
-let index_borrow_right (pl, kps_l) sep (pr, kps_r) = 
+let index_borrow_right (pl, kps_l) sep_o (pr, kps_r) = 
+  
   match kps_r with
     | [] -> failwith "cannot borrow from empty index"
     | (kr0,pr0)::r -> let lrev = List.rev kps_l in
+		      let sep = match sep_o with | None -> kr0 | Some sep -> sep in
 		      let left' =   pl, List.rev ((sep,pr):: lrev) in
 		      let right' =  pr0, r in
 		      left', right'
@@ -109,8 +111,12 @@ let indexz_replace pos z =
 
 let indexz_replace_with_sep sep_c pos z =
   match z with
-    | Top (p0, ((k,p) :: r))          -> pos,((sep_c,p) :: r)
-    | Loc ((p0, (k,pi) :: c ), t ) -> (p0, (List.rev ((k,pos) :: c)) @ t)
+    | Top (p0, ((k,p) :: r))          -> 
+      let index = pos,((sep_c,p) :: r) in
+      index, None
+    | Loc ((p0, (k,pi) :: c ), t ) -> 
+      let index = (p0, (List.rev ((k,pos) :: c)) @ t) in
+      index, None
 
 let indexz_max d z = 
   let z_size = match z with
@@ -155,7 +161,12 @@ let indexz_separator d z =
 	  | _ -> let s = Printf.sprintf "indexz_separator R (%s)\n" (iz2s z) in failwith s
       end
       
-let indexz_suppress d pn new_sep z = 
+let indexz_suppress d pn sep_o z = 
+  let maybe_replace_sep sep sep_o = 
+    match sep_o with 
+      | None -> sep
+      | Some sep -> sep
+  in
   match d with 
     | R ->
       begin
@@ -166,9 +177,13 @@ let indexz_suppress d pn new_sep z =
     | L ->
       match z with
 	| Loc ((p0,[k0, p1]),[])             -> pn,[]
-	| Loc ((p0,[_]), (kx,px)::t)          -> pn, ((new_sep,px)::t)
+	| Loc ((p0,[_]), (kx,px)::t)          -> 
+	  let new_sep = maybe_replace_sep kx sep_o in
+	  pn, ((new_sep,px)::t)
 	| Loc ((p0, (kl,pl)::(kr,pr)::c),[]) -> p0, (List.rev ((kr,pn)::c)) 
-	| Loc ((p0, (kl,pl)::(kr,pr)::c),(kx,px):: t)  -> p0, (List.rev ((kr,pn):: c)) @ ((new_sep,px)::t)
+	| Loc ((p0, (kl,pl)::(kr,pr)::c),(kx,px):: t)  -> 
+	  let new_sep = maybe_replace_sep kx sep_o in
+	  p0, (List.rev ((kr,pn):: c)) @ ((new_sep,px)::t)
 	| _ -> let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s
 
 let indexz_delete index = failwith "todo"
