@@ -278,7 +278,7 @@ let test_compaction_lengthy _ db =
   do_compact ()
 
 let compaction =
-  "Compaction" >::: [
+  "compaction" >::: [
     "basic" >:: with_database test_compaction_basic;
     "lengthy" >:: with_database test_compaction_lengthy;
   ]
