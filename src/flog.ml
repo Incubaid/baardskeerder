@@ -63,36 +63,31 @@ and leaf_tag = chr2
 and index_tag = chr3
 and commit_tag = chr4
 
-let write_uint8 i s o =
-  assert (i >= 0);
-  assert (i < 0x100);
-  assert (o <= String.length s - 1);
-
-  String.set s o (Char.chr i)
-
-and read_uint8 s o =
-  Char.code (String.get s o)
+let write_uint8 i s o = String.set s o (Char.chr i)
+and read_uint8 s o = Char.code (String.get s o)
 
 let write_uint32 i s o =
-  assert (i >= 0);
-  assert (i < 0x100000000);
-  assert (o <= String.length s - 4);
+  assert (i >= 0 && i < 0x100000000);
+  assert (o >= 0 && o <= String.length s - 4);
 
-  String.set s o (Char.chr (i land 0xFF));
-  String.set s (o + 1) (Char.chr ((i lsr 8) land 0xFF));
-  String.set s (o + 2) (Char.chr ((i lsr 16) land 0xFF));
-  String.set s (o + 3) (Char.chr ((i lsr 24) land 0xFF))
+  let uchr = Char.unsafe_chr
+  and uset = String.unsafe_set in
 
-let read_uint32 s o =
-  let l = String.length s in
-  assert (l - o >= 4);
+  uset s o (uchr (i land 0xFF));
+  uset s (o + 1) (uchr ((i lsr 8) land 0xFF));
+  uset s (o + 2) (uchr ((i lsr 16) land 0xFF));
+  uset s (o + 3) (uchr ((i lsr 24) land 0xFF))
 
-  let ord = Char.code in
+and read_uint32 s o =
+  assert (o >= 0 && String.length s - o >= 4);
 
-  let i0 = ord (String.get s o)
-  and i1 = ord (String.get s (o + 1))
-  and i2 = ord (String.get s (o + 2))
-  and i3 = ord (String.get s (o + 3)) in
+  let ord = Char.code
+  and uget = String.unsafe_get in
+
+  let i0 = ord (uget s (o + 0))
+  and i1 = ord (uget s (o + 1))
+  and i2 = ord (uget s (o + 2))
+  and i3 = ord (uget s (o + 3)) in
 
   i0 + (i1 lsl 8) + (i2 lsl 16) + (i3 lsl 24)
 
@@ -104,33 +99,35 @@ and read_crc32 s o =
   c - 0x80000000
 
 let write_uint64 i s o =
-  assert (i >= 0);
-  assert (i <= 0X3FFFFFFFFFFFFFFF); (* max_int *)
-  assert (o <= String.length s - 8);
+  assert (i >= 0 && i <= 0X3FFFFFFFFFFFFFFF); (* max_int *)
+  assert (o >= 0 && o <= String.length s - 8);
 
-  String.set s o (Char.chr (i land 0xFF));
-  String.set s (o + 1) (Char.chr ((i lsr 8) land 0xFF));
-  String.set s (o + 2) (Char.chr ((i lsr 16) land 0xFF));
-  String.set s (o + 3) (Char.chr ((i lsr 24) land 0xFF));
-  String.set s (o + 4) (Char.chr ((i lsr 32) land 0xFF));
-  String.set s (o + 5) (Char.chr ((i lsr 40) land 0xFF));
-  String.set s (o + 6) (Char.chr ((i lsr 48) land 0xFF));
-  String.set s (o + 7) (Char.chr ((i lsr 56) land 0xFF))
+  let uchr = Char.unsafe_chr
+  and uset = String.unsafe_set in
 
-let read_uint64 s o =
-  let l = String.length s in
-  assert (l - o >= 8);
+  uset s (o + 0) (uchr ((i lsr  0) land 0xFF));
+  uset s (o + 1) (uchr ((i lsr  8) land 0xFF));
+  uset s (o + 2) (uchr ((i lsr 16) land 0xFF));
+  uset s (o + 3) (uchr ((i lsr 24) land 0xFF));
+  uset s (o + 4) (uchr ((i lsr 32) land 0xFF));
+  uset s (o + 5) (uchr ((i lsr 40) land 0xFF));
+  uset s (o + 6) (uchr ((i lsr 48) land 0xFF));
+  uset s (o + 7) (uchr ((i lsr 56) land 0xFF))
 
-  let ord = Char.code in
+and read_uint64 s o =
+  assert (0 >= 0 && String.length s - o >= 8);
 
-  let i0 = ord (String.get s o)
-  and i1 = ord (String.get s (o + 1))
-  and i2 = ord (String.get s (o + 2))
-  and i3 = ord (String.get s (o + 3))
-  and i4 = ord (String.get s (o + 4))
-  and i5 = ord (String.get s (o + 5))
-  and i6 = ord (String.get s (o + 6))
-  and i7 = ord (String.get s (o + 7)) in
+  let ord = Char.code
+  and uget = String.unsafe_get in
+
+  let i0 = ord (uget s (o + 0))
+  and i1 = ord (uget s (o + 1))
+  and i2 = ord (uget s (o + 2))
+  and i3 = ord (uget s (o + 3))
+  and i4 = ord (uget s (o + 4))
+  and i5 = ord (uget s (o + 5))
+  and i6 = ord (uget s (o + 6))
+  and i7 = ord (uget s (o + 7)) in
 
   i0 + (i1 lsl 8) + (i2 lsl 16) + (i3 lsl 24) + (i4 lsl 32) + (i5 lsl 40)
     + (i6 lsl 48) + (i7 lsl 56)
