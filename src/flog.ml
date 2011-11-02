@@ -22,6 +22,8 @@ open Unix
 open Entry
 open Posix
 
+open Flog_serialization
+
 type blocksize = int
 type spindle = int
 type offset = int
@@ -58,82 +60,20 @@ let chr2 = Char.chr 2
 let chr3 = Char.chr 3
 let chr4 = Char.chr 4
 
-let value_tag = chr1
+let value_tag = 1
+let value_tag' = Char.chr value_tag
 and leaf_tag = chr2
 and index_tag = chr3
-and commit_tag = chr4
+let commit_tag = 4
+let commit_tag' = Char.chr commit_tag
 
-let write_uint8 i s o =
-  assert (i >= 0);
-  assert (i < 0x100);
-  assert (o <= String.length s - 1);
-
-  String.set s o (Char.chr i)
-
-and read_uint8 s o =
-  Char.code (String.get s o)
-
-let write_uint32 i s o =
-  assert (i >= 0);
-  assert (i < 0x100000000);
-  assert (o <= String.length s - 4);
-
-  String.set s o (Char.chr (i land 0xFF));
-  String.set s (o + 1) (Char.chr ((i lsr 8) land 0xFF));
-  String.set s (o + 2) (Char.chr ((i lsr 16) land 0xFF));
-  String.set s (o + 3) (Char.chr ((i lsr 24) land 0xFF))
-
-let read_uint32 s o =
-  let l = String.length s in
-  assert (l - o >= 4);
-
-  let ord = Char.code in
-
-  let i0 = ord (String.get s o)
-  and i1 = ord (String.get s (o + 1))
-  and i2 = ord (String.get s (o + 2))
-  and i3 = ord (String.get s (o + 3)) in
-
-  i0 + (i1 lsl 8) + (i2 lsl 16) + (i3 lsl 24)
-
-let write_crc32 c s o =
+let size_crc32 = size_uint32
+and write_crc32 c s o =
   let c' = c + 0x80000000 in
   write_uint32 c' s o
 and read_crc32 s o =
   let c = read_uint32 s o in
   c - 0x80000000
-
-let write_uint64 i s o =
-  assert (i >= 0);
-  assert (i <= 0X3FFFFFFFFFFFFFFF); (* max_int *)
-  assert (o <= String.length s - 8);
-
-  String.set s o (Char.chr (i land 0xFF));
-  String.set s (o + 1) (Char.chr ((i lsr 8) land 0xFF));
-  String.set s (o + 2) (Char.chr ((i lsr 16) land 0xFF));
-  String.set s (o + 3) (Char.chr ((i lsr 24) land 0xFF));
-  String.set s (o + 4) (Char.chr ((i lsr 32) land 0xFF));
-  String.set s (o + 5) (Char.chr ((i lsr 40) land 0xFF));
-  String.set s (o + 6) (Char.chr ((i lsr 48) land 0xFF));
-  String.set s (o + 7) (Char.chr ((i lsr 56) land 0xFF))
-
-let read_uint64 s o =
-  let l = String.length s in
-  assert (l - o >= 8);
-
-  let ord = Char.code in
-
-  let i0 = ord (String.get s o)
-  and i1 = ord (String.get s (o + 1))
-  and i2 = ord (String.get s (o + 2))
-  and i3 = ord (String.get s (o + 3))
-  and i4 = ord (String.get s (o + 4))
-  and i5 = ord (String.get s (o + 5))
-  and i6 = ord (String.get s (o + 6))
-  and i7 = ord (String.get s (o + 7)) in
-
-  i0 + (i1 lsl 8) + (i2 lsl 16) + (i3 lsl 24) + (i4 lsl 32) + (i5 lsl 40)
-    + (i6 lsl 48) + (i7 lsl 56)
 
 let lseek_set f o =
   let o' = lseek f o SEEK_SET in
@@ -225,14 +165,19 @@ let create (f: string) =
 
   close fd
 
-let serialize_commit o =
-  let s = String.create (4 + 1 + 8 + 4) in
+let calculate_size_commit (Commit _) =
+  size_uint32 + size_uint8 + size_uint64 + size_crc32
+let serialize_commit (Commit o as c) =
+  let l = calculate_size_commit c in
 
-  write_uint32 (1 + 8 + 4) s 0;
-  String.set s 4 commit_tag;
-  write_uint64 o s (4 + 1);
-  let crc = crc32 s 0 (4 + 1 + 8) in
-  write_crc32 crc s (4 + 1 + 8);
+  let s = String.create l in
+
+  write_uint32 (l - 4) s 0;
+  write_uint8 commit_tag s size_uint32;
+  write_uint64 o s (size_uint32 + size_uint8);
+
+  let crc = crc32 s 0 (size_uint32 + size_uint8 + size_uint64) in
+  write_crc32 crc s (size_uint32 + size_uint8 + size_uint64);
 
   s
 
@@ -262,8 +207,8 @@ let find_commit f o =
       match String.get s 4 with
         | i when i = leaf_tag -> loop a (o + 8 + s')
         | i when i = index_tag -> loop a (o + 8 + s')
-        | i when i = value_tag -> loop a (o + 8 + s')
-        | i when i = commit_tag -> loop o (o + 8 + s')
+        | i when i = value_tag' -> loop a (o + 8 + s')
+        | i when i = commit_tag' -> loop o (o + 8 + s')
         | c -> failwith
                 (Printf.sprintf "Flog.find_root: unknown entry type: %d"
                   (Char.code c))
@@ -331,7 +276,7 @@ let make (f: string): t =
       pread_into_exactly fd_in s 9 co;
       assert (read_uint32 s 0 = marker);
       let l = (read_uint32 s 4) - 1 in
-      assert (String.get s 8 = commit_tag);
+      assert (String.get s 8 = commit_tag');
       let s = String.create l in
       pread_into_exactly fd_in s l (co + 9);
       let (Commit root) = deserialize_commit s 0 in
@@ -468,24 +413,26 @@ let deserialize_index s o =
 
   Index (p, loop [] (o + 10) count)
 
-let serialize_value v =
-  let l = String.length v in
-  let tl = 10 + l in
-  let s = String.create tl
-  and el = tl - 4 in
 
-  write_uint32 el s 0;
-  String.set s 4 value_tag;
-  String.set s 5 chr0;
-  String.blit v 0 s 6 l;
+let calculate_size_value (Value v) =
+  size_uint32 + size_uint8 + size_uint8 + String.length v + size_crc32
+let serialize_value (Value v as v') =
+  let l = calculate_size_value v' in
+  let s = String.create l in
+  let sl = String.length v in
 
-  let crc = crc32 s 0 (tl - 4) in
-  write_crc32 crc s (tl - 4);
+  write_uint32 (l - 4) s 0;
+  write_uint8 value_tag s size_uint32;
+  write_uint8 0 s (size_uint32 + size_uint8);
+  String.blit v 0 s (size_uint32 + size_uint8 + size_uint8) sl;
+
+  let crc = crc32 s 0 (l - 4) in
+  write_crc32 crc s (size_uint32 + size_uint8 + size_uint8 + sl);
 
   s
 
-let deserialize_value s o =
-  let options = Char.code (String.get s o) in
+and deserialize_value s o =
+  let options = read_uint8 s o in
   assert (options = 0);
 
   let sl = String.length s in
@@ -503,7 +450,7 @@ let write t slab =
 
   let write_slab = function
     | NIL -> failwith "Flog.write: NIL entry"
-    | Value v ->
+    | Value _ as v ->
         let s = serialize_value v in
         do_write s
         (* TODO Assert offset is actually what was calculated *)
@@ -517,7 +464,7 @@ let write t slab =
   List.iter write_slab (List.rev slab.entries);
 
   let ro = t.root_offset in
-  let s = serialize_commit ro in
+  let s = serialize_commit (Commit ro) in
   let sl = String.length s in
   safe_write t.fd_append marker' 0 4;
   safe_write t.fd_append s 0 sl;
@@ -541,10 +488,10 @@ let read t pos =
   pread_into_exactly t.fd_in s' (l - 1) (pos + 4 + 4 + 1);
 
   match String.get s 8 with
-    | i when i = value_tag -> deserialize_value s' 0
+    | i when i = value_tag' -> deserialize_value s' 0
     | i when i = leaf_tag -> deserialize_leaf s' 0
     | i when i = index_tag -> deserialize_index s' 0
-    | i when i = commit_tag -> deserialize_commit s' 0
+    | i when i = commit_tag' -> deserialize_commit s' 0
     | _ -> failwith "Flog.read: unknown node type"
 
 let sync t =
@@ -584,9 +531,10 @@ let sync t =
 (* TODO Don't really need to serialize! *)
 let size = function
   | NIL -> failwith "Flog.size: NIL entry"
-  | Value v -> String.length (serialize_value v)
+  | Value _ as v -> calculate_size_value v
   | Leaf l -> String.length (serialize_leaf l)
   | Index i -> String.length (serialize_index i)
+  | Commit _ as c -> calculate_size_commit c
 
 let make_slab t = { entries=[]; pos=next t }
 let add s e =
