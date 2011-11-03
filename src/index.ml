@@ -113,19 +113,7 @@ let indexz_replace pos z =
   | Top (p0, kps)                -> (pos,kps)
   | Loc ((p0, (k,pi) :: c ), t ) -> (p0, (List.rev ((k,pos) :: c)) @ t)
 
-let indexz_replace_with_sep sep_c pos z =
-  match z with
-    | Top (p0, ((k,p) :: r))          -> 
-      let index = pos,((sep_c,p) :: r) in
-      index, None
-    | Loc ((p0, (k,pi) ::c), [] ) -> 
-      let index = (p0, (List.rev ((k,pos) :: c))) in
-      index, Some sep_c
-    | Loc ((p0, (k,pi) :: c), (kr,pr)::t) ->
-      let left = List.rev ((k,pos)::c) in
-      let right = (sep_c,pr) :: t in
-      let index = p0, left @ right in
-      index, None
+
 
 let indexz_max d z = 
   let z_size = match z with
@@ -141,6 +129,16 @@ let indexz_borrowed_left lpos sep rpos = function
   | Loc((p0, [k0,p1]),t)                -> Loc ((lpos, [sep,rpos]),t)
   | Loc((p0, (kx,px):: (ky,py) :: c),t) -> Loc ((p0,(sep,rpos)::(ky,lpos)::c), t)
   | z -> let s= Printf.sprintf "indexz_borrowed_left %i %s %i z=%s\n%!" lpos sep rpos (iz2s z) in failwith s
+
+let indexz_can_go_right = function
+  | Top (_, _ :: _) -> true
+  | Loc ((_,_), _:: _) -> true
+  | _ -> false
+
+let indexz_replace_right new_sep = function
+  | Top (p0,(k,p1)::t)      -> Top (p0, (new_sep,p1)::t)
+  | Loc ((p0,c), (k,pr)::t) -> Loc ((p0,c), (new_sep,pr) :: t)
+  | _ -> failwith "cannot go right"
 
 let indexz_right = function
   | Top (p0  ,h :: t)          -> Loc ((p0,[h]),t)

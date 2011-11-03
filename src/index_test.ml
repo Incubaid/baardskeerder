@@ -112,6 +112,7 @@ let t_replace () =
   let index = Index.indexz_replace 18 z in
   OUnit.assert_equal ~printer:index2s index (7,("d",18) :: ("m",15)::[])
 
+(*
 let t_replace_with_sep () = 
   let sep  = "key_12" in
   let start = 107 in
@@ -119,6 +120,7 @@ let t_replace_with_sep () =
   let r,_ = Index.indexz_replace_with_sep sep start z in
   let expected = 76, ["key_10", 107; "key_12", 93] in
   OUnit.assert_equal ~printer:index2s expected r
+*)
 
 let t_merge () =
   let index = 110,["key_3", 93] in
@@ -144,6 +146,6 @@ let suite =
     "split"      >:: t_split;
     "split2"     >:: t_split2;
     "replace"    >:: t_replace;
-    "replace_with_sep" >:: t_replace_with_sep;
+    (* "replace_with_sep" >:: t_replace_with_sep; *)
     "merge"      >:: t_merge;
   ]

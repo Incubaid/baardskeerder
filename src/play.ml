@@ -42,7 +42,7 @@ let kvs =
    "f";"g";"h";"i";"j";
    "k";"l";"m";"n";"o";];;
    (* "p";] *)
-(*
+
 let test t0 =
   let max = 20 in
   let rec loop1 = function
@@ -55,14 +55,14 @@ let test t0 =
       loop1 (pred n)
   in
   loop1 max;
-  let _ = MDot.view_tree t0 in ();
+  (* let _ = MDot.view_tree t0 in (); *)
   (*let () = MDB.delete t0 "key_20" in
   let _ = MDot.view_tree t0 in () *)
   let rec loop2 = function
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n in
-      if (List.mem n  [15;14;13;12;11])
+      if (List.mem n  [13;12;11])
       then 
 	let _ = MDot.view t0 in 
 	let () = Mlog.dump t0 in
@@ -76,19 +76,20 @@ let test t0 =
 
 
 test t0;;
-*)
+
 
 (*
 
 *)
 
-
-List.iter (fun k -> MDB.set t0 k (String.uppercase k)) ["a";"d";"g";"j";"b"];;
+(*
+List.iter (fun k -> MDB.set t0 k (String.uppercase k)) ["a"; "j"; "d"; "m"; "q"; "t"; "g"; "w"; "z"];;
 MDot.view_tree t0;;
-MDB.delete t0 "d";;
+MDB.delete t0 "a";;
 MDot.view_tree t0;;
-
-
+MDB.delete t0 "m";;
+MDot.view_tree t0;;
+*)
 (*
 let () = List.iter 
   (fun k -> 

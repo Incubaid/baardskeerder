@@ -126,7 +126,6 @@ module DB = functor (L:LOG ) -> struct
     L.write t slab
 
   let _delete (t:L.t) slab k = 
-    (* let () = Printf.eprintf "delete %S\n%!" k in *)
     let add_leaf  s l = L.add s (Leaf l) in
     let add_index s i = L.add s (Index i) in
     let rec descend pos trail = 
@@ -157,23 +156,31 @@ module DB = functor (L:LOG ) -> struct
 	if leafz_min d z 
 	then leaf_underflow slab start z rest
 	else 
-	  let leaf',sep_c = leafz_delete z in
+	  let leaf',lr = leafz_delete z in
 	  let lpos = add_leaf slab leaf' in
 	  assert (lpos = start);
-	  delete_rest slab start sep_c rest
-    and delete_rest slab start (sep_c:k option) trail = match trail with
+	  delete_rest slab start lr rest
+    and delete_rest slab start (lr : k option) trail = match trail with
       | [] -> ()
       | Index_down z :: rest -> 
-	begin
-	  match sep_c with
-	    | Some sep ->
-	      let index, sep_c' = indexz_replace_with_sep sep start z in
-	      let ipos = add_index slab index in
-	      delete_rest slab ipos sep_c' rest
+	begin	  
+	  match lr with
 	    | None ->
 	      let index = indexz_replace start z in
 	      let ipos = add_index slab index in
-	      delete_rest slab ipos sep_c rest
+	      delete_rest slab ipos lr rest
+	    | Some sep ->
+	      if indexz_can_go_right z 
+	      then 
+		let z' = indexz_replace_right sep z in
+		let index = indexz_replace start z' in
+		let ipos = add_index slab index in
+		let lr' = None in (* since there is a larger subtree, I don't know the lr anymore *)
+		delete_rest slab ipos lr' rest
+	      else
+		let index = indexz_replace start z in
+		let ipos = add_index slab index in
+		delete_rest slab ipos lr rest
 	end
 
     and leaf_underflow slab start leafz rest = 
@@ -243,10 +250,15 @@ module DB = functor (L:LOG ) -> struct
 		    | true,_ ->
 		      begin
 			let right, _ = leafz_delete leafz in
-			let h, sep_c = leaf_merge left right in
+			let h, lr = leaf_merge left right in
 			let hpos = add_leaf slab h in
-			let index' = indexz_suppress L hpos sep_c z in
-			let () = xxx_merged slab hpos sep_c index' rest in 
+			let index' = indexz_suppress L hpos lr z in (*HIERE*)
+			let lr'  = 
+			  if indexz_can_go_right z 
+			  then None
+			  else lr
+			in
+			let () = xxx_merged slab hpos lr' index' rest in 
 			()
 		      end
 		    | _, true ->
@@ -274,12 +286,12 @@ module DB = functor (L:LOG ) -> struct
       let index' = indexz_close z' in
       let sep_c' = Some sep_c in
       let ipos = add_index slab index' in
-      delete_rest slab ipos sep_c' rest
+      delete_rest slab ipos None rest
     and xxx_borrowed_left slab lpos sep rpos z sep_c rest = 
       let z' = indexz_borrowed_left lpos sep rpos z in
       let index' = indexz_close z' in
       let ipos = add_index slab index' in
-      delete_rest slab ipos sep_c rest
+      delete_rest slab ipos None rest
     and xxx_merged slab start sep_c index rest = 
       let read_index pos = 
 	let e = L.read t pos in
@@ -353,7 +365,7 @@ module DB = functor (L:LOG ) -> struct
 	  end
 	| _ -> let ipos = L.add slab (Index index) in
 	       let sep_c = Some (index_max_key index) in
-	       delete_rest slab ipos sep_c rest
+	       delete_rest slab ipos None rest
     in
     let trail = descend (L.root t) [] in
     let start = L.next t in
