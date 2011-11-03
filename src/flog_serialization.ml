@@ -32,6 +32,10 @@ let size_uint8 = 1
 let write_uint8 i s o = String.set s o (Char.chr i)
 and read_uint8 s o = Char.code (String.get s o)
 
+let size_char8 = 1
+let write_char8 i s o = String.set s o i
+and read_char8 s o = String.get s o
+
 
 let size_uint32 = 4
 let write_uint32 i s o =

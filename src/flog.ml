@@ -60,12 +60,10 @@ let chr2 = Char.chr 2
 let chr3 = Char.chr 3
 let chr4 = Char.chr 4
 
-let value_tag = 1
-let value_tag' = Char.chr value_tag
+let value_tag = chr1
 and leaf_tag = chr2
 and index_tag = chr3
-let commit_tag = 4
-let commit_tag' = Char.chr commit_tag
+let commit_tag = chr4
 
 let size_crc32 = size_uint32
 and write_crc32 c s o =
@@ -173,7 +171,7 @@ let serialize_commit (Commit o as c) =
   let s = String.create l in
 
   write_uint32 (l - 4) s 0;
-  write_uint8 commit_tag s size_uint32;
+  write_char8 commit_tag s size_uint32;
   write_uint64 o s (size_uint32 + size_uint8);
 
   let crc = crc32 s 0 (size_uint32 + size_uint8 + size_uint64) in
@@ -204,11 +202,11 @@ let find_commit f o =
 
       let s' = read_uint32 s 0 in
 
-      match String.get s 4 with
+      match read_char8 s 4 with
         | i when i = leaf_tag -> loop a (o + 8 + s')
         | i when i = index_tag -> loop a (o + 8 + s')
-        | i when i = value_tag' -> loop a (o + 8 + s')
-        | i when i = commit_tag' -> loop o (o + 8 + s')
+        | i when i = value_tag -> loop a (o + 8 + s')
+        | i when i = commit_tag -> loop o (o + 8 + s')
         | c -> failwith
                 (Printf.sprintf "Flog.find_root: unknown entry type: %d"
                   (Char.code c))
@@ -276,7 +274,7 @@ let make (f: string): t =
       pread_into_exactly fd_in s 9 co;
       assert (read_uint32 s 0 = marker);
       let l = (read_uint32 s 4) - 1 in
-      assert (String.get s 8 = commit_tag');
+      assert (read_char8 s 8 = commit_tag);
       let s = String.create l in
       pread_into_exactly fd_in s l (co + 9);
       let (Commit root) = deserialize_commit s 0 in
@@ -340,10 +338,10 @@ let serialize_leaf l =
   s
 
 let deserialize_leaf s o =
-  let options = Char.code (String.get s o) in
+  let options = read_uint8 s o in
   assert (options = 0);
 
-  let count = Char.code (String.get s (o + 1)) in
+  let count = read_uint8 s (o + 1) in
 
   let rec loop acc o = function
     | 0 -> List.rev acc
@@ -395,12 +393,12 @@ let serialize_index (p, kps) =
   s
 
 let deserialize_index s o =
-  let options = Char.code (String.get s o) in
+  let options = read_uint8 s o in
   assert (options = 0);
 
   let p = read_uint64 s (o + 1) in
 
-  let count = Char.code (String.get s (o + 9)) in
+  let count = read_uint8 s (o + 9) in
 
   let rec loop acc o = function
     | 0 -> List.rev acc
@@ -422,7 +420,7 @@ let serialize_value (Value v as v') =
   let sl = String.length v in
 
   write_uint32 (l - 4) s 0;
-  write_uint8 value_tag s size_uint32;
+  write_char8 value_tag s size_uint32;
   write_uint8 0 s (size_uint32 + size_uint8);
   String.blit v 0 s (size_uint32 + size_uint8 + size_uint8) sl;
 
@@ -487,11 +485,11 @@ let read t pos =
   let s' = String.create (l - 1) in
   pread_into_exactly t.fd_in s' (l - 1) (pos + 4 + 4 + 1);
 
-  match String.get s 8 with
-    | i when i = value_tag' -> deserialize_value s' 0
+  match read_char8 s 8 with
+    | i when i = value_tag -> deserialize_value s' 0
     | i when i = leaf_tag -> deserialize_leaf s' 0
     | i when i = index_tag -> deserialize_index s' 0
-    | i when i = commit_tag' -> deserialize_commit s' 0
+    | i when i = commit_tag -> deserialize_commit s' 0
     | _ -> failwith "Flog.read: unknown node type"
 
 let sync t =
