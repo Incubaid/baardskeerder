@@ -234,18 +234,19 @@ let make (f: string): t =
   let fd_in = openfile f [O_RDONLY] 0o644 in
   set_close_on_exec fd_in;
 
-  let size = 2 * 4096 in
-  posix_fadvise fd_in 0 size POSIX_FADV_WILLNEED;
+  let tbs = Posix.fstat_blksize fd_in in
 
-  let mds = String.create size in
-  pread_into_exactly fd_in mds size 0;
+  posix_fadvise fd_in 0 (2 * tbs) POSIX_FADV_WILLNEED;
+
+  let mds = String.create tbs in
+  pread_into_exactly fd_in mds tbs 0;
   let md1 = from_some (deserialize_metadata mds) in
   let bs = md1.md_blocksize in
   let mds = String.create bs in
   pread_into_exactly fd_in mds bs bs;
   let md2 = from_some (deserialize_metadata mds) in
 
-  posix_fadvise fd_in 0 (max (2 * 4096) (2 * bs)) POSIX_FADV_DONTNEED;
+  posix_fadvise fd_in 0 (max tbs (2 * bs)) POSIX_FADV_DONTNEED;
 
   (* From now on, the fd_in FD will perform random IO *)
   posix_fadvise fd_in 0 0 POSIX_FADV_RANDOM;
