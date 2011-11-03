@@ -1,6 +1,7 @@
 true: annot
 true: debug
 <**/*.ml>: warn_A
+<flog.ml>: warn_error_A
 <test.*>: package(oUnit), use_posix, use_crc32
 <*_test.*>: package(oUnit)
 <benchmark.*>: package(unix), use_posix, use_crc32
