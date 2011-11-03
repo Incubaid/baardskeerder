@@ -92,6 +92,10 @@ let index_max_key (_,kps) =
     | h :: t -> loop t 
   in loop kps
 
+let index_min_key (_,kps) = 
+  match kps with
+    | [] -> failwith "empty?"
+    | (k,_)::_ -> k
 
 let make_indexz (p0, kps) = Top ((p0, kps))
 
@@ -114,8 +118,13 @@ let indexz_replace_with_sep sep_c pos z =
     | Top (p0, ((k,p) :: r))          -> 
       let index = pos,((sep_c,p) :: r) in
       index, None
-    | Loc ((p0, (k,pi) :: c ), t ) -> 
-      let index = (p0, (List.rev ((k,pos) :: c)) @ t) in
+    | Loc ((p0, (k,pi) ::c), [] ) -> 
+      let index = (p0, (List.rev ((k,pos) :: c))) in
+      index, Some sep_c
+    | Loc ((p0, (k,pi) :: c), (kr,pr)::t) ->
+      let left = List.rev ((k,pos)::c) in
+      let right = (sep_c,pr) :: t in
+      let index = p0, left @ right in
       index, None
 
 let indexz_max d z = 

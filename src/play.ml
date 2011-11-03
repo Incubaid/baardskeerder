@@ -40,9 +40,9 @@ let kvs_x =
 let kvs =
   ["a";"b";"c";"d";"e";
    "f";"g";"h";"i";"j";
-   "k";"l";"m";"n";"o";]
+   "k";"l";"m";"n";"o";];;
    (* "p";] *)
-
+(*
 let test t0 =
   let max = 20 in
   let rec loop1 = function
@@ -62,7 +62,7 @@ let test t0 =
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n in
-      if (List.mem n  [16;15;14;13;12;11])
+      if (List.mem n  [15;14;13;12;11])
       then 
 	let _ = MDot.view t0 in 
 	let () = Mlog.dump t0 in
@@ -75,20 +75,19 @@ let test t0 =
   loop2 max;;
 
 
-List.iter (fun k -> MDB.set t0 k (String.uppercase k)) 
-  ["g";"j";"a";"m";"d";"q";
-   "t";"w";"z"];;
-
-MDot.view t0;;
-MDB.delete t0 "g";;
-MDot.view t0;;
-MDB.delete t0 "j";;
-MDot.view t0;;
-
-
-(*
 test t0;;
 *)
+
+(*
+
+*)
+
+
+List.iter (fun k -> MDB.set t0 k (String.uppercase k)) ["a";"d";"g";"j";"b"];;
+MDot.view_tree t0;;
+MDB.delete t0 "d";;
+MDot.view_tree t0;;
+
 
 (*
 let () = List.iter 

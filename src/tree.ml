@@ -207,7 +207,7 @@ module DB = functor (L:LOG ) -> struct
 		    begin
 		      let left, _ = leafz_delete leafz in
 		      let left', sep', right' = leaf_borrow_right left right in
-		      let sep_c = None in
+		      let sep_c = leaf_min_key right in
 		      let lpos = add_leaf slab left' in
 		      let rpos = add_leaf slab right' in
 		      let () = xxx_borrowed_right slab lpos sep' rpos z sep_c rest in
@@ -269,11 +269,12 @@ module DB = functor (L:LOG ) -> struct
 		end
 	  end
 	| _ -> failwith "corrupt"
-    and xxx_borrowed_right slab lpos sep rpos  z sep_c rest = 
-      let z' = indexz_borrowed_right lpos sep rpos z in
+    and xxx_borrowed_right slab lpos sep rpos  z (sep_c:k) rest = 
+      let z' = indexz_borrowed_right lpos sep_c rpos z in
       let index' = indexz_close z' in
+      let sep_c' = Some sep_c in
       let ipos = add_index slab index' in
-      delete_rest slab ipos sep_c rest
+      delete_rest slab ipos sep_c' rest
     and xxx_borrowed_left slab lpos sep rpos z sep_c rest = 
       let z' = indexz_borrowed_left lpos sep rpos z in
       let index' = indexz_close z' in
@@ -333,9 +334,10 @@ module DB = functor (L:LOG ) -> struct
 		  else
 		    let left', right' = index_borrow_right index sep_c right in
 		    let sep' = index_max_key left' in
+		    let sep_c' = index_min_key right in
 		    let lpos = add_index slab left' in
 		    let rpos = add_index slab right' in
-		    xxx_borrowed_right slab lpos sep' rpos z sep_c rest
+		    xxx_borrowed_right slab lpos sep' rpos z sep_c' rest
 		end
 		
 	      | N2 (pl,pr) -> 

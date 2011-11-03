@@ -26,9 +26,27 @@ open Entry
 
 module MDB = DB(Mlog)
 
-type 'a q = 'a * ('a -> k -> v -> unit) * ('a -> k -> v) * ('a -> k -> unit) * (unit -> 'a)
+type 'a q = {
+  log:'a; 
+  root:  'a  -> pos;
+  read:  'a  -> pos -> entry;
+  clear: 'a  -> unit;
+  set:   'a  -> k -> v -> unit;
+  get:   'a  -> k -> v;
+  delete :'a -> k -> unit;
+  dump   :?out:out_channel -> 'a -> unit;
+}
 
-let mem_setup () =  (Mlog.make (), MDB.set, MDB.get, MDB.delete, Mlog.clear)
+let mem_setup () =  {
+  log = Mlog.make ();
+  root = Mlog.root;
+  read = Mlog.read;
+  clear = Mlog.clear;
+  set = MDB.set;
+  get = MDB.get;
+  delete = MDB.delete;
+  dump = Mlog.dump;
+}
 
 let mem_teardown q = ()
 
@@ -36,40 +54,75 @@ let mem_wrap t = OUnit.bracket mem_setup t mem_teardown
 
 
 
-let check ((log,_,get,_,_)) kvs = 
+let check q kvs = 
   List.iter (fun k ->
     let v = String.uppercase k in
-    OUnit.assert_equal v (get log k)) kvs 
+    OUnit.assert_equal v (q.get q.log k)) kvs 
 
-let check_empty (log,_,get,_,_) =
-  let i = Mlog.root log in
-  let n = Mlog.read log i in
+let check_empty q =
+  let i = q.root q.log in
+  let n = q.read q.log i in
   OUnit.assert_equal n (Leaf [])
 
 
+let check_invariants q = 
+  let rec max_key i = 
+    let n = q.read q.log i in
+    match n with
+      | NIL           -> failwith "corrupt"
+      | Value v       -> failwith "corrupt"
+      | Leaf leaf     -> leaf_max_key leaf
+      | Index (p0,kps) ->
+	let p = 
+	  let rec loop = function
+	    | []    -> p0
+	    | [_,p] -> p
+	    | h :: t -> loop t
+	  in
+	  loop kps
+	in
+	max_key p
+  in	       
+  let rec walk i = 
+    let n = q.read q.log i in
+    match n with 
+      | NIL -> ()
+      | Leaf leaf -> ()
+      | Index (p0,kps) ->
+	let rec loop p = function
+	  | [] -> ()
+	  | (ke,pr) :: t -> 
+	    walk p;
+	    let k = max_key p in
+	    OUnit.assert_equal ke k;
+	    loop pr t
+	in
+	loop p0 kps
+  in
+  let i = q.root log in
+  walk i
     
-let check_not (log,_,get,_,_) kvs = 
-  List.iter (fun k -> 
-    OUnit.assert_raises ~msg:k (NOT_FOUND k) (fun () -> get log k)) kvs    
+let check_not q kvs = 
+  List.iter (fun k -> OUnit.assert_raises ~msg:k (NOT_FOUND k) (fun () -> q.get q.log k)) kvs    
     
     
 
-let insert_delete_1 ((log,set,get,delete,_) as q) = 
-  set log "a" "A";
+let insert_delete_1 q = 
+  q.set q.log "a" "A";
   check q ["a"];
-  delete log "a";
+  q.delete q.log "a";
   check_not q ["a"]
 
 
 
       
-let set_all (log,set,_,_,_) kvs = List.iter (fun k -> let v = String.uppercase k in set log k v) kvs
+let set_all q kvs = List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs
 
-let delete_all_check ((log,set,get,delete,_) as q) kvs = 
+let delete_all_check q kvs = 
   let rec loop acc = function
     | [] -> ()
     | k :: t -> 
-      delete log k;
+      q.delete q.log k;
       let acc' = k :: acc in
       check_not q acc';
       check q t;
@@ -113,69 +166,69 @@ let insert_delete_7 q = insert_delete_generic q (take 7)
 let insert_delete_8 q = insert_delete_generic q (take 8)
 
 
-let insert_delete_bug ((log, set, get, delete,_) as q) = 
+let insert_delete_bug q = 
   let kvs =  
     ["a";"b"; "j"; "d";
      "g"; "m"; "q"; "t";
      "w";"z"]
   in
-  List.iter (fun k -> let v = String.uppercase k in set log k v) kvs;
-  delete log "a";
-  delete log "b";
-  delete log "j"
+  List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs;
+  q.delete q.log "a";
+  q.delete q.log "b";
+  q.delete q.log "j"
   
-let insert_delete_bug2 ((log,set,get,delete,_) as q) =
+let insert_delete_bug2 q =
   let kvs = ["a";"b"; "c"; "d";"e"; 
 	   "g";"j"; "m"; "q"; "t";
 	   "w";"z"]
   in
-  List.iter (fun k -> let v = String.uppercase k in set log k v) kvs;
-  delete log "a";
+  List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs;
+  q.delete q.log "a";
   let kvs' = List.filter ( (<>) "a") kvs in
   List.iter (fun k -> let v = String.uppercase k in 
-		      let v2 = get log k in
+		      let v2 = q.get q.log k in
 		      OUnit.assert_equal v v2) kvs'
 
-let insert_delete_bug3 ((log,set,get,delete,_) as q) = 
+let insert_delete_bug3 q = 
   let kvs = ["a";"b";"c";"d";"e";
 	     "f";"g";"h";"i";"j";
 	     "k";"l";"m";"n";"o";
 	     "p";]
   in
-  List.iter (fun k -> let v = String.uppercase k in set log k v) kvs;
+  List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs;
   set_all q kvs;
   check q kvs;
-  delete log "a";
+  q.delete q.log "a";
   ()
 
-let split_1 ((log,set,get,delete,_) as q) =   
+let split_1 q =   
   let kvs0 = ["a"; "d"; "g"] in
   set_all q kvs0;
-  set log "j" "J";
+  q.set q.log "j" "J";
   check q ("j"::kvs0);
-  delete log "j";
+  q.delete q.log "j";
   check q kvs0
 
   
-let split_2 ((log,set,get,delete,_) as q) = 
+let split_2 q = 
   let kvs0 = ["a"; "d"; "g"; "j"; "m";] in
   set_all q kvs0;
-  set log "q" "Q";
+  q.set q.log "q" "Q";
   check q ("q"::kvs0);
-  delete log "q";
+  q.delete q.log "q";
   check q kvs0
 
-let underflow_n2 ((log,_,_, delete,_) as q) = 
+let underflow_n2 q = 
   let kvs = ["a"; "d"; "g"; "j"; "m";"q"] in
   set_all q kvs;
-  delete log "g"
+  q.delete q.log "g"
 
-let underflow_n2_2 ((log,_,_,delete,_) as q) = 
+let underflow_n2_2 q = 
   let kvs = ["a";"d"; "g"; "j";"m"; "q"] in
   set_all q kvs;
-  delete log "j"
+  q.delete q.log "j"
 
-let insert_overflow ((log,set,get,delete,_) as q) = 
+let insert_overflow q = 
   let kvs =  ["a"; "d"; "g"; "m";"q"; "t"; "j";] in
   set_all q kvs;
   check q kvs
@@ -216,7 +269,7 @@ let next_permutation a =
       decr j;
   done
 
-let insert_delete_permutations_generic  n ((log,set,get,delete, clear) as q) =
+let insert_delete_permutations_generic  n q =
   let kvs = take n in 
   let kvs' = Array.of_list kvs in
   Array.fast_sort String.compare kvs';
@@ -226,13 +279,18 @@ let insert_delete_permutations_generic  n ((log,set,get,delete, clear) as q) =
   let fst (a, _) = a in
 
   let do_test n a =
-    clear log;
-    (* Printf.printf "-----\n"; *)
-    if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
-    Array.iter (fun k -> set log k (String.uppercase k)) a;
-    check q (Array.to_list a);
-    Array.iter (fun k -> (* Printf.printf "delete %s\n%!" k ; *)delete log k) a;
-    check_empty q
+    try
+      q.clear q.log;
+      (* Printf.printf "-----\n";  *)
+      if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
+      Array.iter (fun k -> q.set q.log k (String.uppercase k)) a;
+      check q (Array.to_list a);
+      Array.iter (fun k -> (* Printf.printf "delete %s\n%!" k ; *)q.delete q.log k) a;
+      check_empty q
+    with 
+      | e -> 	
+	Printf.fprintf stderr "Sequence: %s\n" (Pretty.string_of_list (fun s -> s) (Array.to_list  a));
+	raise e
   in
 
   let rec loop = function
@@ -244,7 +302,7 @@ let insert_delete_permutations_generic  n ((log,set,get,delete, clear) as q) =
   in
   loop (fac l)
 
-let debug_info_wrap f = fun ((log, _, _, _,_) as q) ->
+let debug_info_wrap f = fun q ->
   try 
     f q 
   with 
@@ -253,14 +311,14 @@ let debug_info_wrap f = fun ((log, _, _, _,_) as q) ->
 	  Printf.fprintf stderr "Exception: %s\n" (Printexc.to_string e);
 	  Printf.fprintf stderr "%s\n" (Printexc.get_backtrace ());
 	  Printf.fprintf stderr "Tree:\n%!";
-	  Mlog.dump ~out:stderr log;
+	  q.dump ~out:stderr q.log;
 	  flush stderr;
 	  raise e
 	end
 
 
 
-let insert_static_delete_permutations_generic  n ((log, set, get, delete, clear) as q) =
+let insert_static_delete_permutations_generic  n q =
   let kvs = take n in 
   let kvs' = Array.of_list kvs in
   Array.fast_sort String.compare kvs';
@@ -268,13 +326,18 @@ let insert_static_delete_permutations_generic  n ((log, set, get, delete, clear)
   let l = Array.length kvs' in
 
   let do_test n a =
-    clear log;
-    (* Printf.printf "-----\n"; *)
-    if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
-    List.iter (fun k -> set log k (String.uppercase k)) kvs;
-    check q kvs;
-    Array.iter (fun k -> (*Printf.printf "delete %s\n%!" k ; *) delete log k) a;
-    check_empty q
+    try
+      q.clear q.log;
+    (*Printf.printf "-----\n"; *)
+      if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
+      List.iter (fun k -> q.set q.log k (String.uppercase k)) kvs;
+      check q kvs;
+      Array.iter (fun k -> (*Printf.printf "delete %s\n%!" k ; *)q.delete q.log k) a;
+      check_empty q
+    with
+      e -> 
+	Printf.fprintf stderr "Sequence: %s\n" (Pretty.string_of_list (fun s -> s) (Array.to_list  a));
+	raise e
   in
 
   let rec loop = function
@@ -288,14 +351,14 @@ let insert_static_delete_permutations_generic  n ((log, set, get, delete, clear)
 
 let all_n n q = insert_static_delete_permutations_generic n q 
 
-let _insert_delete_bugx max ((log,set,get,delete,_) as q) =
+let _insert_delete_bugx max q =
   let rec loop1 = function
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n
       and v = Printf.sprintf "value_%d" n in
       Printf.printf "Set %s\n%!" k;      
-      set log k v;
+      q.set q.log k v;
       loop1 (pred n)
   in
   loop1 max;
@@ -304,7 +367,7 @@ let _insert_delete_bugx max ((log,set,get,delete,_) as q) =
     | n ->
       let k = Printf.sprintf "key_%d" n in
       Printf.printf "Delete %s\n%!" k;
-      delete log k;
+      q.delete q.log k;
       loop2 (pred n)
   in
   loop2 max

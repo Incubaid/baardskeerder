@@ -61,6 +61,10 @@ let rec leaf_max_key = function
   | [k,_] -> k
   | h :: t -> leaf_max_key t
 
+let leaf_min_key = function
+  | [] -> failwith "empty"
+  | (k,_):: _ -> k
+
 let leaf_merge left right = 
   let leaf = left @ right in
   let m = leaf_max_key leaf in
