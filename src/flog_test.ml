@@ -26,17 +26,29 @@ open Flog
 open Flog_serialization (* TODO Move these tests into separate module ? *)
 
 let test_uintN wf rf l n () =
+  let l' = l + 10 in
+  let s = String.create l' in
+  let m = 0x40000000 - 1 in
+  let r = min n m in
+
   let rec loop = function
     | -1 -> ()
-    | n ->
-        let l' = l + 10 in
-        let s = String.create l'
-        and o = Random.int (l' - l) in
-        wf n s o;
-        OUnit.assert_equal ~printer:string_of_int n (rf s o);
-        loop (pred n)
+    | i ->
+        let o = Random.int (l' - l) in
+        let v = Random.int r in
+
+        let v = if l < 8
+          then v
+          else
+            if v > 0x3FFFFFFF then (0x3FFFFFFF00000000 + v)
+            else (v lsl 32) + v
+        in
+
+        wf v s o;
+        OUnit.assert_equal ~printer:string_of_int v (rf s o);
+        loop (pred i)
   in
-  loop 0xFF
+  loop 1000
 
 let base_serialization =
   "base_serialization" >::: [

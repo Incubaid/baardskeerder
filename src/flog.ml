@@ -60,12 +60,10 @@ let chr2 = Char.chr 2
 let chr3 = Char.chr 3
 let chr4 = Char.chr 4
 
-let value_tag = 1
-let value_tag' = Char.chr value_tag
+let value_tag = chr1
 and leaf_tag = chr2
 and index_tag = chr3
-let commit_tag = 4
-let commit_tag' = Char.chr commit_tag
+let commit_tag = chr4
 
 let size_crc32 = size_uint32
 and write_crc32 c s o =
@@ -165,26 +163,31 @@ let create (f: string) =
 
   close fd
 
-let calculate_size_commit (Commit _) =
-  size_uint32 + size_uint8 + size_uint64 + size_crc32
-let serialize_commit (Commit o as c) =
-  let l = calculate_size_commit c in
+let calculate_size_commit = function
+  | Commit _ -> size_uint32 + size_uint8 + size_uint64 + size_crc32
+  | Value _ | Leaf _ | Index _ | NIL -> invalid_arg "Flog.calculate_size_commit"
+let serialize_commit = function
+  | Commit o as c ->
+      let l = calculate_size_commit c in
 
-  let s = String.create l in
+      let s = String.create l in
 
-  write_uint32 (l - 4) s 0;
-  write_uint8 commit_tag s size_uint32;
-  write_uint64 o s (size_uint32 + size_uint8);
+      write_uint32 (l - 4) s 0;
+      write_char8 commit_tag s size_uint32;
+      write_uint64 o s (size_uint32 + size_uint8);
 
-  let crc = crc32 s 0 (size_uint32 + size_uint8 + size_uint64) in
-  write_crc32 crc s (size_uint32 + size_uint8 + size_uint64);
+      let crc = crc32 s 0 (size_uint32 + size_uint8 + size_uint64) in
+      write_crc32 crc s (size_uint32 + size_uint8 + size_uint64);
 
-  s
+      s
+  | Value _ | Leaf _ | Index _ | NIL -> invalid_arg "Flog.serialize_commit"
 
 and deserialize_commit s o =
   Commit (read_uint64 s o)
 
-and commit2s (Commit o) = Printf.sprintf "Commit %d" o
+and commit2s = function
+  | Commit o -> Printf.sprintf "Commit %d" o
+  | Value _ | Leaf _ | Index _ | NIL -> invalid_arg "Flog.commit2s"
 
 let marker = 0x0baadeed
 let marker' =
@@ -204,11 +207,11 @@ let find_commit f o =
 
       let s' = read_uint32 s 0 in
 
-      match String.get s 4 with
+      match read_char8 s 4 with
         | i when i = leaf_tag -> loop a (o + 8 + s')
         | i when i = index_tag -> loop a (o + 8 + s')
-        | i when i = value_tag' -> loop a (o + 8 + s')
-        | i when i = commit_tag' -> loop o (o + 8 + s')
+        | i when i = value_tag -> loop a (o + 8 + s')
+        | i when i = commit_tag -> loop o (o + 8 + s')
         | c -> failwith
                 (Printf.sprintf "Flog.find_root: unknown entry type: %d"
                   (Char.code c))
@@ -236,18 +239,19 @@ let make (f: string): t =
   let fd_in = openfile f [O_RDONLY] 0o644 in
   set_close_on_exec fd_in;
 
-  let size = 2 * 4096 in
-  posix_fadvise fd_in 0 size POSIX_FADV_WILLNEED;
+  let tbs = Posix.fstat_blksize fd_in in
 
-  let mds = String.create size in
-  pread_into_exactly fd_in mds size 0;
+  posix_fadvise fd_in 0 (2 * tbs) POSIX_FADV_WILLNEED;
+
+  let mds = String.create tbs in
+  pread_into_exactly fd_in mds tbs 0;
   let md1 = from_some (deserialize_metadata mds) in
   let bs = md1.md_blocksize in
   let mds = String.create bs in
   pread_into_exactly fd_in mds bs bs;
   let md2 = from_some (deserialize_metadata mds) in
 
-  posix_fadvise fd_in 0 (max (2 * 4096) (2 * bs)) POSIX_FADV_DONTNEED;
+  posix_fadvise fd_in 0 (max tbs (2 * bs)) POSIX_FADV_DONTNEED;
 
   (* From now on, the fd_in FD will perform random IO *)
   posix_fadvise fd_in 0 0 POSIX_FADV_RANDOM;
@@ -276,11 +280,13 @@ let make (f: string): t =
       pread_into_exactly fd_in s 9 co;
       assert (read_uint32 s 0 = marker);
       let l = (read_uint32 s 4) - 1 in
-      assert (String.get s 8 = commit_tag');
+      assert (read_char8 s 8 = commit_tag);
       let s = String.create l in
       pread_into_exactly fd_in s l (co + 9);
-      let (Commit root) = deserialize_commit s 0 in
-      root end
+      match deserialize_commit s 0 with
+        | Commit root -> root
+        | Value _ | Index _ | Leaf _ | NIL -> invalid_arg "Flog.make.root"
+      end
   in
 
   (* TODO Choose correct last_metadata *)
@@ -340,10 +346,10 @@ let serialize_leaf l =
   s
 
 let deserialize_leaf s o =
-  let options = Char.code (String.get s o) in
+  let options = read_uint8 s o in
   assert (options = 0);
 
-  let count = Char.code (String.get s (o + 1)) in
+  let count = read_uint8 s (o + 1) in
 
   let rec loop acc o = function
     | 0 -> List.rev acc
@@ -395,12 +401,12 @@ let serialize_index (p, kps) =
   s
 
 let deserialize_index s o =
-  let options = Char.code (String.get s o) in
+  let options = read_uint8 s o in
   assert (options = 0);
 
   let p = read_uint64 s (o + 1) in
 
-  let count = Char.code (String.get s (o + 9)) in
+  let count = read_uint8 s (o + 9) in
 
   let rec loop acc o = function
     | 0 -> List.rev acc
@@ -414,22 +420,26 @@ let deserialize_index s o =
   Index (p, loop [] (o + 10) count)
 
 
-let calculate_size_value (Value v) =
-  size_uint32 + size_uint8 + size_uint8 + String.length v + size_crc32
-let serialize_value (Value v as v') =
-  let l = calculate_size_value v' in
-  let s = String.create l in
-  let sl = String.length v in
+let calculate_size_value = function
+  | Value v ->
+      size_uint32 + size_uint8 + size_uint8 + String.length v + size_crc32
+  | Leaf _ | Commit _ | Index _ | NIL -> invalid_arg "Flog.calculate_size_value"
+let serialize_value = function
+  | Value v as v' ->
+      let l = calculate_size_value v' in
+      let s = String.create l in
+      let sl = String.length v in
 
-  write_uint32 (l - 4) s 0;
-  write_uint8 value_tag s size_uint32;
-  write_uint8 0 s (size_uint32 + size_uint8);
-  String.blit v 0 s (size_uint32 + size_uint8 + size_uint8) sl;
+      write_uint32 (l - 4) s 0;
+      write_char8 value_tag s size_uint32;
+      write_uint8 0 s (size_uint32 + size_uint8);
+      String.blit v 0 s (size_uint32 + size_uint8 + size_uint8) sl;
 
-  let crc = crc32 s 0 (l - 4) in
-  write_crc32 crc s (size_uint32 + size_uint8 + size_uint8 + sl);
+      let crc = crc32 s 0 (l - 4) in
+      write_crc32 crc s (size_uint32 + size_uint8 + size_uint8 + sl);
 
-  s
+      s
+  | Leaf _ | Commit _ | Index _ | NIL -> invalid_arg "Flog.serialize_value"
 
 and deserialize_value s o =
   let options = read_uint8 s o in
@@ -450,6 +460,7 @@ let write t slab =
 
   let write_slab = function
     | NIL -> failwith "Flog.write: NIL entry"
+    | Commit _ -> failwith "Flog.write: Commit entry"
     | Value _ as v ->
         let s = serialize_value v in
         do_write s
@@ -487,11 +498,11 @@ let read t pos =
   let s' = String.create (l - 1) in
   pread_into_exactly t.fd_in s' (l - 1) (pos + 4 + 4 + 1);
 
-  match String.get s 8 with
-    | i when i = value_tag' -> deserialize_value s' 0
+  match read_char8 s 8 with
+    | i when i = value_tag -> deserialize_value s' 0
     | i when i = leaf_tag -> deserialize_leaf s' 0
     | i when i = index_tag -> deserialize_index s' 0
-    | i when i = commit_tag' -> deserialize_commit s' 0
+    | i when i = commit_tag -> deserialize_commit s' 0
     | _ -> failwith "Flog.read: unknown node type"
 
 let sync t =
@@ -543,7 +554,7 @@ let add s e =
   s.pos <- c + size e + 4;
   c
 
-let clear (t:t) = ()
+let clear _ = ()
 let string_of_slab s =
   Pretty.string_of_list entry2s s.entries
 
@@ -649,5 +660,7 @@ let compact t =
   match (read t o) with
     | Commit r ->
         compact' t b' { cs_offset=o; cs_entries=OffsetSet.singleton r; }
-    | _ ->
+    | NIL ->
+        failwith "Flog.compact: the impossible happened: NIL"
+    | Leaf _ | Value _ | Index _ ->
         invalid_arg "Flog.compact: no commit entry at given offset"
