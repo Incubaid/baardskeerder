@@ -311,10 +311,10 @@ module DB = functor (L:LOG ) -> struct
       let merge_right right index z rest = 
 	begin
 	  let sep = indexz_separator R z in
-	  let sep_f = match sep_c with None -> sep | Some sep -> sep in
-	  let index' = index_merge index sep_f right in
+	  let index' = index_merge index sep right in
 	  let ipos' = add_index slab index' in
 	  let z2 = indexz_suppress R ipos' sep_c z in
+	  let sep_c = None in (* after the merge, we're clueless *)
 	  xxx_merged slab ipos' sep_c z2 rest
 	end
       in
@@ -331,11 +331,18 @@ module DB = functor (L:LOG ) -> struct
 		  if index_mergeable d left 
 		  then merge_left left index z rest
 		  else (* borrow from left *)
+		    let s = Printf.sprintf "borrow from left left:%s index:%s z:%s" 
+		      (index2s left) (index2s index) 
+		      (iz2s z)
+		    in
+		    failwith s
+		    (*
 		    let right,sep_c = indexz_delete index in
 		    let left', sep', right' = index_borrow_left left right in
 		    let lpos = add_index slab left' in
 		    let rpos = add_index slab right' in
 		    xxx_borrowed_left slab lpos sep' rpos z sep_c rest
+		    *)
 		end
 		  
 	      | NR pos ->  
@@ -358,10 +365,19 @@ module DB = functor (L:LOG ) -> struct
 		match (index_mergeable d left,index_mergeable d right) with
 		  | true,_ -> merge_left left index z rest
 		  | _, true -> merge_right right index z rest
-		  | _,_ -> 
+		  | _,_ -> (* be consistent with leaf strategy: borrow from left *)
 		    begin
-		      let s = Printf.sprintf "todo N2(%i,%i)" pl pr in failwith s
-		    end 
+		      let s = Printf.sprintf "index=%s left=%s" (index2s index) (index2s left) in
+		      failwith s
+		      (*
+		      let right, sep_c = indexz_delete index in
+		      let left', sep', right' = index_borrow_left left right in
+		      let lpos = add_index slab left' in
+		      let rpos = add_index slab right' in
+		      xxx_borrowed_left slab lpos sep' rpos z sep_c rest
+		      *)
+		    end
+
 	  end
 	| _ -> let ipos = L.add slab (Index index) in
 	       let sep_c = Some (index_max_key index) in

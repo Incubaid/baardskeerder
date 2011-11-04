@@ -42,9 +42,9 @@ let kvs =
    "f";"g";"h";"i";"j";
    "k";"l";"m";"n";"o";];;
    (* "p";] *)
-
+(*
 let test t0 =
-  let max = 20 in
+  let max = 90 in
   let rec loop1 = function
     | 0 -> ()
     | n ->
@@ -62,10 +62,10 @@ let test t0 =
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n in
-      if (List.mem n  [13;12;11])
+      if n > 75 (* (List.mem n  [13;12;11]) *)
       then 
 	let _ = MDot.view t0 in 
-	let () = Mlog.dump t0 in
+	(* let () = Mlog.dump t0 in *)
 	()
       else ();
       Printf.printf "going to delete %s\n%!" k;
@@ -76,20 +76,26 @@ let test t0 =
 
 
 test t0;;
-
+*)
 
 (*
 
 *)
 
-(*
-List.iter (fun k -> MDB.set t0 k (String.uppercase k)) ["a"; "j"; "d"; "m"; "q"; "t"; "g"; "w"; "z"];;
+
+List.iter (fun k -> MDB.set t0 k (String.uppercase k)) ["a"; "b"; "d"; "m"; "q"; "t"; "g"; "w"; "z"; "j"];;
 MDot.view_tree t0;;
 MDB.delete t0 "a";;
-MDot.view_tree t0;;
-MDB.delete t0 "m";;
-MDot.view_tree t0;;
+(*
+  MDot.view_tree t0;;
+  MDB.delete t0 "b";;
 *)
+(*
+  MDot.view_tree t0;;
+  MDB.delete t0 "d";;
+  MDot.view_tree t0;;
+*)
+
 (*
 let () = List.iter 
   (fun k -> 

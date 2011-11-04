@@ -193,7 +193,9 @@ let indexz_suppress d pn sep_o z =
 	  p0, (List.rev ((kr,pn):: c)) @ ((new_sep,px)::t)
 	| _ -> let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s
 
-let indexz_delete index = failwith "todo"
+let indexz_delete z = 
+  let s = Printf.sprintf "indexz_delete %s" (iz2s z) in
+  failwith s
 
 
 type neigbours = 
