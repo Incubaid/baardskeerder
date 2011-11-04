@@ -43,8 +43,49 @@ let kvs =
    "k";"l";"m";"n";"o";];;
    (* "p";] *)
 
-let test t0 =
-  let max = 100 in
+let check_invariants t = 
+  let rec max_key i = 
+    let n = Mlog.read t i in
+    match n with
+      | NIL           -> failwith "corrupt"
+      | Value v       -> failwith "corrupt"
+      | Leaf leaf     -> Leaf.leaf_max_key leaf
+      | Index (p0,kps) ->
+	let p = 
+	  let rec loop = function
+	    | []    -> p0
+	    | [_,p] -> p
+	    | h :: t -> loop t
+	  in
+	  loop kps
+	in
+	max_key p
+  in	       
+  let rec walk i = 
+    let n = Mlog.read t i in
+    match n with
+      | NIL -> ()
+      | Leaf leaf -> () (* Printf.printf "leaf=%s\n" (Leaf.leaf2s leaf) *)
+      | Index index ->
+	let p0, kps = index in
+	let rec loop p = function
+	  | [] -> walk p
+	  | (ke,pr) :: t -> 
+	    walk p;
+	    let k = max_key p in
+	    (* let () = Printf.printf "separator: %s =?= %s\n" ke k in *)
+	    if k <> ke then
+	      let s = Printf.sprintf "separator %s does not match lower_right %s" ke k in
+	      failwith s
+	    else
+	      loop pr t
+	in
+	loop p0 kps
+  in
+  let i = Mlog.root t in
+  walk i;;
+(*
+let test max t0 =
   let rec loop1 = function
     | 0 -> ()
     | n ->
@@ -62,31 +103,43 @@ let test t0 =
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n in
-      if List.mem n  [80;79;11] 
+      if List.mem n  [128;127;] 
       then 
 	let _ = MDot.view t0 in 
 	(* let () = Mlog.dump t0 in *)
 	()
       else ();
+      check_invariants t0; 
       Printf.printf "going to delete %s\n%!" k;
       MDB.delete t0 k;
+      Printf.printf "deleted %s\n%!" k;
       loop2 (pred n)
   in
   loop2 max;;
+(*
+let rec loop x = 
+  if x = 100 then () 
+  else
+    let () = test x t0 in
+    let () = Mlog.clear t0 in
+    loop (x + 1)
+in
+loop 1
+*)
+test 13 t0;;  
+  
 
-
-test t0;;
-
-
+*)
 (*
 
 *)
 
-(*
-List.iter (fun k -> MDB.set t0 k (String.uppercase k)) ["a"; "b"; "d"; "m"; "q"; "t"; "g"; "w"; "z"; "j"];;
+
+List.iter (fun k -> MDB.set t0 k (String.uppercase k))  ["m"; "a"; "g"; "j"; "d"; "q"; "t"; "w"];;
 MDot.view_tree t0;;
-MDB.delete t0 "a";;
-*)
+MDB.delete t0 "m";;
+MDot.view_tree t0;;
+
 (*
   MDot.view_tree t0;;
   MDB.delete t0 "b";;

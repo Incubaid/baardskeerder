@@ -65,7 +65,7 @@ let check_empty q =
   OUnit.assert_equal n (Leaf [])
 
 
-let check_invariants q = 
+let check_invariants (q: 'a q) = 
   let rec max_key i = 
     let n = q.read q.log i in
     match n with
@@ -90,16 +90,17 @@ let check_invariants q =
       | Leaf leaf -> ()
       | Index (p0,kps) ->
 	let rec loop p = function
-	  | [] -> ()
+	  | [] -> walk p
 	  | (ke,pr) :: t -> 
 	    walk p;
 	    let k = max_key p in
-	    OUnit.assert_equal ke k;
+	    
+	    OUnit.assert_equal ~printer:(fun s -> s) ~msg:"separator does not match lower-right" ke k;
 	    loop pr t
 	in
 	loop p0 kps
   in
-  let i = q.root log in
+  let i = q.root q.log in
   walk i
     
 let check_not q kvs = 
@@ -151,7 +152,7 @@ let take n  =
   in
   fill [] kvs n
 
-let insert_delete_2 q = insert_delete_generic q (take 2)
+let insert_delete_2 (q:'a q) = insert_delete_generic q (take 2)
 
 let insert_delete_3 q = insert_delete_generic q (take 3)
 
@@ -281,15 +282,15 @@ let insert_delete_permutations_generic  n q =
   let do_test n a =
     try
       q.clear q.log;
-      (* Printf.printf "-----\n";  *)
       if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
       Array.iter (fun k -> q.set q.log k (String.uppercase k)) a;
       check q (Array.to_list a);
-      Array.iter (fun k -> (* Printf.printf "delete %s\n%!" k ; *)q.delete q.log k) a;
+      Array.iter (fun k -> check_invariants q;q.delete q.log k) a;
       check_empty q
     with 
       | e -> 	
-	Printf.fprintf stderr "Sequence: %s\n" (Pretty.string_of_list (fun s -> s) (Array.to_list  a));
+	Printf.fprintf stderr "Sequence: %s\n" (Pretty.string_of_list 
+						  (fun s -> Printf.sprintf "%S" s) (Array.to_list  a));
 	raise e
   in
 
@@ -318,7 +319,7 @@ let debug_info_wrap f = fun q ->
 
 
 
-let insert_static_delete_permutations_generic  n q =
+let insert_static_delete_permutations_generic  n (q: 'a q) =
   let kvs = take n in 
   let kvs' = Array.of_list kvs in
   Array.fast_sort String.compare kvs';
@@ -332,7 +333,7 @@ let insert_static_delete_permutations_generic  n q =
       if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
       List.iter (fun k -> q.set q.log k (String.uppercase k)) kvs;
       check q kvs;
-      Array.iter (fun k -> (*Printf.printf "delete %s\n%!" k ; *)q.delete q.log k) a;
+      Array.iter (fun k -> check_invariants q; q.delete q.log k) a;
       check_empty q
     with
       e -> 
@@ -365,6 +366,7 @@ let _insert_delete_bugx max q =
   let rec loop2 = function
     | 0 -> ()
     | n ->
+      check_invariants q;
       let k = Printf.sprintf "key_%d" n in
       Printf.printf "Delete %s\n%!" k;
       q.delete q.log k;
@@ -395,7 +397,7 @@ let template =
     "insert_delete_permutations_3", debug_info_wrap (insert_delete_permutations_generic 7);
     "insert_delete_permutations_4", debug_info_wrap (insert_delete_permutations_generic 8);
     "insert_delete_permutations_5", debug_info_wrap (insert_delete_permutations_generic 9);
-    (* "insert_delete_premutations_6", debug_info_wrap (insert_delete_permutations_generic 11); *)
+    "insert_delete_premutations_6", debug_info_wrap (insert_delete_permutations_generic 11);
     (* 11 :  834.8 s *)
     (* 12 :  *)
     (* 13 :  *)

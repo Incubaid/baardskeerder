@@ -287,11 +287,23 @@ module DB = functor (L:LOG ) -> struct
       let sep_c' = Some sep_c in
       let ipos = add_index slab index' in
       delete_rest slab ipos None rest
-    and xxx_borrowed_left slab lpos sep rpos z sep_c rest = 
-      let z' = indexz_borrowed_left lpos sep rpos z in
-      let index' = indexz_close z' in
-      let ipos = add_index slab index' in
-      delete_rest slab ipos None rest
+    and xxx_borrowed_left slab lpos sep rpos z lr rest = 
+      match lr with
+	| None -> 
+	  let z2 = indexz_borrowed_left lpos sep rpos z in
+	  let index' = indexz_close z2 in
+	  let ipos' = add_index slab index' in
+	  delete_rest slab ipos' None rest
+	| Some s ->
+	  let z2 = 
+	    if indexz_can_go_right z 
+	    then indexz_replace_right s z 
+	    else z
+	  in
+	  let z3 = indexz_borrowed_left lpos sep rpos z2 in
+	  let index' = indexz_close z3 in
+	  let ipos' = add_index slab index' in
+	  delete_rest slab ipos' lr rest
     and xxx_merged slab start sep_c index rest = 
       let read_index pos = 
 	let e = L.read t pos in
@@ -308,9 +320,14 @@ module DB = functor (L:LOG ) -> struct
 	  xxx_merged slab ipos' sep_c z2 rest
 	end
       in
-      let merge_right right index z rest = 
+      let merge_right right index z sep_c rest = 
 	begin
-	  let sep = indexz_separator R z in
+	  let sep = match sep_c with 
+	    | None ->
+	      indexz_separator R z 
+	    | Some s ->
+	      s
+	  in
 	  let index' = index_merge index sep right in
 	  let ipos' = add_index slab index' in
 	  let z2 = indexz_suppress R ipos' sep_c z in
@@ -342,7 +359,7 @@ module DB = functor (L:LOG ) -> struct
 		begin
 		  let right = read_index pos in
 		  if index_mergeable d right 
-		  then merge_right right index z rest
+		  then merge_right right index z sep_c rest
 		  else
 		    let left', right' = index_borrow_right index sep_c right in
 		    let sep' = index_max_key left' in
@@ -357,7 +374,7 @@ module DB = functor (L:LOG ) -> struct
 		let right = read_index pr in
 		match (index_mergeable d left,index_mergeable d right) with
 		  | true,_ -> merge_left left index z rest
-		  | _, true -> merge_right right index z rest
+		  | _, true -> merge_right right index z sep_c rest
 		  | _,_ -> (* be consistent with leaf strategy: borrow from left *)
 		    begin
 		      let s = Printf.sprintf "index=%s left=%s" (index2s index) (index2s left) in
