@@ -208,7 +208,9 @@ module DB = functor (L:LOG ) -> struct
 		      let h,sep_c  =  leaf_merge left right in
 		      let hpos = add_leaf slab h in
 		      let z' = indexz_suppress R hpos sep_c z in
-		      xxx_merged slab hpos sep_c z' rest
+		      let sep_c' = if indexz_can_go_right z' then None else sep_c in
+		      let index' = indexz_close z' in
+		      xxx_merged slab hpos sep_c' index' rest
 		    end
 		  else (* borrow from right *)
 		    begin
@@ -230,7 +232,8 @@ module DB = functor (L:LOG ) -> struct
 		      let right, _ = leafz_delete leafz in
 		      let h, sep_c = leaf_merge left right  in
 		      let hpos = add_leaf slab h in
-		      let index' = indexz_suppress L hpos sep_c z in
+		      let z' = indexz_suppress L hpos sep_c z in
+		      let index' = indexz_close z' in
 		      xxx_merged slab hpos sep_c index' rest
 		    end
 		  else (* borrow from left *)
@@ -252,7 +255,8 @@ module DB = functor (L:LOG ) -> struct
 			let right, _ = leafz_delete leafz in
 			let h, lr = leaf_merge left right in
 			let hpos = add_leaf slab h in
-			let index' = indexz_suppress L hpos lr z in (*HIERE*)
+			let z' = indexz_suppress L hpos lr z in (*HIERE*)
+			let index' = indexz_close z' in
 			let lr'  = 
 			  if indexz_can_go_right z 
 			  then None
@@ -266,8 +270,15 @@ module DB = functor (L:LOG ) -> struct
 			let left,_ = leafz_delete leafz in
 			let h,sep_c = leaf_merge left right in
 			let hpos = add_leaf slab h in
-			let index' = indexz_suppress R hpos sep_c z in
-			let () = xxx_merged slab hpos sep_c index' rest in
+			let z' = indexz_suppress R hpos sep_c z in
+			let sep_c' = 
+			  if indexz_can_go_right z' then
+			    None
+			  else
+			    sep_c
+			in
+			let index' = indexz_close z' in
+			let () = xxx_merged slab hpos sep_c' index' rest in
 			()
 		      end
 		    | _,_ -> (* borrow from left *)
@@ -304,7 +315,7 @@ module DB = functor (L:LOG ) -> struct
 	  let index' = indexz_close z3 in
 	  let ipos' = add_index slab index' in
 	  delete_rest slab ipos' lr rest
-    and xxx_merged slab start sep_c index rest = 
+    and xxx_merged slab start sep_c (index:Index.index) rest = 
       let read_index pos = 
 	let e = L.read t pos in
 	match e with
@@ -314,25 +325,31 @@ module DB = functor (L:LOG ) -> struct
       let merge_left left index z rest = 
 	begin
 	  let sep = indexz_separator L z in
-	  let index' = index_merge left sep index in
-	  let ipos' = add_index slab index' in
-	  let z2 = indexz_suppress L ipos' sep_c z in
-	  xxx_merged slab ipos' sep_c z2 rest
+	  let index1 = index_merge left sep index in
+	  let ipos1 = add_index slab index1 in
+	  let z2 = indexz_suppress L ipos1 sep_c z in
+	  let index2 = indexz_close z2 in
+	  xxx_merged slab ipos1 sep_c index2 rest
 	end
       in
-      let merge_right right index z sep_c rest = 
+      let merge_right right index z lr rest = 
 	begin
-	  let sep = match sep_c with 
+	  match lr with 
 	    | None ->
-	      indexz_separator R z 
+	      let sep = indexz_separator R z in
+	      let index' = index_merge index sep right in
+	      let ipos' = add_index slab index' in
+	      let z2 = indexz_suppress R ipos' sep_c z in
+	      let sep_c = None in (* after the merge, we're clueless *)
+	      let index2 = indexz_close z2 in
+	      xxx_merged slab ipos' sep_c index2 rest
 	    | Some s ->
-	      s
-	  in
-	  let index' = index_merge index sep right in
-	  let ipos' = add_index slab index' in
-	  let z2 = indexz_suppress R ipos' sep_c z in
-	  let sep_c = None in (* after the merge, we're clueless *)
-	  xxx_merged slab ipos' sep_c z2 rest
+	      let index' = index_merge index s right in
+	      let ipos' = add_index slab index' in
+	      let z2 = indexz_suppress R ipos' lr z in
+	      let sep_c = None in
+	      let index2 = indexz_close z2 in
+	      xxx_merged slab ipos' sep_c index2 rest
 	end
       in
       match index, rest with
@@ -390,8 +407,7 @@ module DB = functor (L:LOG ) -> struct
 
 	  end
 	| _ -> let ipos = L.add slab (Index index) in
-	       let sep_c = Some (index_max_key index) in
-	       delete_rest slab ipos None rest
+	       delete_rest slab ipos sep_c rest
     in
     let trail = descend (L.root t) [] in
     let start = L.next t in

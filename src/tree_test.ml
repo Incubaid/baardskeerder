@@ -397,7 +397,7 @@ let template =
     "insert_delete_permutations_3", debug_info_wrap (insert_delete_permutations_generic 7);
     "insert_delete_permutations_4", debug_info_wrap (insert_delete_permutations_generic 8);
     "insert_delete_permutations_5", debug_info_wrap (insert_delete_permutations_generic 9);
-    "insert_delete_premutations_6", debug_info_wrap (insert_delete_permutations_generic 11);
+    (* "insert_delete_permutations_6", debug_info_wrap (insert_delete_permutations_generic 11); *)
     (* 11 :  834.8 s *)
     (* 12 :  *)
     (* 13 :  *)

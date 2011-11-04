@@ -84,7 +84,7 @@ let check_invariants t =
   in
   let i = Mlog.root t in
   walk i;;
-(*
+
 let test max t0 =
   let rec loop1 = function
     | 0 -> ()
@@ -103,7 +103,7 @@ let test max t0 =
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n in
-      if List.mem n  [128;127;] 
+      if List.mem n  [13;12] 
       then 
 	let _ = MDot.view t0 in 
 	(* let () = Mlog.dump t0 in *)
@@ -116,30 +116,31 @@ let test max t0 =
       loop2 (pred n)
   in
   loop2 max;;
-(*
-let rec loop x = 
-  if x = 100 then () 
-  else
-    let () = test x t0 in
-    let () = Mlog.clear t0 in
-    loop (x + 1)
-in
-loop 1
-*)
-test 13 t0;;  
+
+let find_problem () =
+  let rec loop x = 
+    if x = 100 then () 
+    else
+      let () = test x t0 in
+      let () = Mlog.clear t0 in
+      loop (x + 1)
+  in
+  loop 1;;
+
+test 15 t0;; 
+(* find_problem () *)
+
   
-
-*)
 (*
 
 *)
 
-
-List.iter (fun k -> MDB.set t0 k (String.uppercase k))  ["m"; "a"; "g"; "j"; "d"; "q"; "t"; "w"];;
+(*
+List.iter (fun k -> MDB.set t0 k (String.uppercase k)) ["a"; "b"; "c"; "j"; "m"; "q"; "d"; "t"; "w"; "g"; "z"];;
 MDot.view_tree t0;;
-MDB.delete t0 "m";;
+MDB.delete t0 "a";;
 MDot.view_tree t0;;
-
+*)
 (*
   MDot.view_tree t0;;
   MDB.delete t0 "b";;

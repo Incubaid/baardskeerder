@@ -40,8 +40,8 @@ let t_suppress () =
   let nb = Index.indexz_neighbours z in
   match nb with 
     | NL 14 ->
-      let index = Index.indexz_suppress L 17 None z in
-      Printf.printf "index = %s\n" (index2s index)
+      let z2 = Index.indexz_suppress L 17 None z in
+      Printf.printf "z2= %s\n" (iz2s z2)
     | _ -> failwith "should be NL 14"
 
 let t_suppress2 () = 
@@ -49,20 +49,22 @@ let t_suppress2 () =
   let nb = Index.indexz_neighbours z in
   match nb with 
     | NL 7 ->
-      let index = Index.indexz_suppress L 17 None z in
-      Printf.printf "index = %s\n" (index2s index)
+      let z2 = Index.indexz_suppress L 17 None z in
+      Printf.printf "index = %s\n" (iz2s z2)
     | _ -> failwith "should be NL 7"
 
 let t_suppress3 () = 
   let z = Loc ((0,["m", 1; "g", 2]),["t", 3]) in
   let r = indexz_suppress L 4 (Some "q") z in
-  let () = Printf.printf "index = %s\n" (index2s r) in
-  OUnit.assert_equal ~printer:index2s (0,["g",4;"q",3]) r;
+  let () = Printf.printf "r = %s\n" (iz2s r) in
+  let e = Loc ((0,["g",4]),["q",3]) in
+  OUnit.assert_equal ~printer:iz2s e r;
   ()
 let t_suppress4() = 
   let z =  Loc ((78, [("key_12", 79)]), [("key_16", 95)]) in
   let r = indexz_suppress L 98 (Some "key_15") z in
-  OUnit.assert_equal ~printer:index2s (98, ["key_15", 95]) r
+  let e = Top (98, ["key_15", 95]) in
+  OUnit.assert_equal ~printer:iz2s e r
 
 let t_balance() =
   let d = 2 in

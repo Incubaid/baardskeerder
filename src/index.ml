@@ -187,19 +187,19 @@ let indexz_suppress d pn sep_o z =
     | R ->
       begin
 	match z with 
-	  | Top (p0, (_,p1)::t)                  -> pn,t
-	  | Loc ((p0, (kc,pc) :: c), (kt,pt)::t) -> p0, (List.rev c) @ (kc,pn) :: t
+	  | Top (p0, (_,p1)::t)                  -> Top (pn,t)
+	  | Loc ((p0, (kc,pc) :: c), (kt,pt)::t) -> Loc ((p0, (kc,pn):: c) , t)
       end
     | L ->
       match z with
-	| Loc ((p0,[k0, p1]),[])             -> pn,[]
+	| Loc ((p0,[k0, p1]),[])              -> Top (pn,[])
 	| Loc ((p0,[_]), (kx,px)::t)          -> 
 	  let new_sep = maybe_replace_sep kx sep_o in
-	  pn, ((new_sep,px)::t)
-	| Loc ((p0, (kl,pl)::(kr,pr)::c),[]) -> p0, (List.rev ((kr,pn)::c)) 
+	  Top (pn, ((new_sep,px)::t))
+	| Loc ((p0, (kl,pl)::(kr,pr)::c),[])  -> Loc ((p0, (kr,pn)::c), []) 
 	| Loc ((p0, (kl,pl)::(kr,pr)::c),(kx,px):: t)  -> 
 	  let new_sep = maybe_replace_sep kx sep_o in
-	  p0, (List.rev ((kr,pn):: c)) @ ((new_sep,px)::t)
+	  Loc ((p0, (kr,pn)::c), (new_sep,px) :: t)
 	| _ -> let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s
 
 let indexz_delete z = 
