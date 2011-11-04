@@ -331,18 +331,11 @@ module DB = functor (L:LOG ) -> struct
 		  if index_mergeable d left 
 		  then merge_left left index z rest
 		  else (* borrow from left *)
-		    let s = Printf.sprintf "borrow from left left:%s index:%s z:%s" 
-		      (index2s left) (index2s index) 
-		      (iz2s z)
-		    in
-		    failwith s
-		    (*
-		    let right,sep_c = indexz_delete index in
-		    let left', sep', right' = index_borrow_left left right in
-		    let lpos = add_index slab left' in
-		    let rpos = add_index slab right' in
-		    xxx_borrowed_left slab lpos sep' rpos z sep_c rest
-		    *)
+		    let psep = indexz_separator L z in
+		    let left',sep',right' = index_borrow_left left psep index in
+		    let lpos' = add_index slab left' in
+		    let rpos' = add_index slab right' in
+		    xxx_borrowed_left slab lpos' sep' rpos' z sep_c rest
 		end
 		  
 	      | NR pos ->  

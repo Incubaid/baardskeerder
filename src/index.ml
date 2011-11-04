@@ -49,30 +49,39 @@ let index_find_set index k =
 						 loop z'
 
     | Loc (_, [])                             -> z
-    | Loc (_ , (ki,pi) :: _) when k <= ki     -> z
-    | Loc ( (p0,c) , ((ki,pi) as h :: t))     -> let pre  = p0, (h :: c) in
-						 let z' = Loc (pre, t) in
-						 loop z'
+    | Loc (_ , (ki,_) :: _) when k <= ki     -> z
+    | Loc ( (p0,c) , ((_,_) as h :: t))      -> let pre  = p0, (h :: c) in
+						let z' = Loc (pre, t) in
+						loop z'
   in loop (Top index)
 
 
 let index_merge (pl,kps_left) sep  (p2, kps_right) = 
   let rec check = function
     | [] -> ()
-    | [k,s] -> if k = sep then 
+    | [k,_] -> if k = sep then 
 	let s = Printf.sprintf "can't merge:(%s) %S (%s)" (index2s (pl,kps_left)) sep (index2s (p2, kps_right)) in
 	failwith s
-    | h :: t -> check t
+    | _ :: t -> check t
   in 
   let () = check kps_left in 
   let r = (kps_left @ ((sep,p2) :: kps_right)) in
   pl, r
 
-let index_below_min d (p0,t) = List.length t < d
+let index_below_min d (_,t) = List.length t < d
 let index_mergeable d (_,t)  = List.length t <= d
 
-let index_borrow_left left right = 
-  failwith (Printf.sprintf "index_borrowed_left %s %s" (index2s left) (index2s right))
+let index_borrow_left (pl,kpsl) psep (pr,kpsr) = 
+  let rec split_last acc = function
+    | [] -> failwith "xxx"
+    | [x] -> x , (List.rev acc)
+    | x :: t -> split_last (x :: acc) t
+  in
+  let (lmk,lmp), new_kpsl = split_last [] kpsl in
+  let new_left = pl, new_kpsl in
+  let new_sep = lmk in
+  let new_right = lmp, (psep,pr):: kpsr in
+  new_left, new_sep, new_right
 
 let index_borrow_right (pl, kps_l) sep_o (pr, kps_r) = 
   
@@ -89,7 +98,7 @@ let index_max_key (_,kps) =
   let rec loop = function
     | [] -> failwith "empty?"
     | [(k,_)] -> k
-    | h :: t -> loop t 
+    | _ :: t -> loop t 
   in loop kps
 
 let index_min_key (_,kps) = 
@@ -106,12 +115,12 @@ let make_indexz (p0, kps) = Top ((p0, kps))
 
 let indexz_pos = function
   | Top ( p0,_) -> p0
-  | Loc ((_, (k,pi) ::_) , _      )   -> pi
+  | Loc ((_, (_,pi) ::_) , _      )   -> pi
 
 let indexz_replace pos z = 
   match z with
-  | Top (p0, kps)                -> (pos,kps)
-  | Loc ((p0, (k,pi) :: c ), t ) -> (p0, (List.rev ((k,pos) :: c)) @ t)
+  | Top (_, kps)                -> (pos,kps)
+  | Loc ((p0, (k,_) :: c ), t ) -> (p0, (List.rev ((k,pos) :: c)) @ t)
 
 
 
@@ -123,7 +132,7 @@ let indexz_max d z =
   z_size = d  
   
 let indexz_borrowed_right lpos sep rpos = function
-  | Top (p0, (k0,p1)::t) -> Top (lpos,(sep,rpos) ::t)
+  | Top (_, _::t) -> Top (lpos,(sep,rpos) ::t)
 
 let indexz_borrowed_left lpos sep rpos = function
   | Loc((p0, [k0,p1]),t)                -> Loc ((lpos, [sep,rpos]),t)
