@@ -47,6 +47,8 @@ type t = {
 
   mutable last_metadata: int;
   mutable metadata: metadata * metadata;
+
+  mutable space_left: int;
 }
 
 type slab = {
@@ -222,6 +224,14 @@ let find_commit f o =
 
   loop 0 o
 
+let extend_file =
+  let ks = Posix.fallocate_FALLOC_FL_KEEP_SIZE ()
+  and extent = 1024 * 512 (* 512 MB *) in
+
+  fun fd offset ->
+    Posix.fallocate fd ks offset extent;
+    extent
+
 let make (f: string): t =
   let from_some = function
     | Some x -> x
@@ -265,6 +275,8 @@ let make (f: string): t =
 
   let offset = lseek fd_append 0 SEEK_END in
 
+  let extent = extend_file fd_append offset in
+
   let s =
     if md1.md_count > md2.md_count
     then md1.md_offset
@@ -294,7 +306,7 @@ let make (f: string): t =
 
   { fd_in=fd_in; fd_append=fd_append; fd_random=fd_random; offset=offset;
     commit_offset=co; root_offset=root; closed=false;
-    last_metadata=0; metadata=(md1, md2); }
+    last_metadata=0; metadata=(md1, md2); space_left=extent }
 
 let close db =
   if db.closed
@@ -451,11 +463,19 @@ and deserialize_value s o =
 let write t slab =
   let update_offset i = t.offset <- t.offset + i in
   let do_write s =
-    safe_write t.fd_append marker' 0 4;
     let sl = String.length s in
+
+    if t.space_left < (sl + 4)
+    then
+      let e = extend_file t.fd_append t.offset in
+      t.space_left <- e
+    else ();
+
+    safe_write t.fd_append marker' 0 4;
     safe_write t.fd_append s 0 sl;
     t.root_offset <- t.offset;
-    update_offset (sl + 4)
+    update_offset (sl + 4);
+    t.space_left <- t.space_left - (sl + 4)
   in
 
   let write_slab = function
