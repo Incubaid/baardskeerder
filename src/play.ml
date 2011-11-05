@@ -86,12 +86,13 @@ let check_invariants t =
   walk i;;
 
 let test max t0 =
+  Printf.printf "test %i\n%!" max;
   let rec loop1 = function
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n
       and v = Printf.sprintf "value_%d" n in
-      Printf.printf "Set %s\n%!" k;      
+      (* Printf.printf "Set %s\n%!" k;  *)
       MDB.set t0 k v;
       loop1 (pred n)
   in
@@ -103,23 +104,23 @@ let test max t0 =
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n in
-      if List.mem n  [13;12] 
+      if List.mem n  [103;102] 
       then 
 	let _ = MDot.view t0 in 
 	(* let () = Mlog.dump t0 in *)
 	()
       else ();
-      check_invariants t0; 
-      Printf.printf "going to delete %s\n%!" k;
+      Printf.printf "going to delete %s\n%!" k; 
       MDB.delete t0 k;
-      Printf.printf "deleted %s\n%!" k;
+      Printf.printf "deleted %s\n%!" k; 
+      check_invariants t0; 
       loop2 (pred n)
   in
   loop2 max;;
 
 let find_problem () =
   let rec loop x = 
-    if x = 100 then () 
+    if x = 200 then () 
     else
       let () = test x t0 in
       let () = Mlog.clear t0 in
@@ -127,7 +128,11 @@ let find_problem () =
   in
   loop 1;;
 
-test 15 t0;; 
+test 104 t0;;
+(* test 20 t0;; *)
+(*
+test 156 t0;; 
+*)
 (* find_problem () *)
 
   

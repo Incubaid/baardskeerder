@@ -397,9 +397,9 @@ let template =
     "insert_delete_permutations_3", debug_info_wrap (insert_delete_permutations_generic 7);
     "insert_delete_permutations_4", debug_info_wrap (insert_delete_permutations_generic 8);
     "insert_delete_permutations_5", debug_info_wrap (insert_delete_permutations_generic 9);
-    (* "insert_delete_permutations_6", debug_info_wrap (insert_delete_permutations_generic 11); *)
+    (*"insert_delete_permutations_6", debug_info_wrap (insert_delete_permutations_generic 12);*)
     (* 11 :  834.8 s *)
-    (* 12 :  *)
+    (* 12 :  9600 s  *)
     (* 13 :  *)
     "insert_static_delete_permutations_1", debug_info_wrap (all_n 5);
     "insert_static_delete_permutations_2", debug_info_wrap (all_n 6); 
@@ -408,6 +408,7 @@ let template =
     "insert_static_delete_permutations_5", debug_info_wrap (all_n 9);
     "insert_delete_bug4", _insert_delete_bugx 100;
     "insert_delete_bug5", _insert_delete_bugx 20;
+    "insert_delete_bug6", _insert_delete_bugx 104;
   ]
 
 let make_suite wrap = (List.map (fun (n,t) -> n >:: mem_wrap t) template)

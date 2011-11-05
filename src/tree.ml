@@ -312,9 +312,10 @@ module DB = functor (L:LOG ) -> struct
 	    else z
 	  in
 	  let z3 = indexz_borrowed_left lpos sep rpos z2 in
-	  let index' = indexz_close z3 in
+	  let lr' = if indexz_can_go_right z3 then None else lr in
+	  let index' = indexz_close z3 in	  
 	  let ipos' = add_index slab index' in
-	  delete_rest slab ipos' lr rest
+	  delete_rest slab ipos' lr' rest
     and xxx_merged slab start sep_c (index:Index.index) rest = 
       let read_index pos = 
 	let e = L.read t pos in
