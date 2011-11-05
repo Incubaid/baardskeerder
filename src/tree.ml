@@ -292,12 +292,12 @@ module DB = functor (L:LOG ) -> struct
 		end
 	  end
 	| _ -> failwith "corrupt"
-    and xxx_borrowed_right slab lpos sep rpos  z (sep_c:k) rest = 
-      let z' = indexz_borrowed_right lpos sep_c rpos z in
+    and xxx_borrowed_right slab lpos sep rpos  z (lr:k) rest = 
+      let z' = indexz_borrowed_right lpos lr rpos z in
+      let lr' = if indexz_can_go_right z' then None else Some lr in
       let index' = indexz_close z' in
-      let sep_c' = Some sep_c in
       let ipos = add_index slab index' in
-      delete_rest slab ipos None rest
+      delete_rest slab ipos lr' rest
     and xxx_borrowed_left slab lpos sep rpos z lr rest = 
       match lr with
 	| None -> 
@@ -380,12 +380,15 @@ module DB = functor (L:LOG ) -> struct
 		  if index_mergeable d right 
 		  then merge_right right index z sep_c rest
 		  else
-		    let left', right' = index_borrow_right index sep_c right in
-		    let sep' = index_max_key left' in
-		    let sep_c' = index_min_key right in
+		    let sep = match sep_c with
+		      | None -> indexz_separator R z 
+		      | Some s -> s
+		    in
+		    let left', right' = index_borrow_right index (Some sep) right in
 		    let lpos = add_index slab left' in
 		    let rpos = add_index slab right' in
-		    xxx_borrowed_right slab lpos sep' rpos z sep_c' rest
+		    let lr' = index_min_key right in
+		    xxx_borrowed_right slab lpos sep rpos z lr' rest
 		end
 		
 	      | N2 (pl,pr) -> 

@@ -104,15 +104,15 @@ let test max t0 =
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n in
-      if List.mem n  [107] 
+      if false (*List.mem n  [14] *)
       then 
 	let _ = MDot.view t0 in 
 	(* let () = Mlog.dump t0 in *)
 	()
       else ();
-      Printf.printf "going to delete %s\n%!" k; 
+      (* Printf.printf "going to delete %s\n%!" k; *)
       MDB.delete t0 k;
-      Printf.printf "deleted %s\n%!" k; 
+      (* Printf.printf "deleted %s\n%!" k; *)
       check_invariants t0; 
       loop2 (pred n)
   in
@@ -120,7 +120,7 @@ let test max t0 =
 
 let find_problem () =
   let rec loop x = 
-    if x = 200 then () 
+    if x = 400 then () 
     else
       let () = test x t0 in
       let () = Mlog.clear t0 in
@@ -128,7 +128,7 @@ let find_problem () =
   in
   loop 1;;
 
-test 109 t0;;
+test 156 t0;;
 (* test 20 t0;; *)
 (*
 test 156 t0;; 
