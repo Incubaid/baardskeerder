@@ -329,8 +329,9 @@ module DB = functor (L:LOG ) -> struct
 	  let index1 = index_merge left sep index in
 	  let ipos1 = add_index slab index1 in
 	  let z2 = indexz_suppress L ipos1 sep_c z in
+	  let lr' = if indexz_can_go_right z2 then None else sep_c in
 	  let index2 = indexz_close z2 in
-	  xxx_merged slab ipos1 sep_c index2 rest
+	  xxx_merged slab ipos1 lr' index2 rest
 	end
       in
       let merge_right right index z lr rest = 

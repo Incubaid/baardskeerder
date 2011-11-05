@@ -409,6 +409,7 @@ let template =
     "insert_delete_bug4", _insert_delete_bugx 100;
     "insert_delete_bug5", _insert_delete_bugx 20;
     "insert_delete_bug6", _insert_delete_bugx 104;
+    "insert_delete_bug7", _insert_delete_bugx 109;
   ]
 
 let make_suite wrap = (List.map (fun (n,t) -> n >:: mem_wrap t) template)

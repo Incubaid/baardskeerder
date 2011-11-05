@@ -104,7 +104,7 @@ let test max t0 =
     | 0 -> ()
     | n ->
       let k = Printf.sprintf "key_%d" n in
-      if List.mem n  [103;102] 
+      if List.mem n  [107] 
       then 
 	let _ = MDot.view t0 in 
 	(* let () = Mlog.dump t0 in *)
@@ -128,7 +128,7 @@ let find_problem () =
   in
   loop 1;;
 
-test 104 t0;;
+test 109 t0;;
 (* test 20 t0;; *)
 (*
 test 156 t0;; 
