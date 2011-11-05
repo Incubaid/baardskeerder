@@ -53,7 +53,7 @@ let write t slab =
     
 let root t = t.next -1
 let next t = t.next
-let size e = 1
+let size (_:entry) = 1
 let read t pos = if pos < 0 then NIL else t.es.(pos)
 
 let dump ?out:(o=stdout) (t:t) =
@@ -61,13 +61,7 @@ let dump ?out:(o=stdout) (t:t) =
 
   Array.iteri
     (fun i a ->
-      let s =
-        match a with
-          | NIL     -> "NIL"
-          | Value v -> Printf.sprintf "Value %S" v
-          | Leaf l  -> Printf.sprintf "Leaf %s  " (Leaf.leaf2s l)
-          | Index i -> Printf.sprintf "Index %s)" (Index.index2s i)
-      in
+      let s = Entry.entry2s a in
       Printf.fprintf o "%2i: %s\n" i s)
     t.es
 

@@ -115,13 +115,14 @@ let make_indexz (p0, kps) = Top ((p0, kps))
 
 let indexz_pos = function
   | Top ( p0,_) -> p0
-  | Loc ((_, (_,pi) ::_) , _      )   -> pi
+  | Loc ((_, (_,pi) ::_) , _  ) -> pi
+  | Loc ((_,[]),_) -> failwith "illegal Loc"
 
 let indexz_replace pos z = 
   match z with
   | Top (_, kps)                -> (pos,kps)
   | Loc ((p0, (k,_) :: c ), t ) -> (p0, (List.rev ((k,pos) :: c)) @ t)
-
+  | Loc ((_,[]),_) -> failwith "illegal Loc"
 
 
 let indexz_max d z = 
@@ -133,30 +134,40 @@ let indexz_max d z =
   
 let indexz_borrowed_right lpos sep rpos = function
   | Top (_, _::t) -> Top (lpos,(sep,rpos) ::t)
+  | Top (_,[]) -> failwith "illegal Top"
+  | Loc (_,_) -> failwith "illegal Loc"
 
 let indexz_borrowed_left lpos sep rpos = function
-  | Loc((p0, [k0,p1]),t)                -> Loc ((lpos, [sep,rpos]),t)
-  | Loc((p0, (kx,px):: (ky,py) :: c),t) -> Loc ((p0,(sep,rpos)::(ky,lpos)::c), t)
-  | z -> let s= Printf.sprintf "indexz_borrowed_left %i %s %i z=%s\n%!" lpos sep rpos (iz2s z) in failwith s
+  | Loc((_, [_]),t)                -> Loc ((lpos, [sep,rpos]),t)
+  | Loc((p0, _ :: (ky,_) :: c),t) -> Loc ((p0,(sep,rpos)::(ky,lpos)::c), t)
+  | Top (_,_) 
+  | Loc ((_,[]),_) as z -> 
+    let s= Printf.sprintf "indexz_borrowed_left %i %s %i z=%s\n%!" lpos sep rpos (iz2s z) in failwith s
 
 let indexz_can_go_right = function
   | Top (_, _ :: _) -> true
   | Loc ((_,_), _:: _) -> true
-  | _ -> false
+  | Top (_,[]) -> false
+  | Loc ((_,_),[]) -> false
+
 
 let indexz_replace_right new_sep = function
-  | Top (p0,(k,p1)::t)      -> Top (p0, (new_sep,p1)::t)
-  | Loc ((p0,c), (k,pr)::t) -> Loc ((p0,c), (new_sep,pr) :: t)
-  | _ -> failwith "cannot go right"
+  | Top (p0,(_,p1)::t)      -> Top (p0, (new_sep,p1)::t)
+  | Loc ((p0,c), (_,pr)::t) -> Loc ((p0,c), (new_sep,pr) :: t)
+  | Top (_,[]) 
+  | Loc ((_,_),[]) -> failwith "cannot replace right"
+
 
 let indexz_right = function
   | Top (p0  ,h :: t)          -> Loc ((p0,[h]),t)
   | Loc ((p0, c), h :: t)      -> Loc ((p0, h :: c), t)
-  | z -> let s = Printf.sprintf "cannot go right: %s\n" (iz2s z) in failwith s
+  | Top (_,[]) 
+  | Loc ((_,_),[]) as z -> let s = Printf.sprintf "cannot go right: %s\n" (iz2s z) in failwith s 
 
 let indexz_left = function
   | Loc ((p0, h :: c), t) -> Loc ((p0, c), h::t)
-  | z -> let s = Printf.sprintf "cannot go left: %s\n" (iz2s z) in failwith s
+  | Top _
+  | Loc ((_,[]),_) as z -> let s = Printf.sprintf "cannot go left: %s\n" (iz2s z) in failwith s
 
 
 
@@ -167,14 +178,17 @@ let indexz_separator d z =
     | L -> 
       begin
 	match z with 
-	  | Loc ((_,(kc,_)::c),_) -> kc
+	  | Loc ((_,(kc,_)::_),_) -> kc
+	  | Top _ -> failwith "no left"
+	  | Loc ((_,[]),_) -> failwith "illegal Loc"
       end
     | R ->
       begin
 	match z with
 	  | Loc ( (_,_), (kt,_)::_) -> kt
-	  | Top (p0, (k0,p1):: t)   -> k0
-	  | _ -> let s = Printf.sprintf "indexz_separator R (%s)\n" (iz2s z) in failwith s
+	  | Top (_, (k0,_):: _)   -> k0
+	  | Top (_,[]) 
+	  | Loc ((_,_),[]) -> let s = Printf.sprintf "indexz_separator R (%s)\n" (iz2s z) in failwith s
       end
       
 let indexz_suppress d pn sep_o z = 
@@ -187,20 +201,23 @@ let indexz_suppress d pn sep_o z =
     | R ->
       begin
 	match z with 
-	  | Top (p0, (_,p1)::t)                  -> Top (pn,t)
-	  | Loc ((p0, (kc,pc) :: c), (kt,pt)::t) -> Loc ((p0, (kc,pn):: c) , t)
+	  | Top (_, _::t)                  -> Top (pn,t)
+	  | Loc ((p0, (kc,_) :: c), _::t) -> Loc ((p0, (kc,pn):: c) , t)
+	  | Top (_,[])     
+	  | Loc ((_,_),_) -> failwith "cannot suppress"
       end
     | L ->
       match z with
-	| Loc ((p0,[k0, p1]),[])              -> Top (pn,[])
-	| Loc ((p0,[_]), (kx,px)::t)          -> 
+	| Loc ((_,[_]),[])              -> Top (pn,[])
+	| Loc ((_,[_]), (kx,px)::t)     -> 
 	  let new_sep = maybe_replace_sep kx sep_o in
 	  Top (pn, ((new_sep,px)::t))
-	| Loc ((p0, (kl,pl)::(kr,pr)::c),[])  -> Loc ((p0, (kr,pn)::c), []) 
-	| Loc ((p0, (kl,pl)::(kr,pr)::c),(kx,px):: t)  -> 
+	| Loc ((p0, _::(kr,_)::c),[])  -> Loc ((p0, (kr,pn)::c), []) 
+	| Loc ((p0, _ :: (kr,_)::c),(kx,px):: t)  -> 
 	  let new_sep = maybe_replace_sep kx sep_o in
 	  Loc ((p0, (kr,pn)::c), (new_sep,px) :: t)
-	| _ -> let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s
+	| Top _ 
+	| Loc ((_,[]),_) -> let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s 
 
 let indexz_delete z = 
   let s = Printf.sprintf "indexz_delete %s" (iz2s z) in
@@ -217,10 +234,11 @@ type neigbours =
 let indexz_neighbours = function
   | Top (_, (_,p1) :: _)        -> NR p1
   | Loc ((p0, [_]), [])  -> NL p0
-  | Loc ((p0, [_]), (_,pr)::t)  -> N2 (p0,pr)
-  | Loc ((p0, (kr,pr) :: (kl,pl) ::c), [] ) -> NL pl
-  | Loc ((_, _ :: (_,pl) ::_), (_,pr):: t) -> N2(pl,pr)
-  | z -> let s = Printf.sprintf "index_neighbours %s\n" (iz2s z) in failwith s
+  | Loc ((p0, [_]), (_,pr)::_)  -> N2 (p0,pr)
+  | Loc ((_, _ :: (_,pl) ::_), [] ) -> NL pl
+  | Loc ((_, _ :: (_,pl) ::_), (_,pr):: _) -> N2(pl,pr)
+  | Top (_,[])  
+  | Loc ((_,[]),_) as z -> let s = Printf.sprintf "index_neighbours %s\n" (iz2s z) in failwith s 
     
 let indexz_close = function
   | Top index -> index
@@ -228,7 +246,7 @@ let indexz_close = function
     
 let indexz_balance d z = 
   let move, n = match z with
-    | Top ((_,c))    -> indexz_right, d
+    | Top (_,_)    -> indexz_right, d
     | Loc ((_,c), r) ->
       let cs = List.length c 
       and rs = List.length r 
@@ -247,9 +265,10 @@ exception IZ of index_z
 
 let indexz_insert lpos sep rpos z = 
   match z with
-  | Top ((p0,t)) -> Top (lpos, ((sep,rpos) :: t))
-  | Loc ((p0,(k,p)::c),t) -> Loc ((p0, (sep,rpos):: (k,lpos) :: c), t)
-  | z -> let s = Printf.sprintf "indexz_insert %i %s %i %s" lpos sep rpos (iz2s z) in failwith s
+  | Top ((_,t)) -> Top (lpos, ((sep,rpos) :: t))
+  | Loc ((p0,(k,_)::c),t) -> Loc ((p0, (sep,rpos):: (k,lpos) :: c), t)
+  | Loc ((_,[]),_) -> failwith "illegal loc"
+  (* | z -> let s = Printf.sprintf "indexz_insert %i %s %i %s" lpos sep rpos (iz2s z) in failwith s *)
 
 
 let indexz_split d lpos sep rpos z = 
@@ -261,8 +280,10 @@ let indexz_split d lpos sep rpos z =
 	let left = p0, List.rev c in
 	let right = p, t in
 	left, k,right
-      | z -> let s = Printf.sprintf "indexz_split %i %s %i %s=> %s \n" lpos sep rpos (iz2s z) (iz2s z2) in
-	     failwith s
+      | Loc ((_,[]),_) -> failwith "illegal loc"
+      | Top _  as z -> 
+	let s = Printf.sprintf "indexz_split %i %s %i %s=> %s \n" lpos sep rpos (iz2s z) (iz2s z2) in
+	failwith s
   in
   r
 

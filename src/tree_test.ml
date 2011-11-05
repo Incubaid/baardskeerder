@@ -26,6 +26,7 @@ open Entry
 
 module MDB = DB(Mlog)
 
+
 type 'a q = {
   log:'a; 
   root:  'a  -> pos;
@@ -48,7 +49,7 @@ let mem_setup () =  {
   dump = Mlog.dump;
 }
 
-let mem_teardown q = ()
+let mem_teardown _ = ()
 
 let mem_wrap t = OUnit.bracket mem_setup t mem_teardown
 
@@ -70,14 +71,14 @@ let check_invariants (q: 'a q) =
     let n = q.read q.log i in
     match n with
       | NIL           -> failwith "corrupt"
-      | Value v       -> failwith "corrupt"
+      | Value _       -> failwith "corrupt"
       | Leaf leaf     -> leaf_max_key leaf
       | Index (p0,kps) ->
 	let p = 
 	  let rec loop = function
 	    | []    -> p0
 	    | [_,p] -> p
-	    | h :: t -> loop t
+	    | _ :: t -> loop t
 	  in
 	  loop kps
 	in
@@ -87,7 +88,8 @@ let check_invariants (q: 'a q) =
     let n = q.read q.log i in
     match n with 
       | NIL -> ()
-      | Leaf leaf -> ()
+      | Value _ -> failwith "corrupt"
+      | Leaf _ -> ()
       | Index (p0,kps) ->
 	let rec loop p = function
 	  | [] -> walk p
@@ -148,7 +150,9 @@ let kvs = ["a";"d";"g";"j";"m";
 let take n  = 
   let rec fill acc es = function
     | 0 -> List.rev acc
-    | n -> match es with h::t -> fill (h::acc) t (n-1)
+    | n -> match es with 
+	| [] -> failwith "empty" 
+	| h::t -> fill (h::acc) t (n-1)
   in
   fill [] kvs n
 
@@ -276,8 +280,6 @@ let insert_delete_permutations_generic  n q =
   Array.fast_sort String.compare kvs';
 
   let l = Array.length kvs' in
-
-  let fst (a, _) = a in
 
   let do_test n a =
     try
@@ -413,6 +415,6 @@ let template =
     "insert_delete_bug8", _insert_delete_bugx 156;
   ]
 
-let make_suite wrap = (List.map (fun (n,t) -> n >:: mem_wrap t) template)
+let make_suite wrap = (List.map (fun (n,t) -> n >:: wrap t) template)
 let suite = "Tree" >::: make_suite mem_wrap
 

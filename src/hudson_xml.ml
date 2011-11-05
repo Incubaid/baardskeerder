@@ -68,7 +68,7 @@ let seq2s s =
 
       
 let process result = 
-  let p2s p = string_of_path p in
+  
   let cn p  = string_of_node (List.hd (List.rev p)) in
   let tn p = string_of_path (List.rev (List.tl(List.tl (List.rev p)))) in
   let testcase p st b =
@@ -81,8 +81,8 @@ let process result =
   let do_one = function
     | RSuccess p     -> testcase p "run" (lit "success")
     | RFailure (p,m) -> testcase p "run" (tag "failure" ["message", m] (lit ""))
-    | RSkip (p,m)    -> testcase p "skip" (lit "skip")
-    | RTodo (p,m)    -> testcase p "todo" (lit "todo")
+    | RSkip (p,_)    -> testcase p "skip" (lit "skip")
+    | RTodo (p,_)    -> testcase p "todo" (lit "todo")
     | RError (p,m)   -> testcase p "run" (tag "error" ["message", m] (lit ""))
   in
   let s = lit "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << eol <<
@@ -96,6 +96,6 @@ let process result =
 
 
 let run_test suite = 
-  let cb test_event _ = () in
+  let cb _ _ = () in
   let result = OUnit.perform_test cb suite in
   process result
