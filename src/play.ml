@@ -120,7 +120,7 @@ let test max t0 =
 
 let find_problem () =
   let rec loop x = 
-    if x = 400 then () 
+    if x = 1001 then () 
     else
       let () = test x t0 in
       let () = Mlog.clear t0 in

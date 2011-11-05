@@ -399,15 +399,11 @@ module DB = functor (L:LOG ) -> struct
 		  | _, true -> merge_right right index z sep_c rest
 		  | _,_ -> (* be consistent with leaf strategy: borrow from left *)
 		    begin
-		      let s = Printf.sprintf "index=%s left=%s" (index2s index) (index2s left) in
-		      failwith s
-		      (*
-		      let right, sep_c = indexz_delete index in
-		      let left', sep', right' = index_borrow_left left right in
-		      let lpos = add_index slab left' in
-		      let rpos = add_index slab right' in
-		      xxx_borrowed_left slab lpos sep' rpos z sep_c rest
-		      *)
+		      let psep = indexz_separator L z in
+		      let left', sep', right' = index_borrow_left left psep index in
+		      let lpos' = add_index slab left' in
+		      let rpos' = add_index slab right' in
+		      xxx_borrowed_left slab lpos' sep' rpos' z sep_c rest
 		    end
 
 	  end
