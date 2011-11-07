@@ -50,6 +50,10 @@ let range_last log =
   let r = MDB.range log None true (Some "d") true None in
   OUnit.assert_equal ~printer ["a";"b";"c";"d"] r
 
+let range_last_exc log = 
+  let r = MDB.range log None true (Some "d") false None in
+  OUnit.assert_equal ~printer ["a";"b";"c";] r
+
 let wrap t = OUnit.bracket setup t teardown
 
 let suite = "Range" >::: [
@@ -58,4 +62,5 @@ let suite = "Range" >::: [
   "range_first" >:: wrap range_first;
   "range_first_exc" >:: wrap range_first_exc;
   "range_last" >:: wrap range_last;
+  "range_last_exc" >:: wrap range_last_exc;
 ]
