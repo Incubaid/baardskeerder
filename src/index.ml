@@ -94,13 +94,6 @@ let index_borrow_right (pl, kps_l) sep_o (pr, kps_r) =
 		      left', right'
 
 
-let index_max_key (_,kps) = 
-  let rec loop = function
-    | [] -> failwith "empty?"
-    | [(k,_)] -> k
-    | _ :: t -> loop t 
-  in loop kps
-
 let index_min_key (_,kps) = 
   match kps with
     | [] -> failwith "empty?"
@@ -216,15 +209,10 @@ let indexz_suppress d pn sep_o z =
 	| Loc ((p0, _ :: (kr,_)::c),(kx,px):: t)  -> 
 	  let new_sep = maybe_replace_sep kx sep_o in
 	  Loc ((p0, (kr,pn)::c), (new_sep,px) :: t)
-	| Top _ 
-	| Loc ((_,[]),_) -> let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s 
+	| Top _ | Loc ((_,[]),_) -> 
+	  let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s 
 
-let indexz_delete z = 
-  let s = Printf.sprintf "indexz_delete %s" (iz2s z) in
-  failwith s
-
-
-type neigbours = 
+type neighbours = 
   | NR of pos
   | NL of pos
   | N2 of (pos * pos)
@@ -237,8 +225,8 @@ let indexz_neighbours = function
   | Loc ((p0, [_]), (_,pr)::_)  -> N2 (p0,pr)
   | Loc ((_, _ :: (_,pl) ::_), [] ) -> NL pl
   | Loc ((_, _ :: (_,pl) ::_), (_,pr):: _) -> N2(pl,pr)
-  | Top (_,[])  
-  | Loc ((_,[]),_) as z -> let s = Printf.sprintf "index_neighbours %s\n" (iz2s z) in failwith s 
+  | Top (_,[])  | Loc ((_,[]),_) as z -> 
+    let s = Printf.sprintf "index_neighbours %s\n" (iz2s z) in failwith s 
     
 let indexz_close = function
   | Top index -> index
