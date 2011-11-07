@@ -18,58 +18,59 @@
  *)
 
 open Index
+open Indexz
 open OUnit
 
 let t_neighbours () = 
   let z = Loc ((7, [("j", 15); ("d", 14)]), []) in
-  let nb = indexz_neighbours z in
+  let nb = Indexz.neighbours z in
   OUnit.assert_equal (NL 14) nb
 
 let t_neighbours2 () = 
   let z = Loc ((37,["g", 21]),["m", 31; "t", 32]) in
-  let nb = Index.indexz_neighbours z in
+  let nb = Indexz.neighbours z in
   OUnit.assert_equal (N2(37,31)) nb
 
 let t_neighbours3 () = 
   let z =  Loc ((0,["m", 1; "g", 2]),["t", 3]) in
-  let nb = Index.indexz_neighbours z in
+  let nb = Indexz.neighbours z in
   OUnit.assert_equal (N2(2,3)) nb
 
 let t_suppress () = 
   let z = Loc ((7, [("j", 15); ("d", 14)]), []) in
-  let nb = Index.indexz_neighbours z in
+  let nb = Indexz.neighbours z in
   match nb with 
     | NL 14 ->
-      let z2 = Index.indexz_suppress L 17 None z in
+      let z2 = Indexz.suppress L 17 None z in
       Printf.printf "z2= %s\n" (iz2s z2)
     | _ -> failwith "should be NL 14"
 
 let t_suppress2 () = 
   let z = Loc ((7,["d", 8]),[]) in
-  let nb = Index.indexz_neighbours z in
+  let nb = Indexz.neighbours z in
   match nb with 
     | NL 7 ->
-      let z2 = Index.indexz_suppress L 17 None z in
+      let z2 = Indexz.suppress L 17 None z in
       Printf.printf "index = %s\n" (iz2s z2)
     | _ -> failwith "should be NL 7"
 
 let t_suppress3 () = 
   let z = Loc ((0,["m", 1; "g", 2]),["t", 3]) in
-  let r = indexz_suppress L 4 (Some "q") z in
+  let r = Indexz.suppress L 4 (Some "q") z in
   let () = Printf.printf "r = %s\n" (iz2s r) in
   let e = Loc ((0,["g",4]),["q",3]) in
   OUnit.assert_equal ~printer:iz2s e r;
   ()
 let t_suppress4() = 
   let z =  Loc ((78, [("key_12", 79)]), [("key_16", 95)]) in
-  let r = indexz_suppress L 98 (Some "key_15") z in
+  let r = Indexz.suppress L 98 (Some "key_15") z in
   let e = Top (98, ["key_15", 95]) in
   OUnit.assert_equal ~printer:iz2s e r
 
 let t_balance() =
   let d = 2 in
   let z = Loc ((7,["q", 22; "j", 21; "d", 14]),[]) in
-  let z' = Index.indexz_balance d z in
+  let z' = Indexz.balance d z in
   match z' with
     | Loc ((_,l),r) -> let ls = List.length l in
 		       let rs = List.length r in
@@ -80,7 +81,7 @@ let t_balance() =
 let t_balance2 () =
   let d = 2 in
   let z = Top (0,["d", 1; "j", 2; "q", 3]) in
-  let z' = Index.indexz_balance d z in
+  let z' = Indexz.balance d z in
   match z' with
     | Loc ((_,l),r) -> let ls = List.length l in
 		       let rs = List.length r in
@@ -95,7 +96,7 @@ let t_split () =
   and rpos = 22
   and z = Loc ((7, [("j", 18); ("d", 14)]), [])
   in
-  let left,sep', right = indexz_split d lpos sep rpos z in
+  let left,sep', right = Indexz.split d lpos sep rpos z in
   OUnit.assert_equal ~printer:index2s (7, ["d",14]) left
 
 let t_split2() = 
@@ -104,14 +105,14 @@ let t_split2() =
   and sep = "j"
   and rpos = 22 
   and z = Loc ((7, [("d", 18)]), [("q", 15)]) in
-  let left,sep',right = indexz_split d lpos sep rpos z in
+  let left,sep',right = Indexz.split d lpos sep rpos z in
   let printer = index2s in
   OUnit.assert_equal ~printer (7,["d",21]) left;
   OUnit.assert_equal ~printer (22,["q",15]) right
 
 let t_replace () = 
   let z = Loc ((7, [("d", 14)]), [("m", 15)]) in
-  let index = Index.indexz_replace 18 z in
+  let index = Indexz.replace 18 z in
   OUnit.assert_equal ~printer:index2s index (7,("d",18) :: ("m",15)::[])
 
 (*

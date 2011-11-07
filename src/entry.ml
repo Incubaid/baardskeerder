@@ -21,6 +21,8 @@
 open Base
 open Leaf
 open Index
+open Indexz
+
 type entry = 
   | NIL
   | Value of v

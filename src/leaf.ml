@@ -51,7 +51,7 @@ let leaf_borrow_right left right = match right with
 let leaf_borrow_left left right = let rev = List.rev left in
   match rev with
     | [] -> failwith "leaf_borrow_left"
-    | ((k0,p0) as h0) :: ((k1,p1) as h1) :: t -> 
+    | h0 :: ((k1,_) as h1) :: t -> 
       let right' = h0 :: right in
       let left' = List.rev (h1 :: t) in
       left' , k1, right'
@@ -59,7 +59,7 @@ let leaf_borrow_left left right = let rev = List.rev left in
 let rec leaf_max_key = function
   | [] -> failwith "empty"
   | [k,_] -> k
-  | h :: t -> leaf_max_key t
+  | _ :: t -> leaf_max_key t
 
 let leaf_min_key = function
   | [] -> failwith "empty"
@@ -71,7 +71,7 @@ let leaf_merge left right =
   leaf, Some m
 
 let leafz_delete = function
-  | c,h:: t -> let leaf = ((List.rev c) @ t) in
+  | c,_:: t -> let leaf = ((List.rev c) @ t) in
 	       let sep_c = 
 		 if t = [] 
 		 then 
@@ -99,7 +99,7 @@ let leafz_right (c,t) =
 
 let leafz_close (c,t) = (List.rev c) @ t
 
-let leafz_balance d ((c,t) as z) = 
+let leafz_balance d ((c,_) as z) = 
   let ls = List.length  c in
   let n,move = 
     if ls > d 
@@ -123,7 +123,7 @@ let leafz_split d k pos (c,t) =
 
 let leaf_find_set leaf k = 
   let rec loop z = match z with
-    | c, ((k0,p0) as h) :: t when k0 < k -> loop (h::c, t)
+    | c, ((k0,_) as h) :: t when k0 < k -> loop (h::c, t)
     | c, (k0,_ ) :: t when k0 = k -> c,t 
     | z -> z
   in
