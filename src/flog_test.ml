@@ -292,7 +292,7 @@ let test_compaction_lengthy _ db =
 
   do_compact ()
 
-let test_compaction_all_states _ db =
+let test_compaction_all_states m c _ db =
   let rec insert_loop = function
     | 0 -> ()
     | n ->
@@ -304,7 +304,7 @@ let test_compaction_all_states _ db =
         insert_loop (pred n)
   in
 
-  insert_loop 1000;
+  insert_loop c;
 
   let rec test_loop t =
     let rec check_deleted n = function
@@ -329,7 +329,7 @@ let test_compaction_all_states _ db =
     function
       | 0 -> ()
       | n ->
-          Flog.compact db;
+          Flog.compact ~min_blocks:m db;
           let key = Printf.sprintf "key_%d" n in
           FDB.delete db key;
           check_deleted n t;
@@ -337,13 +337,16 @@ let test_compaction_all_states _ db =
           test_loop t (pred n)
   in
 
-  test_loop 1000 1000
+  test_loop c c
 
 let compaction =
   "compaction" >::: [
     "basic" >:: with_database test_compaction_basic;
     "lengthy" >:: with_database test_compaction_lengthy;
-    "all_states" >:: with_database test_compaction_all_states;
+    "all_states_1_block" >:: with_database (test_compaction_all_states 1 1000);
+    "all_states_0_blocks" >:: with_database (test_compaction_all_states 0 100);
+    "all_states_64_blocks" >::
+      with_database (test_compaction_all_states 64 1000);
   ]
 
 let suite =

@@ -607,7 +607,7 @@ let rec compact' =
   in
 
   (* do_punch implementation, optimized for blocksize 4096 *)
-  let do_punch_4096 f s = function
+  let do_punch_4096 f m s = function
     | 0 -> ()
     | n ->
         let align_up n = if n mod 4096 = 0 then n else ((n / 4096) + 1) * 4096
@@ -618,9 +618,9 @@ let rec compact' =
 
         let n' = o2 - o1 in
 
-        if n' <= 0 then () else punch f o1 n'
+        if n' <= 0 || (n' / 4096 < m) then () else punch f o1 n'
 
-  and do_punch_generic b f s = function
+  and do_punch_generic b f m s = function
     | 0 -> ()
     | n ->
         let align_up n = if n mod b = 0 then n else ((n / b) + 1) * b
@@ -631,10 +631,14 @@ let rec compact' =
 
         let n' = o2 - o1 in
 
-        if n' <= 0 then () else punch f o1 n'
+        if n' <= 0 || (n' / b < m) then () else punch f o1 n'
+
+  and do_punch_always f _ s = function
+    | 0 -> ()
+    | n -> punch f s n
   in
 
-  fun l b s ->
+  fun l mb b s ->
 
   let os = s.cs_entries
   and n = s.cs_offset in
@@ -645,8 +649,10 @@ let rec compact' =
   let e = read l h' in
 
   let do_punch =
-    let b' = b / 2 in
-    if b' = 4096 then do_punch_4096 else do_punch_generic b'
+    if mb = 0 then do_punch_always
+    else
+      let b' = b / 2 in
+      if b' = 4096 then do_punch_4096 else do_punch_generic b'
   in
 
   let (e', os'') = match e with
@@ -661,14 +667,14 @@ let rec compact' =
     | NIL -> failwith "Flog.compact': NIL entry"
   in
 
-  do_punch l.fd_random e' (n - e');
+  do_punch l.fd_random mb e' (n - e');
 
   if OffsetSet.is_empty os''
-  then do_punch l.fd_random b (h' - b)
-  else compact' l b { cs_offset=h'; cs_entries=os''; }
+  then do_punch l.fd_random mb b (h' - b)
+  else compact' l mb b { cs_offset=h'; cs_entries=os''; }
 
 
-let compact t =
+let compact ?min_blocks:(mb=0) t =
   sync t;
 
   let md = (if t.last_metadata = 0 then fst else snd) t.metadata in
@@ -679,7 +685,7 @@ let compact t =
 
   match (read t o) with
     | Commit r ->
-        compact' t b' { cs_offset=o; cs_entries=OffsetSet.singleton r; }
+        compact' t mb b' { cs_offset=o; cs_entries=OffsetSet.singleton r; }
     | NIL ->
         failwith "Flog.compact: the impossible happened: NIL"
     | Leaf _ | Value _ | Index _ ->

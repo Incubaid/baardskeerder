@@ -24,7 +24,7 @@ val create : string -> unit
 val make : string -> t
 val close : t -> unit
 val sync : t -> unit
-val compact : t -> unit
+val compact : ?min_blocks:int -> t -> unit
 
 val clear : t -> unit
 
