@@ -83,12 +83,12 @@ let () =
   in
   let () = Flog.create !fn in
   let db = Flog.make !fn in
-  let () = Printf.printf "\n%i iterations\nvalue size=%i\n%!" !n !vs in
+  let () = Printf.printf "\niterations = %i\nvalue_size = %i\n%!" !n !vs in
   let d = clock (fun () -> set_loop db !vs !n) in
-  Printf.printf "%i sets of (%i bytes) took:%fs\n%!" !n !vs d;
+  Printf.printf "%i sets: %fs\n%!" !n d;
   let d2 = clock (fun () -> get_loop db !n) in
-  Printf.printf "%i gets took:%fs\n%!" !n d2;
+  Printf.printf "%i gets: %fs\n%!" !n d2;
   let d3 = clock (fun () -> delete_loop db !n) in
-  Printf.printf "%i deletes took:%fs\n%!" !n d3;
+  Printf.printf "%i deletes: %fs\n%!" !n d3;
   let () = Flog.close db in
   ();;
