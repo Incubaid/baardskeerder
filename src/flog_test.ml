@@ -245,22 +245,43 @@ let database =
     "sync" >:: with_database test_database_sync;
   ]
 
+let dump_fiemap f =
+  let fd = openfile f [O_RDONLY] 0o644 in
+  let m = Posix.ioctl_fiemap fd in
+
+  Printf.printf "\n";
+  Printf.printf "Mappings for %s:\n" f;
+  Printf.printf
+    "#   Logical          Physical         Length           Flags\n";
+  Printf.printf
+    "------------------------------------------------------------\n";
+  let rec loop i = function
+    | [] -> ()
+    | (m :: ms) ->
+        let (l, p, s, f) = m in
+        Printf.printf "%02d: %-16.16Lx %-16.16Lx %-16.16Lx %-4.4lx\n"
+          i l p s f;
+        loop (i + 1) ms
+  in
+  loop 0 m
 
 let test_compaction_basic fn db =
   let kps = [("foo", "bar"); ("baz", "bat"); ("foo", "bal")] in
 
   List.iter (fun (k, v) -> FDB.set db k v) kps;
 
-  Flog.compact db;
+  Flog.compact ~min_blocks:1 db;
 
   close db;
 
   let db' = make fn in
   let id x = x in
   OUnit.assert_equal ~printer:id (FDB.get db' "foo") "bal";
-  close db'
+  close db';
 
-let test_compaction_lengthy _ db =
+  dump_fiemap fn
+
+let test_compaction_lengthy fn db =
   let rec loop = function
     | 0 -> ()
     | n ->
@@ -275,7 +296,7 @@ let test_compaction_lengthy _ db =
   loop 1000;
 
   let do_compact () =
-    Flog.compact db
+    Flog.compact ~min_blocks:1 db
   in
 
   do_compact ();
@@ -290,9 +311,11 @@ let test_compaction_lengthy _ db =
 
   loop2 1000;
 
-  do_compact ()
+  do_compact ();
 
-let test_compaction_all_states m c _ db =
+  dump_fiemap fn
+
+let test_compaction_all_states m c fn db =
   let rec insert_loop = function
     | 0 -> ()
     | n ->
@@ -337,7 +360,9 @@ let test_compaction_all_states m c _ db =
           test_loop t (pred n)
   in
 
-  test_loop c c
+  test_loop c c;
+
+  dump_fiemap fn
 
 let compaction =
   "compaction" >::: [
