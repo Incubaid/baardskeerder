@@ -468,7 +468,7 @@ module DB = functor (L:LOG ) -> struct
 		then loop (count + 1) t
 		else count
 	      else
-		count
+		loop count t
 	    end
 	  else count
       in

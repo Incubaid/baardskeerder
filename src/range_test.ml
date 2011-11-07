@@ -21,11 +21,31 @@ open Tree
 open OUnit
 module MDB = DB(Mlog)
 
-let range_0 () = 
-  let log = Mlog.make () in
-  List.iter (fun k -> MDB.set log k (String.uppercase k)) ["a";"b";"c";"d";"e";"f";"g"] ;
-  let r0 = MDB.range log None true None true None in
-  let printer r = Pretty.string_of_list (fun s -> s) r in
-  OUnit.assert_equal ~printer ["a";"b";"c";"d";"e";"f";"g"] r0;;
+let printer r = Pretty.string_of_list (fun s -> s) r
 
-let suite = "Range" >::: ["range_0" >:: range_0]
+let setup () = 
+  let log = Mlog.make () in
+  List.iter (fun k -> MDB.set log k (String.uppercase k)) ["a";"b";"c";"d";"e";"f";"g"];
+  log
+  
+let teardown _ = ()
+
+let range_all log = 
+  let r = MDB.range log None true None true None in
+  OUnit.assert_equal ~printer ["a";"b";"c";"d";"e";"f";"g"] r;;
+
+let range_some log = 
+    let r = MDB.range log None true None true (Some 5) in
+  OUnit.assert_equal ~printer ["a";"b";"c";"d";"e"] r
+
+let range_first log = 
+  let r = MDB.range log (Some "b") true None true None in
+  OUnit.assert_equal ~printer ["b";"c";"d";"e";"f";"g"] r
+
+let wrap t = OUnit.bracket setup t teardown
+
+let suite = "Range" >::: [
+  "range_all" >:: wrap range_all;
+  "range_some" >:: wrap range_some;
+  "range_first" >:: wrap range_first;
+]
