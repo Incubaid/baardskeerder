@@ -53,8 +53,6 @@ void _bs_posix_pread_into_exactly(value fd, value buf, value count,
 
         ssize_t r = 0;
 
-        char iobuf[UNIX_BUFFER_SIZE];
-
         Begin_root(buf);
 
           c_fd = Int_val(fd);
@@ -62,13 +60,8 @@ void _bs_posix_pread_into_exactly(value fd, value buf, value count,
           c_offset = Long_val(offset);
 
           while(read < c_count) {
-                  enter_blocking_section();
-                    r = pread(c_fd, iobuf,
-                            UNIX_BUFFER_SIZE < c_count - read ?
-                                    UNIX_BUFFER_SIZE :
-                                    c_count - read,
-                            c_offset + read);
-                  leave_blocking_section();
+                  r = pread(c_fd, &Byte(buf, read), c_count - read,
+                          c_offset + read);
 
                   if(r == 0) {
                           caml_raise_end_of_file();
@@ -77,8 +70,6 @@ void _bs_posix_pread_into_exactly(value fd, value buf, value count,
                   if(r < 0) {
                           uerror("pread", Nothing);
                   }
-
-                  memmove(&Byte(buf, read), iobuf, r);
 
                   read += r;
           }
