@@ -601,7 +601,6 @@ let rec compact' =
     let fl = ks lor ph in
 
     fun fd o l ->
-      Printf.fprintf Pervasives.stderr "Punch! %d %d\n%!" o l;
       if l = 0 then () else (Posix.fallocate fd fl o l)
 
   in
