@@ -50,3 +50,7 @@ external posix_fadvise: Unix.file_descr -> int -> int -> posix_fadv -> unit
 (* stat blksize *)
 external fstat_blksize: Unix.file_descr -> int
     = "_bs_posix_fstat_blksize"
+
+(* fiemap ioctl *)
+external ioctl_fiemap: Unix.file_descr -> (int64 * int64 * int64 * int32) list
+    = "_bs_posix_ioctl_fiemap"

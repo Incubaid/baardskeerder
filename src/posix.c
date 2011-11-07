@@ -27,8 +27,11 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 
 #include <linux/falloc.h>
+#include <linux/fs.h>
+#include <linux/fiemap.h>
 
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
@@ -36,7 +39,6 @@
 #include <caml/fail.h>
 #include <caml/unixsupport.h>
 #include <caml/signals.h>
-
 
 void _bs_posix_pread_into_exactly(value fd, value buf, value count,
         value offset) {
@@ -230,4 +232,71 @@ CAMLprim value _bs_posix_fstat_blksize(value fd) {
         }
 
         return Val_int(buf.st_blksize);
+}
+
+
+CAMLprim value _bs_posix_ioctl_fiemap(value fd) {
+        int c_fd = -1, i = 0;
+        unsigned int size = 0;
+        struct fiemap fiemap, *fiemap2 = NULL;
+        struct fiemap_extent *extent = NULL;
+
+        CAMLparam1(fd);
+        CAMLlocal3(ret, item, cell);
+
+        c_fd = Int_val(fd);
+
+        memset(&fiemap, 0, sizeof(struct fiemap));
+
+        fiemap.fm_start = 0;
+        fiemap.fm_length = ~0;
+        fiemap.fm_flags = FIEMAP_FLAG_SYNC;
+        fiemap.fm_extent_count = 0;
+        fiemap.fm_mapped_extents = 0;
+
+        if(ioctl(c_fd, FS_IOC_FIEMAP, &fiemap) < 0) {
+                uerror("ioctl", Nothing);
+        }
+
+        size = sizeof(struct fiemap) +
+                sizeof(struct fiemap_extent) * (fiemap.fm_mapped_extents);
+        fiemap2 = (struct fiemap *)malloc(size);
+        if(fiemap2 == NULL) {
+                uerror("malloc", Nothing);
+        }
+
+        memset(fiemap2, 0, size);
+        fiemap2->fm_start = 0;
+        fiemap2->fm_length = ~0;
+        fiemap2->fm_flags = FIEMAP_FLAG_SYNC;
+        fiemap2->fm_extent_count = fiemap.fm_mapped_extents;
+        fiemap2->fm_mapped_extents = 0;
+
+        if(ioctl(c_fd, FS_IOC_FIEMAP, fiemap2) < 0) {
+                free(fiemap2);
+
+                uerror("ioctl", Nothing);
+        }
+
+        ret = Val_emptylist;
+
+        for(i = fiemap2->fm_mapped_extents - 1; i >= 0; i--) {
+                item = caml_alloc_tuple(4);
+                extent = &fiemap2->fm_extents[i];
+
+                Store_field(item, 0, caml_copy_int64(extent->fe_logical));
+                Store_field(item, 1, caml_copy_int64(extent->fe_physical));
+                Store_field(item, 2, caml_copy_int64(extent->fe_length));
+                Store_field(item, 3, caml_copy_int32(extent->fe_flags));
+
+                cell = caml_alloc_small(2, Tag_cons);
+                Store_field(cell, 0, item);
+                Store_field(cell, 1, ret);
+
+                ret = cell;
+        }
+
+        free(fiemap2);
+
+        CAMLreturn(ret);
 }
