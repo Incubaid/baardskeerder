@@ -35,12 +35,17 @@ let range_all log =
   OUnit.assert_equal ~printer ["a";"b";"c";"d";"e";"f";"g"] r;;
 
 let range_some log = 
-  let r = MDB.range log None true None true (Some 5) in
+    let r = MDB.range log None true None true (Some 5) in
   OUnit.assert_equal ~printer ["a";"b";"c";"d";"e"] r
+
+let range_first log = 
+  let r = MDB.range log (Some "b") true None true None in
+  OUnit.assert_equal ~printer ["b";"c";"d";"e";"f";"g"] r
 
 let wrap t = OUnit.bracket setup t teardown
 
 let suite = "Range" >::: [
   "range_all" >:: wrap range_all;
   "range_some" >:: wrap range_some;
+  "range_first" >:: wrap range_first;
 ]
