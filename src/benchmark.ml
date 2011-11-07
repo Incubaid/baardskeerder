@@ -36,7 +36,7 @@ let set_loop db vs n =
   let set k v = FDB.set db k v in
   let rec loop i = 
     if i = n 
-    then ()
+    then Flog.sync db
     else
       let key = make_key i in
       let () = set key v in
@@ -60,7 +60,7 @@ let delete_loop db n =
   let delete k = FDB.delete db k in
   let rec loop i = 
     if i = n 
-    then ()
+    then Flog.sync db
     else
       let key = make_key i in
       let () = delete key in
