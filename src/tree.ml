@@ -427,7 +427,7 @@ module DB = functor (L:LOG ) -> struct
   let _range t 
       (first: k option) finc 
       (last: k option) linc 
-      max f = 
+      (max: int option) f = 
     let root = L.root t in
     let t_left k = match first with
       | None -> true
@@ -441,6 +441,10 @@ module DB = functor (L:LOG ) -> struct
     and ti_right k = match last with
       | None -> true
       | Some k_l -> k <= k_l
+    and t_max count = match
+	max with
+	  | None -> true
+	  | Some m -> count < m
     in
     let rec walk count pos = 
       let e = L.read t pos in
@@ -454,7 +458,7 @@ module DB = functor (L:LOG ) -> struct
       let rec loop count = function
 	| [] -> count
 	| (k,_) :: t -> 
-	  if count < max 
+	  if t_max count 
 	  then 
 	    begin 
 	      if t_left k 
@@ -474,8 +478,9 @@ module DB = functor (L:LOG ) -> struct
 	| [] -> walk count p
 	| (k,pk) :: t when ti_left k -> 
 	  begin
-	    if count < max 
-	    then loop count pk t
+	    if t_max count 
+	    then let count' = walk count p in
+		 loop count' pk t
 	    else count
 	  end
 	| (k,pk) :: t -> 
@@ -483,7 +488,7 @@ module DB = functor (L:LOG ) -> struct
 	    if ti_right k 
 	    then 
 	      let count' = walk count p in
-	      if ti_right k && count' < max 
+	      if ti_right k && t_max count' 
 	      then loop count' pk t 
 	      else count'
 	    else
@@ -495,7 +500,7 @@ module DB = functor (L:LOG ) -> struct
     walk 0 root
   
 
-  let range (t:L.t) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int) = 
+  let range (t:L.t) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int option) = 
     let acc = ref [] in
     let f k = acc := k :: !acc in
     let _ = _range t first finc last linc max f in

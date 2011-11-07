@@ -30,6 +30,7 @@ let suite =
       Tree_test.suite;
       Flog_test.suite;
       Dbx_test.suite;
+      Range_test.suite;
     ]
 
 

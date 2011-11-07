@@ -128,7 +128,10 @@ let find_problem () =
   in
   loop 1;;
 
-test 156 t0;;
+
+List.iter (fun k -> MDB.set t0 k (String.uppercase k)) ["a";"b";"c";"d";"e";"f";"g"] ;;
+
+let r = MDB.range t0 None true None true None;;
 (* test 20 t0;; *)
 (*
 test 156 t0;; 

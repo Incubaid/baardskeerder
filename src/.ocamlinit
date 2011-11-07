@@ -2,7 +2,9 @@
 # load "pretty.cmo";;
 # load "base.cmo";;
 # load "leaf.cmo";;
+# load "leafz.cmo";;
 # load "index.cmo";;
+# load "indexz.cmo";;
 # load "entry.cmo";;
 # load "log.cmo";;
 # load "mlog.cmo";;
