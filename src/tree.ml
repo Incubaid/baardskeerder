@@ -463,9 +463,10 @@ module DB = functor (L:LOG ) -> struct
 	    begin 
 	      if t_left k 
 	      then 
-		let () = f k in
 		if t_right k 
-		then loop (count + 1) t
+		then 
+		  let () = f k in
+		  loop (count + 1) t
 		else count
 	      else
 		loop count t
@@ -480,7 +481,9 @@ module DB = functor (L:LOG ) -> struct
 	  begin
 	    if t_max count 
 	    then let count' = walk count p in
-		 loop count' pk t
+		 if ti_right k 
+		 then loop count' pk t
+		 else count'
 	    else count
 	  end
 	| (k,pk) :: t -> 
