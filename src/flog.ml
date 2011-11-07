@@ -226,7 +226,7 @@ let find_commit f o =
 
 let extend_file =
   let ks = Posix.fallocate_FALLOC_FL_KEEP_SIZE ()
-  and extent = 1024 * 512 (* 512 MB *) in
+  and extent = 1024 * 1024 * 512 (* 512 MB *) in
 
   fun fd offset ->
     Posix.fallocate fd ks offset extent;
