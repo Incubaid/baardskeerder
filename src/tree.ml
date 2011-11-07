@@ -423,7 +423,88 @@ module DB = functor (L:LOG ) -> struct
     let () = _delete t slab k in
     L.write t slab
 
-  let range (t:L.t) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int) = failwith "todo"
+
+  let _range t 
+      (first: k option) finc 
+      (last: k option) linc 
+      (max: int option) f = 
+    let root = L.root t in
+    let t_left k = match first with
+      | None -> true
+      | Some k_f -> if finc then k_f <= k else k_f < k 
+    and t_right k = match last with
+      | None -> true
+      | Some k_l -> if linc then k <= k_l else k < k_l 
+    and ti_left k = match first with
+      | None -> true
+      | Some k_f -> k_f <= k
+    and ti_right k = match last with
+      | None -> true
+      | Some k_l -> k <= k_l
+    and t_max count = match
+	max with
+	  | None -> true
+	  | Some m -> count < m
+    in
+    let rec walk count pos = 
+      let e = L.read t pos in
+      match e with
+	| NIL     -> count
+	| Value _ -> count
+	| Leaf leaf -> walk_leaf count leaf
+	| Index index -> walk_index count index
+	| Commit pos -> walk count pos
+    and walk_leaf count leaf = 
+      let rec loop count = function
+	| [] -> count
+	| (k,_) :: t -> 
+	  if t_max count 
+	  then 
+	    begin 
+	      if t_left k 
+	      then 
+		let () = f k in
+		if t_right k 
+		then loop (count + 1) t
+		else count
+	      else
+		count
+	    end
+	  else count
+      in
+      loop count leaf
+    and walk_index count (p,kps) = 
+      let rec loop count p  = function
+	| [] -> walk count p
+	| (k,pk) :: t when ti_left k -> 
+	  begin
+	    if t_max count 
+	    then let count' = walk count p in
+		 loop count' pk t
+	    else count
+	  end
+	| (k,pk) :: t -> 
+	  begin
+	    if ti_right k 
+	    then 
+	      let count' = walk count p in
+	      if ti_right k && t_max count' 
+	      then loop count' pk t 
+	      else count'
+	    else
+	      count
+	  end
+      in
+      loop count p kps
+    in
+    walk 0 root
+  
+
+  let range (t:L.t) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int option) = 
+    let acc = ref [] in
+    let f k = acc := k :: !acc in
+    let _ = _range t first finc last linc max f in
+    List.rev !acc
     
 end 
 

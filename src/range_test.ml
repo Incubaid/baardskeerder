@@ -17,21 +17,15 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+open Tree
 open OUnit
-open Dbx
-module MDBX = DBX(Mlog)
+module MDB = DB(Mlog)
 
+let range_0 () = 
+  let log = Mlog.make () in
+  List.iter (fun k -> MDB.set log k (String.uppercase k)) ["a";"b";"c";"d";"e";"f";"g"] ;
+  let r0 = MDB.range log None true None true None in
+  let printer r = Pretty.string_of_list (fun s -> s) r in
+  OUnit.assert_equal ~printer ["a";"b";"c";"d";"e";"f";"g"] r0;;
 
-let get_after_delete () = 
-  let mlog = Mlog.make () in
-  let () = MDBX.with_tx mlog (fun tx -> MDBX.set tx "a" "A") in
-  let test tx = 
-    MDBX.delete tx "a";
-    let _ = MDBX.get tx "a" in
-    ()
-  in
-  OUnit.assert_raises (Base.NOT_FOUND "a") (fun () -> MDBX.with_tx mlog test)
-
-
-
-let suite = "DBX" >::: ["get_after_delete" >:: get_after_delete]
+let suite = "Range" >::: ["range_0" >:: range_0]
