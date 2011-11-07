@@ -292,10 +292,58 @@ let test_compaction_lengthy _ db =
 
   do_compact ()
 
+let test_compaction_all_states _ db =
+  let rec insert_loop = function
+    | 0 -> ()
+    | n ->
+        let key = Printf.sprintf "key_%d" n
+        and value = Printf.sprintf "value_%d" n in
+
+        FDB.set db key value;
+
+        insert_loop (pred n)
+  in
+
+  insert_loop 1000;
+
+  let rec test_loop t =
+    let rec check_deleted n = function
+      | i when i = (n - 1) -> ()
+      | i ->
+          let key = Printf.sprintf "key_%d" i in
+          OUnit.assert_raises (Base.NOT_FOUND key) (fun () -> FDB.get db key);
+          check_deleted n (pred i)
+    in
+
+    let rec check_existing = function
+      | 0 -> ()
+      | i ->
+          let key = Printf.sprintf "key_%d" i
+          and value = Printf.sprintf "value_%d" i in
+
+          OUnit.assert_equal value (FDB.get db key);
+
+          check_existing (pred i)
+    in
+
+    function
+      | 0 -> ()
+      | n ->
+          Flog.compact db;
+          let key = Printf.sprintf "key_%d" n in
+          FDB.delete db key;
+          check_deleted n t;
+          check_existing (pred n);
+          test_loop t (pred n)
+  in
+
+  test_loop 1000 1000
+
 let compaction =
   "compaction" >::: [
     "basic" >:: with_database test_compaction_basic;
     "lengthy" >:: with_database test_compaction_lengthy;
+    "all_states" >:: with_database test_compaction_all_states;
   ]
 
 let suite =
