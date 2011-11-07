@@ -20,26 +20,15 @@
 open Base
 
 type leaf = kp list
-type leaf_z = leaf * leaf
+
 
 let leaf2s l = kpl2s l
 
-let lz2s (c,t) = Printf.sprintf "(%s,%s)" (leaf2s c) (leaf2s t)
 
-let leaf_find_delete leaf k = 
-  let rec loop z = match z with
-    | _, [] -> None
-    | _, (k0,_)   :: _    when k < k0 ->  None
-    | _, (k0,p0)  :: _    when k = k0 ->  Some (p0, z)
-    | c, h :: t -> loop (h::c,t)
-  in
-  loop ([],leaf)
+
 
 let leaf_min d t = List.length t = d
 let leaf_mergeable d t = List.length t <= d
-
-
-
   
 
 let leaf_borrow_right left right = match right with
@@ -70,56 +59,6 @@ let leaf_merge left right =
   let m = leaf_max_key leaf in
   leaf, Some m
 
-let leafz_delete = function
-  | c,_:: t -> let leaf = ((List.rev c) @ t) in
-	       let sep_c = 
-		 if t = [] 
-		 then 
-		   match c with
-		     | [] -> None
-		     | (k,_) :: _ -> Some k
-		 else None
-
-	       in leaf, sep_c 
-  | _ -> failwith "leafz_delete"
-
-let leafz_max d (c,t) = List.length c + List.length t = 2 * d - 1
-let leafz_min d (c,t) = List.length c + List.length t = d
-
-
-let leafz_left (c,t) = 
-  match t with 
-  | h :: t' -> (h::c, t') 
-  | _ -> failwith "left?"
-
-let leafz_right (c,t) = 
-  match c with
-  | h :: c' -> c', (h:: t)
-  | _ -> failwith "right?"
-
-let leafz_close (c,t) = (List.rev c) @ t
-
-let leafz_balance d ((c,_) as z) = 
-  let ls = List.length  c in
-  let n,move = 
-    if ls > d 
-    then
-      ls - d, leafz_right
-    else
-      d - ls, leafz_left
-  in
-  let rec loop z = function
-    | 0 -> z
-    | i -> loop (move z) (i-1)
-  in
-  loop z n
-
-
-let leafz_split d k pos (c,t) = 
-  let l,r = leafz_balance d (c, (k,pos)::t) in
-  let lift = List.hd l in
-  List.rev l, lift, r
-
 
 let leaf_find_set leaf k = 
   let rec loop z = match z with
@@ -129,4 +68,4 @@ let leaf_find_set leaf k =
   in
   loop ([],leaf)
 
-let leafz_insert k p (c,t) = (List.rev c) @ (k,p) :: t
+

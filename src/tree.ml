@@ -84,15 +84,15 @@ module DB = functor (L:LOG ) -> struct
 	      let _    = add_leaf  slab [k,vpos] in
 	      ()
       | Leaf_down z :: rest -> 
-	if leafz_max d z 
+	if Leafz.max d z 
 	then 
-	  let left, (sep,_) , right = leafz_split d k start z in
+	  let left, (sep,_) , right = Leafz.split d k start z in
 	  let _    = add_value slab v     in
 	  let lpos = add_leaf  slab left  in
 	  let rpos = add_leaf  slab right in
 	  set_overflow slab lpos sep rpos rest
 	else
-	  let l = leafz_insert k start z in
+	  let l = Leafz.insert k start z in
 	  let _    = add_value slab v    in
 	  let lpos = add_leaf  slab l    in
 	  set_rest slab lpos rest 
@@ -138,7 +138,7 @@ module DB = functor (L:LOG ) -> struct
 	| Leaf l -> descend_leaf trail l
 	| Index i -> descend_index trail i
     and descend_leaf trail leaf = 
-      match leaf_find_delete leaf k with
+      match Leafz.find_delete leaf k with
 	| None -> raise (NOT_FOUND k)
 	| Some (p,z) -> 
 	  let step = Leaf_down z in 
@@ -152,13 +152,13 @@ module DB = functor (L:LOG ) -> struct
       match trail with
       | [] -> failwith "corrupt" 
       | [Leaf_down z ]-> 
-	let leaf', _ = leafz_delete z in
+	let leaf', _ = Leafz.delete z in
 	let _ = add_leaf slab leaf' in ()
       | Leaf_down z :: rest ->
-	if leafz_min d z 
+	if Leafz.min d z 
 	then leaf_underflow slab z rest
 	else 
-	  let leaf',lr = leafz_delete z in
+	  let leaf',lr = Leafz.delete z in
 	  let lpos = add_leaf slab leaf' in
 	  assert (lpos = start);
 	  delete_rest slab start lr rest
@@ -188,7 +188,7 @@ module DB = functor (L:LOG ) -> struct
     and leaf_underflow slab leafz rest = 
       match rest with 
 	| [] -> 
-	  let leaf',_ = leafz_delete leafz in
+	  let leaf',_ = Leafz.delete leafz in
 	  let _ = add_leaf slab leaf' in ()
 	| Index_down z :: rest -> 
 	  begin
@@ -206,7 +206,7 @@ module DB = functor (L:LOG ) -> struct
 		  if leaf_min d right
 		  then 
 		    begin
-		      let left, _  = leafz_delete leafz in
+		      let left, _  = Leafz.delete leafz in
 		      let h,sep_c  =  leaf_merge left right in
 		      let hpos = add_leaf slab h in
 		      let z' = Indexz.suppress Indexz.R hpos sep_c z in
@@ -216,7 +216,7 @@ module DB = functor (L:LOG ) -> struct
 		    end
 		  else (* borrow from right *)
 		    begin
-		      let left, _ = leafz_delete leafz in
+		      let left, _ = Leafz.delete leafz in
 		      let left', _, right' = leaf_borrow_right left right in
 		      let sep_c = leaf_min_key right in
 		      let lpos = add_leaf slab left' in
@@ -231,7 +231,7 @@ module DB = functor (L:LOG ) -> struct
 		  if leaf_min d left 
 		  then
 		    begin
-		      let right, _ = leafz_delete leafz in
+		      let right, _ = Leafz.delete leafz in
 		      let h, sep_c = leaf_merge left right  in
 		      let hpos = add_leaf slab h in
 		      let z' = Indexz.suppress Indexz.L hpos sep_c z in
@@ -240,7 +240,7 @@ module DB = functor (L:LOG ) -> struct
 		    end
 		  else (* borrow from left *)
 		    begin
-		      let right, sep_c = leafz_delete leafz in
+		      let right, sep_c = Leafz.delete leafz in
 		      let left', sep', right' = leaf_borrow_left left right in
 		      let lpos = add_leaf slab left' in
 		      let rpos = add_leaf slab right' in
@@ -254,7 +254,7 @@ module DB = functor (L:LOG ) -> struct
 		  match (leaf_mergeable d left, leaf_mergeable d right) with
 		    | true,_ ->
 		      begin
-			let right, _ = leafz_delete leafz in
+			let right, _ = Leafz.delete leafz in
 			let h, lr = leaf_merge left right in
 			let hpos = add_leaf slab h in
 			let z' = Indexz.suppress Indexz.L hpos lr z in 
@@ -269,7 +269,7 @@ module DB = functor (L:LOG ) -> struct
 		      end
 		    | _, true ->
 		      begin
-			let left,_ = leafz_delete leafz in
+			let left,_ = Leafz.delete leafz in
 			let h,sep_c = leaf_merge left right in
 			let hpos = add_leaf slab h in
 			let z' = Indexz.suppress Indexz.R hpos sep_c z in
@@ -285,7 +285,7 @@ module DB = functor (L:LOG ) -> struct
 		      end
 		    | _,_ -> (* borrow from left *)
 		      begin
-			let right, sep_c = leafz_delete leafz in
+			let right, sep_c = Leafz.delete leafz in
 			let left', sep', right' = leaf_borrow_left left right in
 			let lpos = add_leaf slab left' in
 			let rpos = add_leaf slab right' in

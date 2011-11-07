@@ -22,6 +22,7 @@ open Base
 open Leaf
 open Index
 open Indexz
+open Leafz
 
 type entry = 
   | NIL
