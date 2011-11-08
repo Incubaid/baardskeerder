@@ -1,0 +1,28 @@
+{
+    "codespeed": {
+        "url": "http://codespeed.company.tld",
+
+        "environment": "superspeedy",
+        "project": "baardskeerder",
+        "branch": "default"
+    },
+
+    "executables": [
+        "/path/to/benchmark.native",
+        "/path/to/bs_bench.native"
+    ],
+
+    "benchmarks": [
+        [1000000, 1024],
+        [1000000, 2048],
+        [1000000, 4096],
+        [1000000, 8192],
+        [1000000, 12288],
+        [1000000, 16384]
+    ],
+
+    "storage": {
+        "base": "/mnt",
+        "subdir": "baardskeerder_bench"
+    }
+}
