@@ -23,7 +23,7 @@ module type LOG = sig
   type t
   type slab
   val write : t -> slab -> unit 
-  val root  : t -> pos
+  val last  : t -> pos
   val next  : t -> pos
   val read  : t -> pos -> entry
   val make_slab : t -> slab

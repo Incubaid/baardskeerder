@@ -30,7 +30,7 @@ val clear : t -> unit
 
 val read : t -> int -> Entry.entry
 val next : t -> int
-val root : t -> int
+val last : t -> int
 
 val write : t -> slab -> unit
 

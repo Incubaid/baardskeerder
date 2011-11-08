@@ -54,7 +54,7 @@ module Dot = functor (L:LOG) -> struct
 	  Printf.fprintf f "\tnode%i:<%i> -> node%i\n" pos p0 p0;
 	  List.iter (fun (_, p) -> Printf.fprintf f "\tnode%i:<%i> -> node%i;\n" pos p p) kps
     in
-    walk (L.root log);
+    walk (L.last log);
     Printf.fprintf f "}\n"
 
 

@@ -41,7 +41,7 @@ type t = {
   fd_append: file_descr;
   fd_random: file_descr;
   mutable offset: offset;
-  mutable root_offset: offset;
+  mutable last_offset: offset;
   mutable commit_offset: offset;
   mutable closed: bool;
 
@@ -283,29 +283,13 @@ let make (f: string): t =
     else md2.md_offset
   in
   let s = if s = 0 then (2 * bs) else s in
-  let co = find_commit fd_in s in
-
-  let root =
-    if co = 0 then 0
-    else begin
-      let s = String.create 9 in
-      pread_into_exactly fd_in s 9 co;
-      assert (read_uint32 s 0 = marker);
-      let l = (read_uint32 s 4) - 1 in
-      assert (read_char8 s 8 = commit_tag);
-      let s = String.create l in
-      pread_into_exactly fd_in s l (co + 9);
-      match deserialize_commit s 0 with
-        | Commit root -> root
-        | Value _ | Index _ | Leaf _ | NIL -> invalid_arg "Flog.make.root"
-      end
-  in
+  let last = find_commit fd_in s in
 
   (* TODO Choose correct last_metadata *)
   (* TODO Write 'best' metadata into both blocks *)
 
   { fd_in=fd_in; fd_append=fd_append; fd_random=fd_random; offset=offset;
-    commit_offset=co; root_offset=root; closed=false;
+    commit_offset=last; last_offset=last; closed=false;
     last_metadata=0; metadata=(md1, md2); space_left=extent }
 
 let close db =
@@ -473,36 +457,26 @@ let write t slab =
 
     safe_write t.fd_append marker' 0 4;
     safe_write t.fd_append s 0 sl;
-    t.root_offset <- t.offset;
+    t.last_offset <- t.offset;
     update_offset (sl + 4);
     t.space_left <- t.space_left - (sl + 4)
   in
 
-  let write_slab = function
-    | NIL -> failwith "Flog.write: NIL entry"
-    | Commit _ -> failwith "Flog.write: Commit entry"
-    | Value _ as v ->
-        let s = serialize_value v in
-        do_write s
-        (* TODO Assert offset is actually what was calculated *)
-    | Leaf l ->
-        let s = serialize_leaf l in
-        do_write s
-    | Index i ->
-        let s = serialize_index i in
-        do_write s
+  let write_entry e = 
+    let s =
+      match e with
+	| NIL -> failwith "Flog.write: NIL entry"
+	| Commit _ as c -> serialize_commit c 
+	| Value _ as v  -> serialize_value v 
+	| Leaf l        -> serialize_leaf l 
+	| Index i       -> serialize_index i 
+    in
+    do_write s
   in
-  List.iter write_slab (List.rev slab.entries);
+  List.iter write_entry (List.rev slab.entries)
 
-  let ro = t.root_offset in
-  let s = serialize_commit (Commit ro) in
-  let sl = String.length s in
-  safe_write t.fd_append marker' 0 4;
-  safe_write t.fd_append s 0 sl;
-  update_offset (sl + 4);
-  t.commit_offset <- t.offset - sl - 4
 
-let root t = t.root_offset
+let last t = t.last_offset
 let next t = t.offset
 let read t pos =
   if pos = 0 then NIL
