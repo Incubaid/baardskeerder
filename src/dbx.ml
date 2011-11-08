@@ -20,12 +20,15 @@
 open Base
 open Tree
 open Log
+open Entry
 
 module DBX(L:LOG) = struct
 
   type tx = { log: L.t; 
 	      slab: L.slab; 
-	      info: (k,v option) Hashtbl.t}
+	      info: (k,v option) Hashtbl.t;
+	      mutable last:pos
+	    }
 
   module DBL = DB(L)
 
@@ -39,17 +42,24 @@ module DBX(L:LOG) = struct
 
   let set tx k v = 
     Hashtbl.replace tx.info k (Some v);
-    DBL._set tx.log tx.slab k v
+    let last' = DBL._set tx.log tx.slab k v in
+    let () = tx.last <- last' in
+    ()
       
   let delete tx k = 
     Hashtbl.replace tx.info k None;
-    DBL._delete tx.log tx.slab k
+    let last' = DBL._delete tx.log tx.slab k in
+    let () = tx.last <- last' in
+    ()
 
   let with_tx log f = 
     let slab = L.make_slab log in
     let info = Hashtbl.create 127 in
-    let tx = {log;slab;info} in
+    let last = L.last log in
+    let tx = {log;slab;info;last} in
     let () = f tx in
+    let c = Commit tx.last in
+    let _ = L.add tx.slab c in
     L.write log tx.slab
 
 end

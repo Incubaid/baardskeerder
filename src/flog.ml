@@ -41,7 +41,7 @@ type t = {
   fd_append: file_descr;
   fd_random: file_descr;
   mutable offset: offset;
-  mutable root_offset: offset;
+  mutable last_offset: offset;
   mutable commit_offset: offset;
   mutable closed: bool;
 
@@ -165,24 +165,20 @@ let create (f: string) =
 
   close fd
 
-let calculate_size_commit = function
-  | Commit _ -> size_uint32 + size_uint8 + size_uint64 + size_crc32
-  | Value _ | Leaf _ | Index _ | NIL -> invalid_arg "Flog.calculate_size_commit"
-let serialize_commit = function
-  | Commit o as c ->
-      let l = calculate_size_commit c in
+let calculate_size_commit _ = size_uint32 + size_uint8 + size_uint64 + size_crc32
 
-      let s = String.create l in
+let serialize_commit o = 
+  let l = calculate_size_commit o in
 
-      write_uint32 (l - 4) s 0;
-      write_char8 commit_tag s size_uint32;
-      write_uint64 o s (size_uint32 + size_uint8);
+  let s = String.create l in
+  
+  write_uint32 (l - 4) s 0;
+  write_char8 commit_tag s size_uint32;
+  write_uint64 o s (size_uint32 + size_uint8);
 
-      let crc = crc32 s 0 (size_uint32 + size_uint8 + size_uint64) in
-      write_crc32 crc s (size_uint32 + size_uint8 + size_uint64);
-
-      s
-  | Value _ | Leaf _ | Index _ | NIL -> invalid_arg "Flog.serialize_commit"
+  let crc = crc32 s 0 (size_uint32 + size_uint8 + size_uint64) in
+  write_crc32 crc s (size_uint32 + size_uint8 + size_uint64);
+  s
 
 and deserialize_commit s o =
   Commit (read_uint64 s o)
@@ -283,29 +279,13 @@ let make (f: string): t =
     else md2.md_offset
   in
   let s = if s = 0 then (2 * bs) else s in
-  let co = find_commit fd_in s in
-
-  let root =
-    if co = 0 then 0
-    else begin
-      let s = String.create 9 in
-      pread_into_exactly fd_in s 9 co;
-      assert (read_uint32 s 0 = marker);
-      let l = (read_uint32 s 4) - 1 in
-      assert (read_char8 s 8 = commit_tag);
-      let s = String.create l in
-      pread_into_exactly fd_in s l (co + 9);
-      match deserialize_commit s 0 with
-        | Commit root -> root
-        | Value _ | Index _ | Leaf _ | NIL -> invalid_arg "Flog.make.root"
-      end
-  in
+  let last = find_commit fd_in s in
 
   (* TODO Choose correct last_metadata *)
   (* TODO Write 'best' metadata into both blocks *)
 
   { fd_in=fd_in; fd_append=fd_append; fd_random=fd_random; offset=offset;
-    commit_offset=co; root_offset=root; closed=false;
+    commit_offset=last; last_offset=last; closed=false;
     last_metadata=0; metadata=(md1, md2); space_left=extent }
 
 let close db =
@@ -432,26 +412,23 @@ let deserialize_index s o =
   Index (p, loop [] (o + 10) count)
 
 
-let calculate_size_value = function
-  | Value v ->
-      size_uint32 + size_uint8 + size_uint8 + String.length v + size_crc32
-  | Leaf _ | Commit _ | Index _ | NIL -> invalid_arg "Flog.calculate_size_value"
-let serialize_value = function
-  | Value v as v' ->
-      let l = calculate_size_value v' in
-      let s = String.create l in
-      let sl = String.length v in
+let calculate_size_value v = size_uint32 + size_uint8 + size_uint8 + String.length v + size_crc32
 
-      write_uint32 (l - 4) s 0;
-      write_char8 value_tag s size_uint32;
-      write_uint8 0 s (size_uint32 + size_uint8);
-      String.blit v 0 s (size_uint32 + size_uint8 + size_uint8) sl;
 
-      let crc = crc32 s 0 (l - 4) in
-      write_crc32 crc s (size_uint32 + size_uint8 + size_uint8 + sl);
+let serialize_value v = 
+  let l = calculate_size_value v in
+  let s = String.create l in
+  let sl = String.length v in
+  
+  write_uint32 (l - 4) s 0;
+  write_char8 value_tag s size_uint32;
+  write_uint8 0 s (size_uint32 + size_uint8);
+  String.blit v 0 s (size_uint32 + size_uint8 + size_uint8) sl;
+  
+  let crc = crc32 s 0 (l - 4) in
+  write_crc32 crc s (size_uint32 + size_uint8 + size_uint8 + sl);
+  s
 
-      s
-  | Leaf _ | Commit _ | Index _ | NIL -> invalid_arg "Flog.serialize_value"
 
 and deserialize_value s o =
   let options = read_uint8 s o in
@@ -473,36 +450,24 @@ let write t slab =
 
     safe_write t.fd_append marker' 0 4;
     safe_write t.fd_append s 0 sl;
-    t.root_offset <- t.offset;
+    t.last_offset <- t.offset;
     update_offset (sl + 4);
     t.space_left <- t.space_left - (sl + 4)
   in
 
-  let write_slab = function
+  let write_entry = function
     | NIL -> failwith "Flog.write: NIL entry"
-    | Commit _ -> failwith "Flog.write: Commit entry"
-    | Value _ as v ->
-        let s = serialize_value v in
-        do_write s
-        (* TODO Assert offset is actually what was calculated *)
-    | Leaf l ->
-        let s = serialize_leaf l in
-        do_write s
-    | Index i ->
-        let s = serialize_index i in
-        do_write s
+    | Commit o -> 
+      let s = serialize_commit o in do_write s; 
+      t.commit_offset <- t.last_offset 
+    | Value v       -> let s = serialize_value v  in do_write s
+    | Leaf l        -> let s = serialize_leaf l   in do_write s
+    | Index i       -> let s = serialize_index i  in do_write s
   in
-  List.iter write_slab (List.rev slab.entries);
+  List.iter write_entry (List.rev slab.entries)
 
-  let ro = t.root_offset in
-  let s = serialize_commit (Commit ro) in
-  let sl = String.length s in
-  safe_write t.fd_append marker' 0 4;
-  safe_write t.fd_append s 0 sl;
-  update_offset (sl + 4);
-  t.commit_offset <- t.offset - sl - 4
 
-let root t = t.root_offset
+let last t = t.last_offset
 let next t = t.offset
 let read t pos =
   if pos = 0 then NIL
@@ -561,8 +526,8 @@ let sync t =
 
 (* TODO Don't really need to serialize! *)
 let size = function
-  | NIL -> failwith "Flog.size: NIL entry"
-  | Value _ as v -> calculate_size_value v
+  | NIL     -> failwith "Flog.size: NIL entry"
+  | Value v -> calculate_size_value v
   | Leaf l -> String.length (serialize_leaf l)
   | Index i -> String.length (serialize_index i)
   | Commit _ as c -> calculate_size_commit c
@@ -686,6 +651,6 @@ let compact ?min_blocks:(mb=0) t =
     | Commit r ->
         compact' t mb b' { cs_offset=o; cs_entries=OffsetSet.singleton r; }
     | NIL ->
-        failwith "Flog.compact: the impossible happened: NIL"
+        failwith "Flog.compact: read NIL iso commit entry"
     | Leaf _ | Value _ | Index _ ->
         invalid_arg "Flog.compact: no commit entry at given offset"

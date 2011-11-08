@@ -29,7 +29,7 @@ module MDB = DB(Mlog)
 
 type 'a q = {
   log:'a; 
-  root:  'a  -> pos;
+  last:  'a  -> pos;
   read:  'a  -> pos -> entry;
   clear: 'a  -> unit;
   set:   'a  -> k -> v -> unit;
@@ -40,7 +40,7 @@ type 'a q = {
 
 let mem_setup () =  {
   log = Mlog.make ();
-  root = Mlog.root;
+  last = Mlog.last;
   read = Mlog.read;
   clear = Mlog.clear;
   set = MDB.set;
@@ -61,9 +61,13 @@ let check q kvs =
     OUnit.assert_equal v (q.get q.log k)) kvs 
 
 let check_empty q =
-  let i = q.root q.log in
+  let i = q.last q.log in
   let n = q.read q.log i in
-  OUnit.assert_equal n (Leaf [])
+  match n with
+    | Commit pos -> 
+      let e = q.read q.log pos in
+      OUnit.assert_equal e (Leaf [])
+    | _ -> failwith "last is not a commit entry"
 
 
 let check_invariants (q: 'a q) = 
@@ -102,9 +106,14 @@ let check_invariants (q: 'a q) =
 	in
 	loop p0 kps
   in
-  let i = q.root q.log in
-  walk i
-    
+  let i = q.last q.log in
+  let n = q.read q.log i in
+  match n with
+    | Commit pos -> walk pos
+    | NIL -> () 
+    | e -> let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in 
+	   failwith s
+									
 let check_not q kvs = 
   List.iter (fun k -> OUnit.assert_raises ~msg:k (NOT_FOUND k) (fun () -> q.get q.log k)) kvs    
     

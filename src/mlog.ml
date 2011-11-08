@@ -51,7 +51,7 @@ let write t slab =
     end;
   List.iter do_one (List.rev slab._es)
     
-let root t = t.next -1
+let last t = t.next -1
 let next t = t.next
 let size (_:entry) = 1
 let read t pos = if pos < 0 then NIL else t.es.(pos)

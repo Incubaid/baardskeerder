@@ -82,7 +82,7 @@ let check_invariants t =
 	in
 	loop p0 kps
   in
-  let i = Mlog.root t in
+  let i = Mlog.last t in
   walk i;;
 
 let test max t0 =
@@ -128,10 +128,9 @@ let find_problem () =
   in
   loop 1;;
 
+List.iter (fun k -> MDB.set t0 k (String.uppercase k)) ["a";"b";"d";"j"] ;;
 
-List.iter (fun k -> MDB.set t0 k (String.uppercase k)) ["a";"b";"c";"d";"e";"f";"g"] ;;
-
-let r = MDB.range t0 None true (Some "d") true None;;
+(* let r = MDB.range t0 None true (Some "d") true None;; *)
 (* test 20 t0;; *)
 (*
 test 156 t0;; 
