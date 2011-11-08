@@ -18,20 +18,20 @@ if [ $LOCKED -eq 0 ]; then
     exit
 fi
 
-pushd ${TREE}
+pushd ${TREE} > /dev/null
 START_REV=`git show-ref ${BRANCH} | cut -d' ' -f1`
-git pull
+git pull > /dev/null
 NEW_REV=`git show-ref ${BRANCH} | cut -d' ' -f1`
-popd
+popd > /dev/null
 
 if [ x${START_REV} = x${NEW_REV} ];
 then
     exit
 fi
 
-pushd ${TREE}/src
+pushd ${TREE}/src > /dev/null
 ocamlbuild -use-ocamlfind benchmark.native
-popd
+popd > /dev/null
 
 python ${SCRIPT} ${LOCKFILE} ${CONFIG} ${NEW_REV}
 exit $?
