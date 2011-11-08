@@ -165,24 +165,20 @@ let create (f: string) =
 
   close fd
 
-let calculate_size_commit = function
-  | Commit _ -> size_uint32 + size_uint8 + size_uint64 + size_crc32
-  | Value _ | Leaf _ | Index _ | NIL -> invalid_arg "Flog.calculate_size_commit"
-let serialize_commit = function
-  | Commit o as c ->
-      let l = calculate_size_commit c in
+let calculate_size_commit _ = size_uint32 + size_uint8 + size_uint64 + size_crc32
 
-      let s = String.create l in
+let serialize_commit o = 
+  let l = calculate_size_commit o in
 
-      write_uint32 (l - 4) s 0;
-      write_char8 commit_tag s size_uint32;
-      write_uint64 o s (size_uint32 + size_uint8);
+  let s = String.create l in
+  
+  write_uint32 (l - 4) s 0;
+  write_char8 commit_tag s size_uint32;
+  write_uint64 o s (size_uint32 + size_uint8);
 
-      let crc = crc32 s 0 (size_uint32 + size_uint8 + size_uint64) in
-      write_crc32 crc s (size_uint32 + size_uint8 + size_uint64);
-
-      s
-  | Value _ | Leaf _ | Index _ | NIL -> invalid_arg "Flog.serialize_commit"
+  let crc = crc32 s 0 (size_uint32 + size_uint8 + size_uint64) in
+  write_crc32 crc s (size_uint32 + size_uint8 + size_uint64);
+  s
 
 and deserialize_commit s o =
   Commit (read_uint64 s o)
@@ -416,27 +412,23 @@ let deserialize_index s o =
   Index (p, loop [] (o + 10) count)
 
 
-let calculate_size_value = function
-  | Value v ->
-      size_uint32 + size_uint8 + size_uint8 + String.length v + size_crc32
-  | Leaf _ | Commit _ | Index _ | NIL -> invalid_arg "Flog.calculate_size_value"
+let calculate_size_value v = size_uint32 + size_uint8 + size_uint8 + String.length v + size_crc32
 
-let serialize_value = function
-  | Value v as v' ->
-      let l = calculate_size_value v' in
-      let s = String.create l in
-      let sl = String.length v in
 
-      write_uint32 (l - 4) s 0;
-      write_char8 value_tag s size_uint32;
-      write_uint8 0 s (size_uint32 + size_uint8);
-      String.blit v 0 s (size_uint32 + size_uint8 + size_uint8) sl;
+let serialize_value v = 
+  let l = calculate_size_value v in
+  let s = String.create l in
+  let sl = String.length v in
+  
+  write_uint32 (l - 4) s 0;
+  write_char8 value_tag s size_uint32;
+  write_uint8 0 s (size_uint32 + size_uint8);
+  String.blit v 0 s (size_uint32 + size_uint8 + size_uint8) sl;
+  
+  let crc = crc32 s 0 (l - 4) in
+  write_crc32 crc s (size_uint32 + size_uint8 + size_uint8 + sl);
+  s
 
-      let crc = crc32 s 0 (l - 4) in
-      write_crc32 crc s (size_uint32 + size_uint8 + size_uint8 + sl);
-
-      s
-  | Leaf _ | Commit _ | Index _ | NIL -> invalid_arg "Flog.serialize_value"
 
 and deserialize_value s o =
   let options = read_uint8 s o in
@@ -465,9 +457,10 @@ let write t slab =
 
   let write_entry = function
     | NIL -> failwith "Flog.write: NIL entry"
-    | Commit _ as c -> let s = serialize_commit c in do_write s; 
-		       t.commit_offset <- t.last_offset 
-    | Value _ as v  -> let s = serialize_value v  in do_write s
+    | Commit o -> 
+      let s = serialize_commit o in do_write s; 
+      t.commit_offset <- t.last_offset 
+    | Value v       -> let s = serialize_value v  in do_write s
     | Leaf l        -> let s = serialize_leaf l   in do_write s
     | Index i       -> let s = serialize_index i  in do_write s
   in
@@ -533,8 +526,8 @@ let sync t =
 
 (* TODO Don't really need to serialize! *)
 let size = function
-  | NIL -> failwith "Flog.size: NIL entry"
-  | Value _ as v -> calculate_size_value v
+  | NIL     -> failwith "Flog.size: NIL entry"
+  | Value v -> calculate_size_value v
   | Leaf l -> String.length (serialize_leaf l)
   | Index i -> String.length (serialize_index i)
   | Commit _ as c -> calculate_size_commit c
