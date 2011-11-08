@@ -53,28 +53,24 @@ void _bs_posix_pread_into_exactly(value fd, value buf, value count,
 
         ssize_t r = 0;
 
-        Begin_root(buf);
+        c_fd = Int_val(fd);
+        c_count = Long_val(count);
+        c_offset = Long_val(offset);
 
-          c_fd = Int_val(fd);
-          c_count = Long_val(count);
-          c_offset = Long_val(offset);
+        while(read < c_count) {
+                r = pread(c_fd, &Byte(buf, read), c_count - read,
+                        c_offset + read);
 
-          while(read < c_count) {
-                  r = pread(c_fd, &Byte(buf, read), c_count - read,
-                          c_offset + read);
+                if(r == 0) {
+                        caml_raise_end_of_file();
+                }
 
-                  if(r == 0) {
-                          caml_raise_end_of_file();
-                  }
+                if(r < 0) {
+                        uerror("pread", Nothing);
+                }
 
-                  if(r < 0) {
-                          uerror("pread", Nothing);
-                  }
-
-                  read += r;
-          }
-
-        End_roots();
+                read += r;
+        }
 
         CAMLreturn0;
 }
