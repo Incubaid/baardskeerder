@@ -420,6 +420,7 @@ let calculate_size_value = function
   | Value v ->
       size_uint32 + size_uint8 + size_uint8 + String.length v + size_crc32
   | Leaf _ | Commit _ | Index _ | NIL -> invalid_arg "Flog.calculate_size_value"
+
 let serialize_value = function
   | Value v as v' ->
       let l = calculate_size_value v' in
@@ -462,16 +463,13 @@ let write t slab =
     t.space_left <- t.space_left - (sl + 4)
   in
 
-  let write_entry e = 
-    let s =
-      match e with
-	| NIL -> failwith "Flog.write: NIL entry"
-	| Commit _ as c -> serialize_commit c 
-	| Value _ as v  -> serialize_value v 
-	| Leaf l        -> serialize_leaf l 
-	| Index i       -> serialize_index i 
-    in
-    do_write s
+  let write_entry = function
+    | NIL -> failwith "Flog.write: NIL entry"
+    | Commit _ as c -> let s = serialize_commit c in do_write s; 
+		       t.commit_offset <- t.last_offset 
+    | Value _ as v  -> let s = serialize_value v  in do_write s
+    | Leaf l        -> let s = serialize_leaf l   in do_write s
+    | Index i       -> let s = serialize_index i  in do_write s
   in
   List.iter write_entry (List.rev slab.entries)
 
@@ -660,6 +658,6 @@ let compact ?min_blocks:(mb=0) t =
     | Commit r ->
         compact' t mb b' { cs_offset=o; cs_entries=OffsetSet.singleton r; }
     | NIL ->
-        failwith "Flog.compact: the impossible happened: NIL"
+        failwith "Flog.compact: read NIL iso commit entry"
     | Leaf _ | Value _ | Index _ ->
         invalid_arg "Flog.compact: no commit entry at given offset"
