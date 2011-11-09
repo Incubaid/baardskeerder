@@ -26,17 +26,18 @@ let clock f =
   let () = f() in
   let t1 = Unix.gettimeofday () in
   t1 -. t0
+module MyLog = Flog
 
-module FDB = DB(Flog)
+module MyDB = DB(MyLog)
 
 let make_key i = Printf.sprintf "key_%08i" i 
 
 let set_loop db vs n = 
   let v = String.make vs 'x' in
-  let set k v = FDB.set db k v in
+  let set k v = MyDB.set db k v in
   let rec loop i = 
     if i = n 
-    then Flog.sync db
+    then MyLog.sync db
     else
       let key = make_key i in
       let () = set key v in
@@ -45,7 +46,7 @@ let set_loop db vs n =
   loop 0
 
 let get_loop db n = 
-  let get k = FDB.get db k in
+  let get k = MyDB.get db k in
   let rec loop i =
     if i = n 
     then ()
@@ -57,10 +58,10 @@ let get_loop db n =
   loop 0
 
 let delete_loop db n = 
-  let delete k = FDB.delete db k in
+  let delete k = MyDB.delete db k in
   let rec loop i = 
     if i = n 
-    then Flog.sync db
+    then MyLog.sync db
     else
       let key = make_key i in
       let () = delete key in
@@ -81,8 +82,8 @@ let () =
       (fun _ ->()) 
       "simple baardskeerder benchmark"
   in
-  let () = Flog.create !fn in
-  let db = Flog.make !fn in
+  let () = MyLog.create !fn in 
+  let db = MyLog.make !fn in
   let () = Printf.printf "\niterations = %i\nvalue_size = %i\n%!" !n !vs in
   let d = clock (fun () -> set_loop db !vs !n) in
   Printf.printf "%i sets: %fs\n%!" !n d;
@@ -90,5 +91,5 @@ let () =
   Printf.printf "%i gets: %fs\n%!" !n d2;
   let d3 = clock (fun () -> delete_loop db !n) in
   Printf.printf "%i deletes: %fs\n%!" !n d3;
-  let () = Flog.close db in
+  let () = MyLog.close db in
   ();;

@@ -26,9 +26,9 @@ let leaf2s l = kpl2s l
 
 
 
-
-let leaf_min d t = List.length t = d
-let leaf_mergeable d t = List.length t <= d
+let length t = List.length t
+let leaf_min d t = length t = d
+let leaf_mergeable d t = length t <= d
   
 
 let leaf_borrow_right left right = match right with

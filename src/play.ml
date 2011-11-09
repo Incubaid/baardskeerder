@@ -23,8 +23,10 @@ open Entry
 open Mlog
 
 module MDB = DB(Mlog);;
-
 module MDot = Dot(Mlog);; 
+module FDB = DB(Flog2);;
+
+
 
 let t0 = Mlog.make ();;
 let kvs_x = 
