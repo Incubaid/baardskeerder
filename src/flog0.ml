@@ -152,7 +152,7 @@ let list_to b e_to list =
   
 
 
-let _MARKER_SIZE = 128
+let _METADATA_SIZE = 4096
 type marker = {commit : pos }
 
 let _seek fd pos = let _ = Unix.lseek fd pos Unix.SEEK_SET in ()
@@ -160,7 +160,7 @@ let _seek fd pos = let _ = Unix.lseek fd pos Unix.SEEK_SET in ()
 let _write_marker fd marker = 
   let b = Buffer.create 128 in
   let () = pos_to b marker.commit in
-  let block = String.create _MARKER_SIZE in
+  let block = String.create _METADATA_SIZE in
   
   let () = Buffer.blit b 0 block 0 (Buffer.length b) in
   _seek fd 0;
@@ -168,7 +168,7 @@ let _write_marker fd marker =
 
 let _read_marker fd = 
   _seek fd 0;
-  let m = _really_read fd _MARKER_SIZE in
+  let m = _really_read fd _METADATA_SIZE in
   let input = make_input m 0 in
   let commit = input_pos input in
   {commit}
@@ -195,7 +195,7 @@ let clear t =
   let marker = {commit } in
   _write_marker t.fd marker;
   t.last  <- commit;
-  t.next <- _MARKER_SIZE
+  t.next <- _METADATA_SIZE
 
 type slab = { b: Buffer.t; 
 	      mutable cp : pos;
@@ -337,7 +337,7 @@ let read t pos =
     end
 
 let dump t = 
-  _seek t.fd _MARKER_SIZE;
+  _seek t.fd _METADATA_SIZE;
   let rec loop pos= 
     let ls = _really_read t.fd 4 in
     let l = size_from ls 0 in
@@ -347,7 +347,7 @@ let dump t =
     let pos' = pos + 4 + String.length es in
     loop pos'
   in
-  loop _MARKER_SIZE
+  loop _METADATA_SIZE
 
 let create (_:string) = ()
 let sync t = Posix.fsync t.fd
@@ -359,7 +359,7 @@ let make filename =
   if len = 0 
   then
     let commit = 0 in
-    let next = _MARKER_SIZE in
+    let next = _METADATA_SIZE in
     let () = _write_marker fd {commit} in   
     { fd; last = commit ; next}
   else
