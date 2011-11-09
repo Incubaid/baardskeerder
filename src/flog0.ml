@@ -358,13 +358,11 @@ let make filename =
   let len = stat.st_size in
   if len = 0 
   then
-    let () = Printf.printf "empty\n%!" in
     let commit = 0 in
     let next = _MARKER_SIZE in
     let () = _write_marker fd {commit} in   
     { fd; last = commit ; next}
   else
-    let () = Printf.printf "non-empty\n%!" in
     let m = _read_marker fd in
     let last = m.commit in
     let s = _read_entry_s fd in
