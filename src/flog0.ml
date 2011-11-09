@@ -350,7 +350,7 @@ let dump t =
   loop _MARKER_SIZE
 
 let create (_:string) = ()
-let sync _ = ()
+let sync t = Posix.fsync t.fd
 
 let make filename = 
   let fd = openfile filename [O_CREAT;O_RDWR;] 0o640 in

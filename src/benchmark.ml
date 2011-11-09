@@ -26,7 +26,7 @@ let clock f =
   let () = f() in
   let t1 = Unix.gettimeofday () in
   t1 -. t0
-module MyLog = Flog
+module MyLog = Flog0 (* HERE *)
 
 module MyDB = DB(MyLog)
 
