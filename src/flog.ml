@@ -165,7 +165,7 @@ let create (f: string) =
 
   close fd
 
-let calculate_size_commit _ = size_uint32 + size_uint8 + size_uint64 + size_crc32
+let calculate_size_commit (_:int) = size_uint32 + size_uint8 + size_uint64 + size_crc32
 
 let serialize_commit o = 
   let l = calculate_size_commit o in
@@ -530,7 +530,7 @@ let size = function
   | Value v -> calculate_size_value v
   | Leaf l -> String.length (serialize_leaf l)
   | Index i -> String.length (serialize_index i)
-  | Commit _ as c -> calculate_size_commit c
+  | Commit o -> calculate_size_commit o
 
 let make_slab t = { entries=[]; pos=next t }
 let add s e =
