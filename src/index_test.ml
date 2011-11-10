@@ -67,28 +67,6 @@ let t_suppress4() =
   let e = Top (98, ["key_15", 95]) in
   OUnit.assert_equal ~printer:iz2s e r
 
-let t_balance() =
-  let d = 2 in
-  let z = Loc ((7,["q", 22; "j", 21; "d", 14]),[]) in
-  let z' = Indexz.balance d z in
-  match z' with
-    | Loc ((_,l),r) -> let ls = List.length l in
-		       let rs = List.length r in
-		       OUnit.assert_equal ~printer:string_of_int ls 2;
-		       OUnit.assert_equal ~printer:string_of_int rs 1
-    | _ -> failwith "should be Loc"
-
-let t_balance2 () =
-  let d = 2 in
-  let z = Top (0,["d", 1; "j", 2; "q", 3]) in
-  let z' = Indexz.balance d z in
-  match z' with
-    | Loc ((_,l),r) -> let ls = List.length l in
-		       let rs = List.length r in
-		       OUnit.assert_equal ~printer:string_of_int ls 2;
-		       OUnit.assert_equal ~printer:string_of_int rs 1
-    | _ -> failwith "should be Loc"
-
 let t_split () = 
   let d = 2 
   and lpos = 21
@@ -144,8 +122,6 @@ let suite =
     "suppress2"  >:: t_suppress2;
     "suppress3"  >:: t_suppress3;
     "suppress4"  >:: t_suppress4;
-    "balance"    >:: t_balance;
-    "balance2"   >:: t_balance2;
     "split"      >:: t_split;
     "split2"     >:: t_split2;
     "replace"    >:: t_replace;

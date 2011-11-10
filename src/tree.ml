@@ -27,7 +27,7 @@ open Leaf
 open Index
 
 module DB = functor (L:LOG ) -> struct
-  let d = 4
+  let d = 2
 
   let get (t:L.t) k = 
     let rec descend_last pos = 

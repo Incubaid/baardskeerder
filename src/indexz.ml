@@ -66,7 +66,7 @@ let max d z =
     | Top (_,kps) -> List.length kps
     | Loc ((_,c),t) -> List.length c + List.length t 
   in
-  z_size = d  
+  z_size = 2 * d - 2
   
 let borrowed_right lpos sep rpos = function
   | Top (_, _::t) -> Top (lpos,(sep,rpos) ::t)
@@ -183,7 +183,7 @@ let balance d z =
       in 
       if cs > rs 
       then indexz_left, (cs - d)
-      else indexz_right,  (d -1 - rs)
+      else indexz_right,  (d - cs)
   in
   let rec loop z = function
     | 0 -> z

@@ -24,7 +24,6 @@ open Mlog
 
 module MDB = DB(Mlog);;
 module MDot = Dot(Mlog);; 
-module FDB = DB(Flog2);;
 
 
 
@@ -66,6 +65,7 @@ let check_invariants t =
   let rec walk i = 
     let n = Mlog.read t i in
     match n with
+      | Commit p -> walk p
       | NIL -> ()
       | Leaf leaf -> () (* Printf.printf "leaf=%s\n" (Leaf.leaf2s leaf) *)
       | Index index ->
@@ -94,7 +94,7 @@ let test max t0 =
     | n ->
       let k = Printf.sprintf "key_%d" n
       and v = Printf.sprintf "value_%d" n in
-      (* Printf.printf "Set %s\n%!" k;  *)
+      Printf.printf "Set %s\n%!" k; 
       MDB.set t0 k v;
       loop1 (pred n)
   in
@@ -112,9 +112,9 @@ let test max t0 =
 	(* let () = Mlog.dump t0 in *)
 	()
       else ();
-      (* Printf.printf "going to delete %s\n%!" k; *)
+      Printf.printf "going to delete %s\n%!" k;
       MDB.delete t0 k;
-      (* Printf.printf "deleted %s\n%!" k; *)
+      Printf.printf "deleted %s\n%!" k;
       check_invariants t0; 
       loop2 (pred n)
   in
@@ -130,75 +130,5 @@ let find_problem () =
   in
   loop 1;;
 
-List.iter (fun k -> MDB.set t0 k (String.uppercase k)) ["a";"b";"d";"j"] ;;
+test 109 t0;;
 
-(* let r = MDB.range t0 None true (Some "d") true None;; *)
-(* test 20 t0;; *)
-(*
-test 156 t0;; 
-*)
-(* find_problem () *)
-
-  
-(*
-
-*)
-
-(*
-List.iter (fun k -> MDB.set t0 k (String.uppercase k)) ["a"; "b"; "c"; "j"; "m"; "q"; "d"; "t"; "w"; "g"; "z"];;
-MDot.view_tree t0;;
-MDB.delete t0 "a";;
-MDot.view_tree t0;;
-*)
-(*
-  MDot.view_tree t0;;
-  MDB.delete t0 "b";;
-*)
-(*
-  MDot.view_tree t0;;
-  MDB.delete t0 "d";;
-  MDot.view_tree t0;;
-*)
-
-(*
-let () = List.iter 
-  (fun k -> 
-    let v = String.uppercase k in
-    let () = MDB.set t0 k v in
-    let _ = MDot.view_tree t0 in 
-    ()
-  ) kvs;;
-*)
-(*
-let check () = List.iter (fun (k,v) -> assert (MDB.get t0 k =v)) kvs;;
-let () = check ();;*)
-(* MDB.set t0 "m" "M";; *)
-
-(*
-MDB.delete t0 "a";;
-MDot.view_tree t0;;
-*)
-(* MDB.delete t0 "t";; *)
-
-(* MDB.delete t0 "w";;
-   MDot.view_tree t0;; *)
-(* let _  = MDot.view_tree t0;; *)
-(* let () = MDB.delete t0 "q";; *)
-
-
-(*
-let () = 
-  let t1 = Mlog.make 40 in
-  let kvs = ["z","Z";
-	     "w","W"; 
-	     "t","T";  
-	     "q","Q"; 
-	    ] ;
-  in
-  List.iter (fun (k,v) -> MDB.set t1 k v ) kvs;
-  Mlog.dump t1;
-  let _ = MDot.view_tree t1 in
-  MDB.set t1 "m" "M";
-  let _ = MDot.view_tree t1 in 
-  ();;
-*)

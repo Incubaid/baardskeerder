@@ -27,6 +27,7 @@ open Index
 let suite = 
   "correctness" >::: 
     [ Index_test.suite;
+      Indexz_test.suite;
       Tree_test.suite;
       Flog_test.suite;
       Dbx_test.suite;
