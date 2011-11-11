@@ -34,6 +34,6 @@ module type LOG = sig
   val add : slab -> entry -> pos
   val clear: t -> unit
   val get_d: t -> int
-  val dump: ?out:out_channel -> t -> unit
+  val dump: ?out:Pervasives.out_channel -> t -> unit
   val string_of_slab : slab -> string
 end

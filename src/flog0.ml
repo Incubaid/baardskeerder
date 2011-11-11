@@ -346,16 +346,16 @@ let read t pos =
       inflate_entry es
     end
 
-let dump t = 
+let dump ?(out=Pervasives.stdout) (t:t) = 
   _seek t.fd 0 ;
   let m = _read_metadata t.fd in
-  Printf.printf "meta: %s\n" (metadata2s m);
+  Printf.fprintf out "meta: %s\n" (metadata2s m);
   let rec loop pos= 
     let ls = _really_read t.fd 4 in
     let l = size_from ls 0 in
     let es = _really_read t.fd l in
     let e = inflate_entry es in
-    let () = Printf.printf "%4i : %s\n%!" pos (Entry.entry2s e)  in
+    let () = Printf.fprintf out "%4i : %s\n%!" pos (Entry.entry2s e)  in
     let pos' = pos + 4 + String.length es in
     loop pos'
   in
