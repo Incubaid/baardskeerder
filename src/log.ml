@@ -22,12 +22,18 @@ open Base
 module type LOG = sig
   type t
   type slab
+  val init: ?d:int -> string  -> unit
   val write : t -> slab -> unit 
   val last  : t -> pos
   val next  : t -> pos
   val read  : t -> pos -> entry
+  val sync  : t -> unit
+  val make  : string -> t
+  val close : t -> unit
   val make_slab : t -> slab
   val add : slab -> entry -> pos
   val clear: t -> unit
+  val get_d: t -> int
+  val dump: ?out:out_channel -> t -> unit
   val string_of_slab : slab -> string
 end

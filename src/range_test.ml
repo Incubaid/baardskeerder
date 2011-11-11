@@ -24,7 +24,7 @@ module MDB = DB(Mlog)
 let printer r = Pretty.string_of_list (fun s -> s) r
 
 let setup () = 
-  let log = Mlog.make () in
+  let log = Mlog.make "mlog" in
   List.iter (fun k -> MDB.set log k (String.uppercase k)) ["a";"b";"c";"d";"e";"f";"g"];
   log
   

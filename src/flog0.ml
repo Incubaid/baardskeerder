@@ -153,29 +153,38 @@ let list_to b e_to list =
 
 
 let _METADATA_SIZE = 4096
-type marker = {commit : pos }
+type metadata = {commit : pos; 
+		 branch: int }
+
+let metadata2s m = Printf.sprintf "{commit=%i;branch=%i}" m.commit m.branch
 
 let _seek fd pos = let _ = Unix.lseek fd pos Unix.SEEK_SET in ()
 
-let _write_marker fd marker = 
+let _write_metadata fd m = 
   let b = Buffer.create 128 in
-  let () = pos_to b marker.commit in
+  let () = pos_to b m.commit in
+  let () = pos_to b m.branch in
   let block = String.create _METADATA_SIZE in
   
   let () = Buffer.blit b 0 block 0 (Buffer.length b) in
   _seek fd 0;
   _really_write fd block
 
-let _read_marker fd = 
+let _read_metadata fd = 
   _seek fd 0;
   let m = _really_read fd _METADATA_SIZE in
   let input = make_input m 0 in
   let commit = input_pos input in
-  {commit}
+  let branch = input_pos input in
+  {commit; branch}
 
 type t = { fd : file_descr; 
 	   mutable last: pos; 
-	   mutable next:pos }
+	   mutable next:pos;
+	   mutable d: pos;
+	 }
+
+let get_d t = t.d
 
 let t2s t = Printf.sprintf "{...;last=%i; next=%i}" t.last t.next
 
@@ -185,15 +194,16 @@ let last t = t.last
 
 
 let close t = 
-  let () = Printf.printf "close\n%!" in
-  let marker = {commit = t.last} in
-  let () = _write_marker t.fd marker in
+  let meta = {commit = t.last; branch = t.d} in
+  let () = _write_metadata t.fd meta in
   Unix.close t.fd
 
 let clear t = 
   let commit = 0 in
-  let marker = {commit } in
-  _write_marker t.fd marker;
+  let meta = {commit;
+	      branch = t.d } 
+  in
+  _write_metadata t.fd meta;
   t.last  <- commit;
   t.next <- _METADATA_SIZE
 
@@ -337,7 +347,9 @@ let read t pos =
     end
 
 let dump t = 
-  _seek t.fd _METADATA_SIZE;
+  _seek t.fd 0 ;
+  let m = _read_metadata t.fd in
+  Printf.printf "meta: %s\n" (metadata2s m);
   let rec loop pos= 
     let ls = _really_read t.fd 4 in
     let l = size_from ls 0 in
@@ -349,22 +361,32 @@ let dump t =
   in
   loop _METADATA_SIZE
 
-let create (_:string) = ()
+let init ?(d=4) fn = 
+  let fd = openfile fn [O_CREAT;O_WRONLY;] 0o640 in
+  let stat = fstat fd in
+  let len = stat.st_size in
+  if len = 0 then
+    let commit = 0 in
+    let () = _write_metadata fd {commit;branch = d} in   
+    let () = Unix.close fd in
+    ()
+  else
+    let () = Unix.close fd in
+    let s = Printf.sprintf "%s already exists" fn in
+    failwith s
+      
 let sync t = Posix.fsync t.fd
 
 let make filename = 
-  let fd = openfile filename [O_CREAT;O_RDWR;] 0o640 in
-  let stat = fstat fd in
-  let len = stat.st_size in
-  if len = 0 
-  then
-    let commit = 0 in
-    let next = _METADATA_SIZE in
-    let () = _write_marker fd {commit} in   
-    { fd; last = commit ; next}
-  else
-    let m = _read_marker fd in
-    let last = m.commit in
-    let s = _read_entry_s fd in
-    let next = last + 4 + String.length s in
-    {fd ; last; next}
+  let fd = openfile filename [O_RDWR] 0o640 in
+  let m = _read_metadata fd in
+  let last = m.commit in
+  let d = m.branch in
+  let next = 
+    if last = 0 
+    then _METADATA_SIZE 
+    else 
+      let s = _read_entry_s fd in
+      last + 4 + String.length s 
+  in
+  {fd ; last; next; d}

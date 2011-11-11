@@ -27,7 +27,6 @@ open Leaf
 open Index
 
 module DB = functor (L:LOG ) -> struct
-  let d = 2
 
   let get (t:L.t) k = 
     let rec descend_last pos = 
@@ -66,6 +65,7 @@ module DB = functor (L:LOG ) -> struct
   let _add_commit s p = L.add s (Commit p)
 
   let _set (t:L.t) slab k v = 
+    let d = L.get_d t in
     let rec descend_last () = 
       let pos = L.last t in
       let e = L.read t pos in
@@ -142,6 +142,7 @@ module DB = functor (L:LOG ) -> struct
     L.write t slab
 
   let _delete (t:L.t) slab k = 
+    let d = L.get_d t in
     let rec descend_last () = 
       let lp = L.last t in
       let e = L.read t lp in

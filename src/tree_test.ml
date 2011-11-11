@@ -39,7 +39,7 @@ type 'a q = {
 }
 
 let mem_setup () =  {
-  log = Mlog.make ();
+  log = Mlog.make "bla";
   last = Mlog.last;
   read = Mlog.read;
   clear = Mlog.clear;

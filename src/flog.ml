@@ -34,12 +34,14 @@ type metadata = {
   md_spindle: spindle;
   md_offset: offset;
   md_count: count;
+  md_d : int;
 }
 
 type t = {
   fd_in: file_descr;
   fd_append: file_descr;
   fd_random: file_descr;
+  d : int;
   mutable offset: offset;
   mutable last_offset: offset;
   mutable commit_offset: offset;
@@ -104,10 +106,11 @@ let serialize_metadata md =
   write_uint8 md.md_spindle s (pl + 5);
   write_uint64 md.md_offset s (pl + 6);
   write_uint32 md.md_count s (pl + 14);
-  String.blit metadata_suffix 0 s (pl + 18) sl;
+  write_uint32 md.md_d s (pl + 18);
+  String.blit metadata_suffix 0 s (pl + 22) sl;
 
-  let crc = crc32 s 0 (pl + 18 + sl) in
-  write_crc32 crc s (pl + 18 + sl);
+  let crc = crc32 s 0 (pl + 22 + sl) in
+  write_crc32 crc s (pl + 22 + sl);
 
   (s, md.md_blocksize)
 
@@ -128,17 +131,18 @@ and deserialize_metadata s =
   let sp = read_uint8 s (pl + 5)
   and o = read_uint64 s (pl + 6)
   and c = read_uint32 s (pl + 14)
-  and p2 = String.sub s (pl + 18) sl in
+  and d = read_uint32 s (pl + 18)
+  and p2 = String.sub s (pl + 22) sl in
 
   assert (p2 = metadata_suffix);
 
-  let crc = read_crc32 s (pl + 18 + sl) in
+  let crc = read_crc32 s (pl + 22 + sl) in
 
-  if (crc32 s 0 (pl + 18 + sl) = crc)
-  then Some { md_blocksize=bs; md_spindle=sp; md_offset=o; md_count=c }
+  if (crc32 s 0 (pl + 22 + sl) = crc)
+  then Some { md_blocksize=bs; md_spindle=sp; md_offset=o; md_count=c; md_d = d }
   else None
 
-let create (f: string) =
+let init ?(d=2) (f: string) =
   let fd = openfile f [O_WRONLY; O_EXCL; O_CREAT] 0o644 in
 
   set_close_on_exec fd;
@@ -147,9 +151,10 @@ let create (f: string) =
   let b = Posix.fstat_blksize fd in
 
   let metadata1, b1 = serialize_metadata
-      { md_blocksize=b; md_spindle=0; md_offset=0; md_count=0 }
+      { md_blocksize=b; md_spindle=0; md_offset=0; md_count=0; md_d = d }
   and metadata2, b2 = serialize_metadata
-      { md_blocksize=b; md_spindle=0; md_offset=0; md_count=1 } in
+      { md_blocksize=b; md_spindle=0; md_offset=0; md_count=1; md_d = d } 
+  in
 
   lseek_set fd 0;
   ftruncate fd (2 * b);
@@ -160,7 +165,7 @@ let create (f: string) =
   flush (out_channel_of_descr fd);
   Posix.fdatasync fd;
 
-  (* If a database is created, we'll open it soon, most likely *)
+  (* If a database is `init`-ialised, we'll open it soon, most likely *)
   posix_fadvise fd 0 (2 * b) POSIX_FADV_WILLNEED;
 
   close fd
@@ -286,7 +291,15 @@ let make (f: string): t =
 
   { fd_in=fd_in; fd_append=fd_append; fd_random=fd_random; offset=offset;
     commit_offset=last; last_offset=last; closed=false;
-    last_metadata=0; metadata=(md1, md2); space_left=extent }
+    last_metadata=0; metadata=(md1, md2); space_left=extent;
+    d = md1.md_d
+  }
+
+let get_d (t:t) = t.d
+
+let dump ?(out=Pervasives.stdout) (_:t) = 
+  assert (out=out);
+  failwith "todo"
 
 let close db =
   if db.closed

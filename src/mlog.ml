@@ -21,9 +21,17 @@ open Entry
 
 type t = { mutable es : entry array; 
 	   mutable next:int}
+
+let _d = ref 2 
+
 type slab = {mutable _es: entry list; mutable pos : int}
 
-let make ?(cap=32) () = {es = Array.make cap NIL; next = 0}
+let init ?(d=2) _ = _d := d
+let get_d t = !_d
+let sync t = ()
+let close t = ()
+
+let make  (_:string) = {es = Array.make 32 NIL; next = 0}
 
 let make_slab t = {_es=[]; pos = t.next}
 

@@ -137,20 +137,21 @@ let with_tempfile f = fun () ->
     raise e
 
 let test_database_create fn =
-  create fn;
+  init fn;
   let s = Unix.stat fn in
   OUnit.assert_equal (s.st_size = 2 * 4096)
 
 let test_database_make fn =
-  let () = create fn in
+  let () = init fn in
   let db = make fn in
   close db
+
 
 module FDB = DB(Flog)
 
 let with_database f =
   let f' fn =
-    create fn;
+    init fn;
     let db = make fn in
 
     try
@@ -204,7 +205,7 @@ let test_database_reopen fn db =
   FDB.set db k1 v1;
   FDB.set db k2 v2;
 
-  close db;
+  Flog.close db;
 
   let db' = make fn in
   let v1' = FDB.get db' k1

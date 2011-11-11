@@ -20,7 +20,7 @@
 type t
 type slab
 
-val create : string -> unit
+val init : ?d:int -> string -> unit
 val make : string -> t
 val close : t -> unit
 val sync : t -> unit
@@ -33,7 +33,8 @@ val next : t -> int
 val last : t -> int
 
 val write : t -> slab -> unit
-
+val get_d : t -> int
 val make_slab : t -> slab
+val dump : ?out:out_channel -> t -> unit
 val add : slab -> Entry.entry -> Base.pos
 val string_of_slab : slab -> string
