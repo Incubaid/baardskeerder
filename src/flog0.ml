@@ -48,8 +48,17 @@ let _really_read fd n =
 	       loop start' n' 
   in
   loop 0 n
-    
 
+let _seek fd pos = let _ = Unix.lseek fd pos Unix.SEEK_SET in ()
+    
+let _seek_read fd pos n = 
+   _seek fd pos;
+  _really_read fd n
+ 
+let _seek_write fd pos s = 
+  let () = _seek fd pos in
+  let () = _really_write fd s in
+  ()
 
 let pos_to b n = 
   let add c = Buffer.add_char b c in
@@ -158,7 +167,7 @@ type metadata = {commit : pos;
 
 let metadata2s m = Printf.sprintf "{commit=%i;branch=%i}" m.commit m.branch
 
-let _seek fd pos = let _ = Unix.lseek fd pos Unix.SEEK_SET in ()
+
 
 let _write_metadata fd m = 
   let b = Buffer.create 128 in
@@ -321,8 +330,7 @@ let string_of_slab slab =
   
 let write log (slab:slab) = 
   let ss = Buffer.contents slab.b in
-  let () = _seek log.fd log.next in
-  let () = _really_write log.fd ss in
+  let () = _seek_write log.fd log.next ss in
   log.last <- slab.cp;
   log.next <- log.next + String.length ss
     
@@ -331,18 +339,26 @@ let inflate_entry es =
   let input = make_input es 0 in
   input_entry input
 
-let _read_entry_s fd = 
-  let ls = _really_read fd 4 in
+let _read_entry_s fd pos = 
+  let ls = _seek_read fd pos 4 in
   let l = size_from ls 0 in
   let es = _really_read fd l in
+  es 
+    
+  (* THIS IS MORE EXPENSIVE: 
+  let ls = String.create 4 in
+  let () = Posix.pread_into_exactly fd ls 4 pos in
+  let l = size_from ls 0 in
+  let es = String.create l in
+  let () = Posix.pread_into_exactly fd es l (pos + 4) in
   es
+  *)
 
 let read t pos = 
   if pos = 0 then NIL
   else
     begin
-      _seek t.fd pos;
-      let es = _read_entry_s t.fd in
+      let es = _read_entry_s t.fd pos in
       inflate_entry es
     end
 
@@ -386,7 +402,7 @@ let make filename =
     if last = 0 
     then _METADATA_SIZE 
     else 
-      let s = _read_entry_s fd in
+      let s = _read_entry_s fd last in
       last + 4 + String.length s 
   in
   {fd ; last; next; d}
