@@ -264,9 +264,6 @@ let make (f: string): t =
 
   posix_fadvise fd_in 0 (max tbs (2 * bs)) POSIX_FADV_DONTNEED;
 
-  (* From now on, the fd_in FD will perform random IO *)
-  posix_fadvise fd_in 0 0 POSIX_FADV_RANDOM;
-
   (* TODO Use 'best' metadata instead of checking it's value *)
   assert (md1.md_blocksize == md2.md_blocksize);
   assert (md1.md_spindle == md2.md_spindle);
