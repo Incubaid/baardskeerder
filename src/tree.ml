@@ -29,12 +29,7 @@ open Index
 module DB = functor (L:LOG ) -> struct
 
   let get (t:L.t) k = 
-    let rec descend_last pos = 
-      let e = L.read t pos in
-      match e with 
-	| Commit pos -> descend pos
-	| NIL -> raise (NOT_FOUND k)
-    and descend pos = 
+    let rec descend pos = 
       let e = L.read t pos in
       match e with
 	| NIL -> raise (NOT_FOUND k)
@@ -55,9 +50,14 @@ module DB = functor (L:LOG ) -> struct
       in
       let pos' = loop p0 kps in
       descend pos'
-	
     in
-    descend_last (L.last t)
+    let rec descend_commit pos = 
+      let e = L.read t pos in
+      match e with 
+	| Commit pos -> descend pos
+	| NIL -> raise (NOT_FOUND k)
+    in
+    descend_commit (L.last t)
 
   let _add_value s v = L.add s (Value v) 
   let _add_leaf  s l = L.add s (Leaf l) 
@@ -66,15 +66,7 @@ module DB = functor (L:LOG ) -> struct
 
   let _set (t:L.t) slab k v = 
     let d = L.get_d t in
-    let rec descend_last () = 
-      let pos = L.last t in
-      let e = L.read t pos in
-      match e with
-	| NIL -> []
-	| Commit pos -> descend_set pos [] 
-	| e -> 
-	  let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
-    and descend_set pos trail = 
+    let rec descend_set pos trail = 
       let e = L.read t pos in
       match e with
 	| NIL     -> []
@@ -131,7 +123,16 @@ module DB = functor (L:LOG ) -> struct
 	  let start' = _add_index slab i' in
 	  set_rest slab start' rest
     in
-    let trail = descend_last () in
+    let descend_commit () = 
+      let pos = L.last t in
+      let e = L.read t pos in
+      match e with
+	| NIL -> []
+	| Commit pos -> descend_set pos [] 
+	| e -> 
+	  let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
+    in
+    let trail = descend_commit () in
     set_start slab (L.next t) trail
 
 
@@ -143,15 +144,7 @@ module DB = functor (L:LOG ) -> struct
 
   let _delete (t:L.t) slab k = 
     let d = L.get_d t in
-    let rec descend_last () = 
-      let lp = L.last t in
-      let e = L.read t lp in
-      match e with
-	| NIL -> []
-	| Commit pos -> descend pos []
-	| e -> let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in
-	       failwith s
-    and descend pos trail = 
+    let rec descend pos trail = 
       let e = L.read t pos in
       match e with
 	| NIL -> failwith "corrupt"
@@ -432,7 +425,16 @@ module DB = functor (L:LOG ) -> struct
 	| _ -> let ipos = L.add slab (Index index) in
 	       delete_rest slab ipos sep_c rest
     in
-    let trail = descend_last () in
+    let descend_commit () = 
+      let lp = L.last t in
+      let e = L.read t lp in
+      match e with
+	| NIL -> []
+	| Commit pos -> descend pos []
+	| e -> let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in
+	       failwith s
+    in
+    let trail = descend_commit () in
     let start = L.next t in
     let (rp':pos) = delete_start slab start trail in
     rp'
