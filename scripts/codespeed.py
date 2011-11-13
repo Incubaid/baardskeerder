@@ -32,6 +32,7 @@ def run_benchmark(target_path, executable, count, size):
         '--file', file_
     ]
 
+    subprocess.check_call(['sync'])
     output = subprocess.check_output(arguments)
 
     lines = output.strip().splitlines()
