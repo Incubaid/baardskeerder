@@ -492,15 +492,25 @@ let read t pos =
   and l = read_uint32 s 4 in
   assert (m = marker);
 
-  let s' = String.create (l - 1) in
-  pread_into_exactly t.fd_in s' (l - 1) (pos + 4 + 4 + 1);
+  let c = read_char8 s 8 in
 
-  match read_char8 s 8 with
-    | i when i = value_tag -> deserialize_value s' 0
-    | i when i = leaf_tag -> deserialize_leaf s' 0
-    | i when i = index_tag -> deserialize_index s' 0
-    | i when i = commit_tag -> deserialize_commit s' 0
-    | _ -> failwith "Flog.read: unknown node type"
+  (* Special-case values to get-around a useless allocation + substring *)
+  if c = value_tag
+  then
+    let s' = String.create (l - 2 - 4) in
+    pread_into_exactly t.fd_in s' (l - 2 - 4)
+      (pos + 4 + 4 + 1 + 1);
+    Value s'
+  else
+    let s' = String.create (l - 1) in
+    pread_into_exactly t.fd_in s' (l - 1) (pos + 4 + 4 + 1);
+
+    match c with
+      | i when i = value_tag -> failwith "Flog.read: value"
+      | i when i = leaf_tag -> deserialize_leaf s' 0
+      | i when i = index_tag -> deserialize_index s' 0
+      | i when i = commit_tag -> deserialize_commit s' 0
+      | _ -> failwith "Flog.read: unknown node type"
 
 let sync t =
   (* Retrieve current commit offset *)
