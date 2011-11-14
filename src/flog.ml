@@ -53,8 +53,9 @@ type t = {
 }
 
 type slab = {
-  mutable entries: entry list;
-  mutable pos: int;
+  b: Buffer.t;
+  mutable cp : offset;
+  mutable pos: offset;
 }
 
 let chr0 = Char.chr 0
@@ -447,37 +448,20 @@ and deserialize_value s o =
   Value (String.sub s (o + 1) (sl - o - 5))
 
 let write t slab =
-  let update_offset i = t.offset <- t.offset + i in
-  let do_write s =
-    let sl = String.length s in
+  let l = Buffer.length slab.b
+  and s = Buffer.contents slab.b in
 
-    if t.space_left < (sl + 4)
-    then
-      let e = extend_file t.fd_append t.offset in
-      t.space_left <- e
-    else ();
+  if t.space_left < l
+  then
+    let e = extend_file t.fd_append t.offset in
+    t.space_left <- e
+  else
+    ();
 
-    safe_write t.fd_append marker' 0 4;
-    safe_write t.fd_append s 0 sl;
-    let o = t.offset in
-    update_offset (sl + 4);
-    t.space_left <- t.space_left - (sl + 4);
-    o
-  in
-
-  let do_write' s = let _ = do_write s in () in
-
-  let write_entry = function
-    | NIL -> failwith "Flog.write: NIL entry"
-    | Commit o -> 
-      let c = let s = serialize_commit o in do_write s in
-      t.commit_offset <- c
-    | Value v       -> let s = serialize_value v  in do_write' s
-    | Leaf l        -> let s = serialize_leaf l   in do_write' s
-    | Index i       -> let s = serialize_index i  in do_write' s
-  in
-  List.iter write_entry (List.rev slab.entries)
-
+  safe_write t.fd_append s 0 l;
+  t.commit_offset <- slab.cp;
+  t.offset <- t.offset + l;
+  t.space_left <- t.space_left - l
 
 let last t = t.commit_offset
 let next t = t.offset
@@ -554,16 +538,37 @@ let size = function
   | Index i -> String.length (serialize_index i)
   | Commit o -> calculate_size_commit o
 
-let make_slab t = { entries=[]; pos=next t }
+let make_slab t = {
+  b=Buffer.create 2048;
+  cp=last t;
+  pos=next t;
+}
 let add s e =
-  s.entries <- e :: s.entries;
-  let c = s.pos in
-  s.pos <- c + size e + 4;
-  c
+  let s', c = match e with
+    | NIL -> failwith "Flog.add: NIL"
+    | Commit o -> (serialize_commit o, true)
+    | Value v -> (serialize_value v, false)
+    | Leaf l -> (serialize_leaf l, false)
+    | Index i -> (serialize_index i, false)
+  in
+
+  Buffer.add_string s.b marker';
+  let l = String.length s' in
+  Buffer.add_string s.b s';
+
+  let p = s.pos in
+  s.pos <- p + 4 + l;
+
+  if c
+  then
+    s.cp <- p
+  else
+    ();
+
+  p
 
 let clear _ = ()
-let string_of_slab s =
-  Pretty.string_of_list entry2s s.entries
+let string_of_slab _ = failwith "Not implemented"
 
 (* Hole punching compaction *)
 module OffsetOrder = struct
