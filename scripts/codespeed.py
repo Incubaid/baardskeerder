@@ -48,14 +48,15 @@ def run_benchmark(target_path, executable, count, size):
     def value(l):
         index = l.find(':') + 1
         vs = l[index:-2].strip()
-        return float(vs)
+        v = float(vs)
+        return v
 
     for l in lines:
-        if l.find("sets:") >= 0 and l.strip().endswith('s'):
+        if l.find("sets:") >= 0 and l.find('starting') < 0 :
             set_time = value(l)         
-        if l.find("gets") >= 0  and l.strip().endswith('s'):
+        if l.find("gets:") >= 0  and l.find('starting') < 0: 
             get_time = value(l) 
-        if l.find("deletes") >=0 and l.strip().endswith('s'):
+        if l.find("deletes:") >=0 and l.find('starting') < 0:
             delete_time = value(l)
 
     return (
