@@ -51,11 +51,11 @@ def run_benchmark(target_path, executable, count, size):
         return float(vs)
 
     for l in lines:
-        if l.startswith("sets:"):
+        if l.find("sets:") >= 0:
             set_time = value(l)         
-        if l.startswith("gets"):
+        if l.find("gets") >= 0:
             get_time = value(l)
-        if l.startswith("deletes"):
+        if l.find("deletes") >=0 :
             delete_time = value(l)
 
     return (
