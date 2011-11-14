@@ -24,18 +24,15 @@ open Log
 
 let clock n f = 
   let t0 = Unix.gettimeofday () in
+  let step = n / 10 in
   let cb = 
-    if n mod 10 = 0 
-    then
-      let step = n/ 10 in
-      function 
-	| 0 -> () 
-	| i when i mod step = 0 ->
-	    let ti = Unix.gettimeofday () in
-	    let d = ti -. t0 in
-	    Printf.printf "\t%i (%.2f)\n" i d
-	| _ -> ()
-    else failwith "bench size must be multiple of 10"
+    function 
+      | 0 -> () 
+      | i when i mod step = 0 ->
+	let ti = Unix.gettimeofday () in
+	let d = ti -. t0 in
+	Printf.printf "\t%i (%.2f)\n" i d
+      | _ -> ()
   in
   let () = f () n cb in
   let t1 = Unix.gettimeofday () in
