@@ -43,7 +43,6 @@ type t = {
   fd_random: file_descr;
   d : int;
   mutable offset: offset;
-  mutable last_offset: offset;
   mutable commit_offset: offset;
   mutable closed: bool;
 
@@ -287,7 +286,7 @@ let make (f: string): t =
   (* TODO Write 'best' metadata into both blocks *)
 
   { fd_in=fd_in; fd_append=fd_append; fd_random=fd_random; offset=offset;
-    commit_offset=last; last_offset=last; closed=false;
+    commit_offset=last; closed=false;
     last_metadata=0; metadata=(md1, md2); space_left=extent;
     d = md1.md_d
   }
@@ -460,24 +459,27 @@ let write t slab =
 
     safe_write t.fd_append marker' 0 4;
     safe_write t.fd_append s 0 sl;
-    t.last_offset <- t.offset;
+    let o = t.offset in
     update_offset (sl + 4);
-    t.space_left <- t.space_left - (sl + 4)
+    t.space_left <- t.space_left - (sl + 4);
+    o
   in
+
+  let do_write' s = let _ = do_write s in () in
 
   let write_entry = function
     | NIL -> failwith "Flog.write: NIL entry"
     | Commit o -> 
-      let s = serialize_commit o in do_write s; 
-      t.commit_offset <- t.last_offset 
-    | Value v       -> let s = serialize_value v  in do_write s
-    | Leaf l        -> let s = serialize_leaf l   in do_write s
-    | Index i       -> let s = serialize_index i  in do_write s
+      let c = let s = serialize_commit o in do_write s in
+      t.commit_offset <- c
+    | Value v       -> let s = serialize_value v  in do_write' s
+    | Leaf l        -> let s = serialize_leaf l   in do_write' s
+    | Index i       -> let s = serialize_index i  in do_write' s
   in
   List.iter write_entry (List.rev slab.entries)
 
 
-let last t = t.last_offset
+let last t = t.commit_offset
 let next t = t.offset
 let read t pos =
   if pos = 0 then NIL
