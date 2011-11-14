@@ -37,6 +37,14 @@ type metadata = {
   md_d : int;
 }
 
+module OffsetEntryCache = Entrycache.Make(
+  struct
+    type k = offset
+    type v = Entry.entry
+
+    let create _ = (0, NIL)
+  end)
+
 type t = {
   fd_in: file_descr;
   fd_append: file_descr;
@@ -50,12 +58,15 @@ type t = {
   mutable metadata: metadata * metadata;
 
   mutable space_left: int;
+
+  cache: OffsetEntryCache.t;
 }
 
 type slab = {
   b: Buffer.t;
   mutable cp : offset;
   mutable pos: offset;
+  mutable es: (offset * entry) list;
 }
 
 let chr0 = Char.chr 0
@@ -286,10 +297,13 @@ let make (f: string): t =
   (* TODO Choose correct last_metadata *)
   (* TODO Write 'best' metadata into both blocks *)
 
+  let cache = OffsetEntryCache.create 32 in
+
   { fd_in=fd_in; fd_append=fd_append; fd_random=fd_random; offset=offset;
     commit_offset=last; closed=false;
     last_metadata=0; metadata=(md1, md2); space_left=extent;
-    d = md1.md_d
+    d = md1.md_d;
+    cache=cache;
   }
 
 let get_d (t:t) = t.d
@@ -461,13 +475,20 @@ let write t slab =
   safe_write t.fd_append s 0 l;
   t.commit_offset <- slab.cp;
   t.offset <- t.offset + l;
-  t.space_left <- t.space_left - l
+  t.space_left <- t.space_left - l;
+
+  (* TODO We might want to List.rev slab.es, if slabs get > cache.s big *)
+  List.iter (fun (p, e) -> OffsetEntryCache.add t.cache p e) slab.es
 
 let last t = t.commit_offset
 let next t = t.offset
 let read t pos =
   if pos = 0 then NIL
   else
+  match OffsetEntryCache.get t.cache pos with
+  | Some e -> e
+  | None ->
+
   let s = String.create 9 in
 
   pread_into_exactly t.fd_in s 9 pos;
@@ -542,6 +563,7 @@ let make_slab t = {
   b=Buffer.create 2048;
   cp=last t;
   pos=next t;
+  es=[];
 }
 let add s e =
   let s', c = match e with
@@ -564,6 +586,8 @@ let add s e =
     s.cp <- p
   else
     ();
+
+  s.es <- (p, e) :: s.es;
 
   p
 
