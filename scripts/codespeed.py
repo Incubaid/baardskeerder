@@ -42,13 +42,21 @@ def run_benchmark(target_path, executable, count, size):
 
     assert iterations == count
     assert value_size == size
+    set_time = None
+    get_time = None
+    delete_time = None
+    def value(l):
+        index = l.find(':') + 1
+        vs = l[index:-2].strip()
+        return float(vs)
 
-    set_time = float(
-        re.match(r'%d sets: ([\d\.]+)s' % iterations, lines[2]).groups()[0])
-    get_time = float(
-        re.match(r'%d gets: ([\d\.]+)s' % iterations, lines[3]).groups()[0])
-    delete_time = float(
-        re.match(r'%d deletes: ([\d\.]+)s' % iterations, lines[4]).groups()[0])
+    for l in lines:
+        if l.startswith("sets:"):
+            set_time = value(l)         
+        if l.startswith("gets"):
+            get_time = value(l)
+        if l.startswith("deletes"):
+            delete_time = value(l)
 
     return (
         {'name': 'set', 'time': set_time},
