@@ -20,6 +20,7 @@
 open Unix
 open Tree
 open Arg
+open Log
 
 let clock f = 
   let t0 = Unix.gettimeofday () in
@@ -27,48 +28,9 @@ let clock f =
   let t1 = Unix.gettimeofday () in
   t1 -. t0
 
-module MyLog = (Flog:Log.LOG) (* HERE *)
-
-module MyDB = DB(MyLog)
-
-let make_key i = Printf.sprintf "key_%08i" i 
-
-let set_loop db vs n = 
-  let v = String.make vs 'x' in
-  let set k v = MyDB.set db k v in
-  let rec loop i = 
-    if i = n 
-    then MyLog.sync db
-    else
-      let key = make_key i in
-      let () = set key v in
-      loop (i+1)
-  in
-  loop 0
-
-let get_loop db n = 
-  let get k = MyDB.get db k in
-  let rec loop i =
-    if i = n 
-    then ()
-    else
-      let key = make_key i in
-      let _ = get key in
-      loop (i+1)
-  in
-  loop 0
-
-let delete_loop db n = 
-  let delete k = MyDB.delete db k in
-  let rec loop i = 
-    if i = n 
-    then MyLog.sync db
-    else
-      let key = make_key i in
-      let () = delete key in
-      loop (i+1)
-  in
-  loop 0
+let logs = Hashtbl.create 3
+let () = Hashtbl.add logs "Flog0" (module Flog0: LOG)
+let () = Hashtbl.add logs "Flog"  (module Flog : LOG)
 
 let () = 
   let n  = ref 1_000_000 in
@@ -76,17 +38,64 @@ let () =
   let fn = ref "test.db" in
   let d = ref 4 in
   let dump = ref false in
+  let log_name = ref "Flog" in
   let () = 
     Arg.parse [
       ("--value-size",Set_int vs, Printf.sprintf "size of the values in bytes (%i)" !vs);
       ("--file", Set_string fn, Printf.sprintf "file name for database (%S)" !fn);
       ("--bench-size",Set_int n,  Printf.sprintf "number of sets/gets/deletes (%i)" !n);
       ("--d", Set_int d, Printf.sprintf "1/2 of the fan-out (%i)" !d);
+      ("--log-name", Set_string log_name, Printf.sprintf "name of the log implementation (%s)" !log_name);
       ("--dump", Set dump, Printf.sprintf "doesn't run a benchmark, but dumps info about the file");
     ]
       (fun _ ->()) 
       "simple baardskeerder benchmark"
   in
+  let module MyLog = (val (Hashtbl.find logs !log_name) : LOG) in
+  let module MyDB = DB(MyLog) in  
+  let make_key i = Printf.sprintf "key_%08i" i in
+
+  let set_loop db vs n = 
+    let v = String.make vs 'x' in
+    let set k v = MyDB.set db k v in
+    let rec loop i = 
+      if i = n 
+      then MyLog.sync db
+      else
+	let key = make_key i in
+	let () = set key v in
+	loop (i+1)
+    in
+    loop 0 
+  in
+
+  let get_loop db n = 
+    let get k = MyDB.get db k in
+    let rec loop i =
+      if i = n 
+      then ()
+      else
+	let key = make_key i in
+	let _ = get key in
+	loop (i+1)
+    in
+    loop 0
+  in
+
+  let delete_loop db n = 
+    let delete k = MyDB.delete db k in
+    let rec loop i = 
+      if i = n 
+      then MyLog.sync db
+      else
+	let key = make_key i in
+	let () = delete key in
+	loop (i+1)
+    in
+    loop 0 
+  in
+
+
   if !dump then
     begin
       let db = MyLog.make !fn in
