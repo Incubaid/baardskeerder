@@ -22,11 +22,26 @@ open Tree
 open Arg
 open Log
 
-let clock f = 
+let clock n f = 
   let t0 = Unix.gettimeofday () in
-  let () = f() in
+  let cb = 
+    if n mod 10 = 0 
+    then
+      let step = n/ 10 in
+      function 
+	| 0 -> () 
+	| i when i mod step = 0 ->
+	    let ti = Unix.gettimeofday () in
+	    let d = ti -. t0 in
+	    Printf.printf "\t%i (%.2f)\n" i d
+	| _ -> ()
+    else failwith "bench size must be multiple of 10"
+  in
+  let () = f () n cb in
   let t1 = Unix.gettimeofday () in
   t1 -. t0
+
+type progress_callback = int -> unit
 
 let logs = Hashtbl.create 3
 let () = Hashtbl.add logs "Flog0" (module Flog0: LOG)
@@ -55,10 +70,11 @@ let () =
   let module MyDB = DB(MyLog) in  
   let make_key i = Printf.sprintf "key_%08i" i in
 
-  let set_loop db vs n = 
+  let set_loop db vs n (cb: progress_callback) = 
     let v = String.make vs 'x' in
     let set k v = MyDB.set db k v in
     let rec loop i = 
+      let () = cb i in
       if i = n 
       then MyLog.sync db
       else
@@ -69,9 +85,10 @@ let () =
     loop 0 
   in
 
-  let get_loop db n = 
+  let get_loop db n (cb: progress_callback) = 
     let get k = MyDB.get db k in
     let rec loop i =
+      let () = cb i in
       if i = n 
       then ()
       else
@@ -82,9 +99,10 @@ let () =
     loop 0
   in
 
-  let delete_loop db n = 
+  let delete_loop db n (cb: progress_callback) = 
     let delete k = MyDB.delete db k in
     let rec loop i = 
+      let () = cb i in
       if i = n 
       then MyLog.sync db
       else
@@ -107,12 +125,15 @@ let () =
       let () = MyLog.init !fn ~d:!d in 
       let db = MyLog.make !fn in
       let () = Printf.printf "\niterations = %i\nvalue_size = %i\n%!" !n !vs in
-      let d = clock (fun () -> set_loop db !vs !n) in
-      Printf.printf "%i sets: %fs\n%!" !n d;
-      let d2 = clock (fun () -> get_loop db !n) in
-      Printf.printf "%i gets: %fs\n%!" !n d2;
-      let d3 = clock (fun () -> delete_loop db !n) in
-      Printf.printf "%i deletes: %fs\n%!" !n d3;
+      let () = Printf.printf "starting sets\n" in
+      let d = clock !n (fun () -> set_loop db !vs) in
+      Printf.printf "sets: %fs\n%!" d;
+      let () = Printf.printf "starting gets\n" in
+      let d2 = clock !n (fun () -> get_loop db) in
+      Printf.printf "gets: %fs\n%!" d2;
+      let () = Printf.printf "starting deletes\n" in
+      let d3 = clock !n (fun () -> delete_loop db) in
+      Printf.printf "deletes: %fs\n%!" d3;
       let () = MyLog.close db in
       ()
     end;;
