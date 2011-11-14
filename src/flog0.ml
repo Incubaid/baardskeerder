@@ -163,16 +163,16 @@ let list_to b e_to list =
 
 let _METADATA_SIZE = 4096
 type metadata = {commit : pos; 
-		 branch: int }
+		 td: int }
 
-let metadata2s m = Printf.sprintf "{commit=%i;branch=%i}" m.commit m.branch
+let metadata2s m = Printf.sprintf "{commit=%i;td=%i}" m.commit m.td
 
 
 
 let _write_metadata fd m = 
   let b = Buffer.create 128 in
   let () = pos_to b m.commit in
-  let () = pos_to b m.branch in
+  let () = pos_to b m.td in
   let block = String.create _METADATA_SIZE in
   
   let () = Buffer.blit b 0 block 0 (Buffer.length b) in
@@ -184,8 +184,8 @@ let _read_metadata fd =
   let m = _really_read fd _METADATA_SIZE in
   let input = make_input m 0 in
   let commit = input_pos input in
-  let branch = input_pos input in
-  {commit; branch}
+  let td = input_pos input in
+  {commit; td}
 
 type t = { fd : file_descr; 
 	   mutable last: pos; 
@@ -203,14 +203,14 @@ let last t = t.last
 
 
 let close t = 
-  let meta = {commit = t.last; branch = t.d} in
+  let meta = {commit = t.last; td = t.d} in
   let () = _write_metadata t.fd meta in
   Unix.close t.fd
 
 let clear t = 
   let commit = 0 in
   let meta = {commit;
-	      branch = t.d } 
+	      td = t.d } 
   in
   _write_metadata t.fd meta;
   t.last  <- commit;
@@ -383,7 +383,7 @@ let init ?(d=4) fn =
   let len = stat.st_size in
   if len = 0 then
     let commit = 0 in
-    let () = _write_metadata fd {commit;branch = d} in   
+    let () = _write_metadata fd {commit;td = d} in   
     let () = Unix.close fd in
     ()
   else
@@ -397,7 +397,7 @@ let make filename =
   let fd = openfile filename [O_RDWR] 0o640 in
   let m = _read_metadata fd in
   let last = m.commit in
-  let d = m.branch in
+  let d = m.td in
   let next = 
     if last = 0 
     then _METADATA_SIZE 
