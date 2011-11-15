@@ -285,17 +285,16 @@ module DB = functor (L:LOG ) -> struct
 		    | _, true ->
 		      begin
 			let left,_ = Leafz.delete leafz in
-			let h,sep_c = leaf_merge left right in
+			let h, lr = leaf_merge left right in
 			let hpos = _add_leaf slab h in
-			let z' = Indexz.suppress Indexz.R hpos sep_c z in
-			let sep_c' = 
-			  if Indexz.can_go_right z' then
-			    None
-			  else
-			    sep_c
-			in
+			let z' = Indexz.suppress Indexz.R hpos lr z in
 			let index' = Indexz.close z' in
-			xxx_merged slab hpos sep_c' index' rest 
+			let lr' = 
+			  if Indexz.can_go_right z' 
+			  then None
+			  else lr
+			in
+			xxx_merged slab hpos lr' index' rest 
 		      end
 		    | _,_ -> (* borrow from left *)
 		      begin
