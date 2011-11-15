@@ -142,6 +142,28 @@ module DB = functor (L:LOG ) -> struct
     let _ = _add_commit slab rp' in
     L.write t slab
 
+
+  let rec _delete_rest slab start (lr : k option) trail = match trail with
+    | [] -> start
+    | Index_down z :: rest -> 
+      begin	  
+	let _step slab lr z rest = 
+	  let index = Indexz.replace start z in
+	  let ipos = _add_index slab index in
+	  _delete_rest slab ipos lr rest
+	in
+	match lr with
+	  | None -> _step slab lr z rest
+	  | Some sep ->
+	    if Indexz.can_go_right z 
+	    then 
+	      let z' = Indexz.replace_right sep z in
+	      let lr' = None in (* since there is a larger subtree, I don't know the lr anymore *)
+	      _step slab lr' z' rest
+	    else
+	      _step slab lr z rest
+      end
+
   let _delete (t:L.t) slab k = 
     let d = L.get_d t in
     let rec descend pos trail = 
@@ -175,29 +197,8 @@ module DB = functor (L:LOG ) -> struct
 	  let leaf',lr = Leafz.delete z in
 	  let lpos = _add_leaf slab leaf' in
 	  assert (lpos = start);
-	  delete_rest slab start lr rest
-    and delete_rest slab start (lr : k option) trail = match trail with
-      | [] -> start
-      | Index_down z :: rest -> 
-	begin	  
-	  match lr with
-	    | None ->
-	      let index = Indexz.replace start z in
-	      let ipos = _add_index slab index in
-	      delete_rest slab ipos lr rest
-	    | Some sep ->
-	      if Indexz.can_go_right z 
-	      then 
-		let z' = Indexz.replace_right sep z in
-		let index = Indexz.replace start z' in
-		let ipos = _add_index slab index in
-		let lr' = None in (* since there is a larger subtree, I don't know the lr anymore *)
-		delete_rest slab ipos lr' rest
-	      else
-		let index = Indexz.replace start z in
-		let ipos = _add_index slab index in
-		delete_rest slab ipos lr rest
-	end
+	  _delete_rest slab start lr rest
+
 
     and leaf_underflow slab leafz rest = 
       match rest with 
@@ -312,14 +313,14 @@ module DB = functor (L:LOG ) -> struct
       let lr' = if Indexz.can_go_right z' then None else Some lr in
       let index' = Indexz.close z' in
       let ipos = _add_index slab index' in
-      delete_rest slab ipos lr' rest
+      _delete_rest slab ipos lr' rest
     and xxx_borrowed_left slab (lpos:pos) sep (rpos:pos) z lr rest = 
       match lr with
 	| None -> 
 	  let z2 = Indexz.borrowed_left lpos sep rpos z in
 	  let index' = Indexz.close z2 in
 	  let ipos' = _add_index slab index' in
-	  delete_rest slab ipos' None rest
+	  _delete_rest slab ipos' None rest
 	| Some s ->
 	  let z2 = 
 	    if Indexz.can_go_right z 
@@ -330,7 +331,7 @@ module DB = functor (L:LOG ) -> struct
 	  let lr' = if Indexz.can_go_right z3 then None else lr in
 	  let index' = Indexz.close z3 in	  
 	  let ipos' = _add_index slab index' in
-	  delete_rest slab ipos' lr' rest
+	  _delete_rest slab ipos' lr' rest
     and xxx_merged slab (start:pos) sep_c (index:Index.index) rest = 
       let read_index pos = 
 	let e = L.read t pos in
@@ -423,7 +424,7 @@ module DB = functor (L:LOG ) -> struct
 
 	  end
 	| _ -> let ipos = L.add slab (Index index) in
-	       delete_rest slab ipos sep_c rest
+	       _delete_rest slab ipos sep_c rest
     in
     let descend_commit () = 
       let lp = L.last t in
