@@ -4,3 +4,4 @@ src/_build
 
 *.native
 *.byte
+/src/test.db

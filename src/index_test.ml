@@ -20,78 +20,79 @@
 open Index
 open Indexz
 open OUnit
+open Base
 
 let t_neighbours () = 
-  let z = Loc ((7, [("j", 15); ("d", 14)]), []) in
+  let z = Loc ((out 7, [("j", out 15); ("d", out 14)]), []) in
   let nb = Indexz.neighbours z in
-  OUnit.assert_equal (NL 14) nb
+  OUnit.assert_equal (NL (out 14)) nb
 
 let t_neighbours2 () = 
-  let z = Loc ((37,["g", 21]),["m", 31; "t", 32]) in
+  let z = Loc ((out 37,["g", out 21]),["m", out 31; "t", out 32]) in
   let nb = Indexz.neighbours z in
-  OUnit.assert_equal (N2(37,31)) nb
+  OUnit.assert_equal (N2(out 37, out 31)) nb
 
 let t_neighbours3 () = 
-  let z =  Loc ((0,["m", 1; "g", 2]),["t", 3]) in
+  let z =  Loc ((out 0,["m", out 1; "g", out 2]),["t", out 3]) in
   let nb = Indexz.neighbours z in
-  OUnit.assert_equal (N2(2,3)) nb
+  OUnit.assert_equal (N2(out 2,out 3)) nb
 
 let t_suppress () = 
-  let z = Loc ((7, [("j", 15); ("d", 14)]), []) in
+  let z = Loc ((out 7, [("j", out 15); ("d", out 14)]), []) in
   let nb = Indexz.neighbours z in
   match nb with 
-    | NL 14 ->
-      let z2 = Indexz.suppress L 17 None z in
+    | NL (Outer 14) ->
+      let z2 = Indexz.suppress L (out 17) None z in
       Printf.printf "z2= %s\n" (iz2s z2)
     | _ -> failwith "should be NL 14"
 
 let t_suppress2 () = 
-  let z = Loc ((7,["d", 8]),[]) in
+  let z = Loc ((out 7,["d", out 8]),[]) in
   let nb = Indexz.neighbours z in
   match nb with 
-    | NL 7 ->
-      let z2 = Indexz.suppress L 17 None z in
+    | NL (Outer 7) ->
+      let z2 = Indexz.suppress L (out 17) None z in
       Printf.printf "index = %s\n" (iz2s z2)
     | _ -> failwith "should be NL 7"
 
 let t_suppress3 () = 
-  let z = Loc ((0,["m", 1; "g", 2]),["t", 3]) in
-  let r = Indexz.suppress L 4 (Some "q") z in
+  let z = Loc ((out 0,["m", out 1; "g", out 2]),["t", out 3]) in
+  let r = Indexz.suppress L (out 4) (Some "q") z in
   let () = Printf.printf "r = %s\n" (iz2s r) in
-  let e = Loc ((0,["g",4]),["q",3]) in
+  let e = Loc ((out 0,["g", out 4]),["q", out 3]) in
   OUnit.assert_equal ~printer:iz2s e r;
   ()
 let t_suppress4() = 
-  let z =  Loc ((78, [("key_12", 79)]), [("key_16", 95)]) in
-  let r = Indexz.suppress L 98 (Some "key_15") z in
-  let e = Top (98, ["key_15", 95]) in
+  let z =  Loc ((out 78, [("key_12", out 79)]), [("key_16", out 95)]) in
+  let r = Indexz.suppress L (out 98) (Some "key_15") z in
+  let e = Top (out 98, ["key_15", out 95]) in
   OUnit.assert_equal ~printer:iz2s e r
 
 let t_split () = 
   let d = 2 
-  and lpos = 21
+  and lpos = out 21
   and sep = "q"
-  and rpos = 22
-  and z = Loc ((7, [("j", 18); ("d", 14)]), [])
+  and rpos = out 22
+  and z = Loc ((out 7, [("j", out 18); ("d", out 14)]), [])
   in
   let left,sep', right = Indexz.split d lpos sep rpos z in
-  OUnit.assert_equal ~printer:index2s (7, ["d",14]) left
+  OUnit.assert_equal ~printer:index2s (out 7, ["d",out 14]) left
 
 let t_split2() = 
   let d = 2 
-  and lpos = 21 
+  and lpos = out 21 
   and sep = "j"
-  and rpos = 22 
-  and z = Loc ((7, [("d", 18)]), [("q", 15)]) in
+  and rpos = out 22 
+  and z = Loc ((out 7, [("d", out 18)]), [("q", out 15)]) in
   let left,sep',right = Indexz.split d lpos sep rpos z in
   let printer = index2s in
-  OUnit.assert_equal ~printer (7,["d",21]) left;
-  OUnit.assert_equal ~printer (22,["q",15]) right
+  OUnit.assert_equal ~printer (out 7,["d", out 21]) left;
+  OUnit.assert_equal ~printer (out 22,["q",out 15]) right
 
 let t_replace () = 
-  let z = Loc ((7, [("d", 14)]), [("m", 15)]) in
-  let index = Indexz.replace 18 z in
-  OUnit.assert_equal ~printer:index2s index (7,("d",18) :: ("m",15)::[])
+  let z = Loc ((out 7, [("d", out 14)]), [("m", out 15)]) in
+  let index = Indexz.replace (out 18) z in
+  OUnit.assert_equal ~printer:index2s index (out 7,("d",out 18) :: ("m",out 15)::[])
 
 (*
 let t_replace_with_sep () = 
@@ -104,11 +105,14 @@ let t_replace_with_sep () =
 *)
 
 let t_merge () =
-  let index = 110,["key_3", 93] in
+  let index = out 110, ["key_3", out 93] in
   let sep = "key_3" in
-  let right = 94, ["key_5",64 ; "key_7", 54] in
+  let right = out 94, ["key_5", out 64 ; "key_7", out 54] in
+  let m = "can't merge:(Outer 110, [\"key_3\", Outer 93]) "^  
+    "\"key_3\" (Outer 94, [\"key_5\", Outer 64; \"key_7\", Outer 54])" 
+  in
   OUnit.assert_raises 
-    (Failure "can't merge:(110, [\"key_3\", 93]) \"key_3\" (94, [\"key_5\", 64; \"key_7\", 54])") 
+    (Failure m)
     (fun () -> index_merge index sep right)
 
 

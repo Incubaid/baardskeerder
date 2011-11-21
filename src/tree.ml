@@ -196,7 +196,7 @@ module DB = functor (L:LOG ) -> struct
 	else 
 	  let leaf',lr = Leafz.delete z in
 	  let lpos = _add_leaf slab leaf' in
-	  assert (lpos = start);
+	  (* let () = Printf.printf "lpos = %s <-> start = %s\n" (pos2s lpos) (pos2s start) in *)
 	  _delete_rest slab start lr rest
 
 
@@ -442,7 +442,7 @@ module DB = functor (L:LOG ) -> struct
 
   let delete (t:L.t) k =
     let slab = L.make_slab t in
-    let (rp':int) = _delete t slab k in
+    let (rp':pos) = _delete t slab k in
     let _ = _add_commit slab rp' in
     L.write t slab
 

@@ -25,8 +25,8 @@ type index_z =
   | Loc of ((pos * (kp list)) * (kp list))
 
 let iz2s = function
-  | Top (p0, kps) -> Printf.sprintf "Top (%i,%s)" p0 (kpl2s kps)
-  | Loc ((p0,c),t) -> Printf.sprintf "Loc ((%i,%s),%s)" p0 (kpl2s c) (kpl2s t)
+  | Top (p0, kps) -> Printf.sprintf "Top (%s,%s)" (pos2s p0) (kpl2s kps)
+  | Loc ((p0,c),t) -> Printf.sprintf "Loc ((%s,%s),%s)" (pos2s p0) (kpl2s c) (kpl2s t)
 
 let make_indexz (p0, kps) = Top ((p0, kps))
 
@@ -78,7 +78,9 @@ let borrowed_left lpos sep rpos = function
   | Loc((p0, _ :: (ky,_) :: c),t) -> Loc ((p0,(sep,rpos)::(ky,lpos)::c), t)
   | Top (_,_) 
   | Loc ((_,[]),_) as z -> 
-    let s= Printf.sprintf "indexz_borrowed_left %i %s %i z=%s\n%!" lpos sep rpos (iz2s z) in failwith s
+    let s= Printf.sprintf "indexz_borrowed_left %s %s %s z=%s\n%!" 
+      (pos2s lpos) sep (pos2s rpos) (iz2s z) in 
+    failwith s
 
 let can_go_right = function
   | Top (_, _ :: _) -> true
@@ -151,7 +153,7 @@ let suppress d pn sep_o z =
 	  let new_sep = maybe_replace_sep kx sep_o in
 	  Loc ((p0, (kr,pn)::c), (new_sep,px) :: t)
 	| Top _ | Loc ((_,[]),_) -> 
-	  let s = Printf.sprintf "suppress L %i z=%s" pn (iz2s z) in failwith s 
+	  let s = Printf.sprintf "suppress L %s z=%s" (pos2s pn) (iz2s z) in failwith s 
 
 
 type neighbours = 
@@ -212,7 +214,9 @@ let split d lpos sep rpos z =
 	left, k,right
       | Loc ((_,[]),_) -> failwith "illegal loc"
       | Top _  as z -> 
-	let s = Printf.sprintf "indexz_split %i %s %i %s=> %s \n" lpos sep rpos (iz2s z) (iz2s z2) in
+	let s = Printf.sprintf "indexz_split %s %s %s %s=> %s \n" 
+	  (pos2s lpos) sep (pos2s rpos) (iz2s z) (iz2s z2) 
+	in
 	failwith s
   in
   r

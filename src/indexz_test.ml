@@ -19,6 +19,7 @@
 
 open Indexz
 open OUnit
+open Pos
 
 let assert_balanced z = 
   let m = Printf.sprintf "not balanced: %s" (iz2s z) in
@@ -32,37 +33,46 @@ let assert_balanced z =
 
 let t_balance() =
   let d = 2 in
-  let z = Loc ((7,["q", 22; "j", 21; "d", 14]),[]) in
+  let z = Loc ((out 7,["q", out 22; "j", out 21; "d", out 14]),[]) in
   let z' = Indexz.balance d z in
   assert_balanced z'
 
 
 let t_balance2 () =
   let d = 2 in
-  let z = Top (0,["d", 1; "j", 2; "q", 3]) in
+  let z = Top (out 0,["d", out 1; "j", out 2; "q", out 3]) in
   let z' = Indexz.balance d z in
   assert_balanced z'
 
 let t_balance3 () =
   let d = 3 in
-  let z = Top (0,["d", 1; "j", 2; "q", 3; 
-		  "t", 4; "w", 5]) 
+  let z = Top (out 0,["d", out 1; 
+		      "j", out 2; 
+		      "q", out 3; 
+		      "t", out 4; 
+		      "w", out 5]) 
   in
   let z' = Indexz.balance d z in
   assert_balanced z'
 
 let t_balance4() =
   let d = 3 in
-  let z = Loc ((16,["key_93", 43; "key_90", 56; "key_87", 69; "key_102", 68]),
-	       ["key_96",30]) in
+  let z = Loc ((out 16,["key_93", out 43; 
+			"key_90", out 56; 
+			"key_87", out 69; 
+			"key_102", out 68]),
+	       ["key_96",out 30]) in
   let z' = Indexz.balance d z in
   assert_balanced z'
 
 let t_balance5() = 
   let d = 3 in
   let z = Loc
-    ((74, [("key_63", 271); ("key_109", 270)]),
-     [("key_72", 222); ("key_81", 173); ("key_90", 124)]) in
+    ((out 74, [("key_63", out 271); 
+	       ("key_109", out 270)]),
+     [("key_72", out 222); 
+      ("key_81", out 173); 
+      ("key_90", out 124)]) in
   let z' = Indexz.balance d z in
   assert_balanced z'
     

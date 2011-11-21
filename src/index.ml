@@ -23,7 +23,7 @@ type index = pos * (kp list)
 
 let index2s (p0,rest) = 
   let b= Buffer.create 128 in
-  Buffer.add_string b (Printf.sprintf "%i" p0);
+  Buffer.add_string b (pos2s p0);
   Buffer.add_string b ", ";
   Buffer.add_string b (kpl2s rest);
   Buffer.contents b

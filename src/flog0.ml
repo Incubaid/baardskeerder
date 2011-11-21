@@ -21,6 +21,8 @@ open Base
 open Entry
 open Unix
 
+include Slab
+
 let _really_write fd string = 
   let l = String.length string in
   let rec loop start = function
@@ -52,7 +54,7 @@ let _really_read fd n =
 let _seek fd pos = let _ = Unix.lseek fd pos Unix.SEEK_SET in ()
     
 let _seek_read fd pos n = 
-   _seek fd pos;
+  _seek fd pos;
   _really_read fd n
  
 let _seek_write fd pos s = 
@@ -60,7 +62,7 @@ let _seek_write fd pos s =
   let () = _really_write fd s in
   ()
 
-let pos_to b n = 
+let vint_to b n = 
   let add c = Buffer.add_char b c in
   let rec loop = function
     | 0 -> add '\x00'
@@ -74,7 +76,7 @@ let pos_to b n =
 
 let string_to b s = 
   let l = String.length s in
-  pos_to b l;
+  vint_to b l;
   Buffer.add_string b s
 
 
@@ -93,7 +95,7 @@ let size_from s pos =
   let result = b0 lor (b1 lsl 8) lor (b2 lsl 16) lor (b3 lsl 24)
   in result
 
-let size_to b (p:pos) = 
+let size_to b (p:int) = 
   let i32  = Int32.of_int p in
   let (<<) = Int32.shift_left in
   let (>>) = Int32.shift_right_logical in
@@ -110,7 +112,7 @@ let size_to b (p:pos) =
   add 3
 
 
-let input_pos input = 
+let input_vint input = 
   let s = input.s in
   let start = input.p in
   let rec loop v f p = 
@@ -131,22 +133,27 @@ let input_size input =
   size_from input.s p
 
 let input_string input = 
-  let l = input_pos input in
+  let l = input_vint input in
   let s = String.sub input.s input.p l in
   let () = input.p <- input.p + l in
   s
 
 let input_kp input =
   let k = input_string input in
-  let p = input_pos input in
-  k,p
+  let p = input_vint input in
+  k, Outer p
+
+
+let pos_to b = function
+  | Outer p -> vint_to b p
+  | Inner _ -> failwith "cannot serialize inner pos"
 
 let kp_to b (k,p) =
   string_to b k;
   pos_to b p
 
 let input_list input_e input = 
-  let l = input_pos input in
+  let l = input_vint input in
   let rec loop acc = function
     | 0 -> List.rev acc
     | n -> let e = input_e input in
@@ -156,13 +163,13 @@ let input_list input_e input =
 
 let list_to b e_to list = 
   let l = Leaf.length list in
-  pos_to b l;
+  vint_to b l;
   List.iter (e_to b) list
   
 
 
 let _METADATA_SIZE = 4096
-type metadata = {commit : pos; 
+type metadata = {commit : int; 
 		 td: int }
 
 let metadata2s m = Printf.sprintf "{commit=%i;td=%i}" m.commit m.td
@@ -171,8 +178,8 @@ let metadata2s m = Printf.sprintf "{commit=%i;td=%i}" m.commit m.td
 
 let _write_metadata fd m = 
   let b = Buffer.create 128 in
-  let () = pos_to b m.commit in
-  let () = pos_to b m.td in
+  let () = vint_to b m.commit in
+  let () = vint_to b m.td in
   let block = String.create _METADATA_SIZE in
   
   let () = Buffer.blit b 0 block 0 (Buffer.length b) in
@@ -183,22 +190,22 @@ let _read_metadata fd =
   _seek fd 0;
   let m = _really_read fd _METADATA_SIZE in
   let input = make_input m 0 in
-  let commit = input_pos input in
-  let td = input_pos input in
+  let commit = input_vint input in
+  let td = input_vint input in
   {commit; td}
 
 type t = { fd : file_descr; 
-	   mutable last: pos; 
-	   mutable next:pos;
-	   mutable d: pos;
+	   mutable last: int; 
+	   mutable next:int;
+	   mutable d: int;
 	 }
 
 let get_d t = t.d
 
 let t2s t = Printf.sprintf "{...;last=%i; next=%i}" t.last t.next
 
-let next t = t.next
-let last t = t.last
+let next t = Outer t.next
+let last t = Outer t.last
 
 
 
@@ -216,15 +223,6 @@ let clear t =
   t.last  <- commit;
   t.next <- _METADATA_SIZE
 
-type slab = { b: Buffer.t; 
-	      mutable cp : pos;
-	      mutable pos: pos}
-
-let make_slab log = 
-  let b = Buffer.create 1024 in
-  let pos= next log in
-  let cp = last log in
-  { b; cp; pos}
 
 type tag = 
   | COMMIT
@@ -248,64 +246,20 @@ let input_tag input =
     | '\x04' -> VALUE
     | _ -> let s = Printf.sprintf "%C tag?" tc in failwith s
 
-let _add_buffer slab b = 
-  let l = Buffer.length b in
-  size_to slab.b l;
-  Buffer.add_buffer slab.b b;
-  let r = slab.pos in
-  slab.pos <- slab.pos + 4 + l;
-  r
-
-let add_commit slab p = 
-  let b = Buffer.create 32 in
-  tag_to b COMMIT;
-  pos_to b p;
-  slab.cp <- slab.pos;
-  _add_buffer slab b
 
 let inflate_commit input = 
-  let p = input_pos input in
-  Commit p
+  let p = input_vint input in
+  Commit (Outer p)
 
-let add_value slab v =
-  let l = String.length v in
-  let b = Buffer.create (l+4) in
-  tag_to b VALUE;
-  string_to b v;
-  _add_buffer slab b
-
-let add_leaf slab kps = 
-  let b = Buffer.create 128 in
-  tag_to b LEAF;
-  list_to b kp_to kps;
-  _add_buffer slab b
+let inflate_value input = Value (input_string input)
 
 let inflate_leaf input = Leaf (input_list input_kp input)
 
-let inflate_value input = Value (input_string input)
-      
-let add_index slab (p0,kps) = 
-  let b = Buffer.create 128 in
-  tag_to b INDEX;
-  pos_to b p0;
-  let l = List.length kps in
-  pos_to b l;
-  List.iter (fun (k,p) -> string_to b k; pos_to b p) kps;
-  _add_buffer slab b
-    
 let inflate_index input = 
-  let p0 = input_pos input in
+  let p0 = input_vint input in
   let kps = input_list input_kp input in
-  Index (p0,kps)
-    
-let add slab = function
-  | NIL      -> failwith "don't add NIL to slab"
-  | Commit p -> add_commit slab p
-  | Value v  -> add_value slab v
-  | Leaf l   -> add_leaf slab l
-  | Index i  -> add_index slab i
-    
-  
+  Index (Outer p0,kps)
+
 let input_entry input = 
   match input_tag input with
     | COMMIT -> inflate_commit input
@@ -313,54 +267,11 @@ let input_entry input =
     | INDEX  -> inflate_index input
     | VALUE  -> inflate_value input
 
-let string_of_slab slab = 
-  let c = Buffer.contents slab.b in
-  let input = make_input c 0 in
-  let b = Buffer.create 1024 in
-  let rec loop () = 
-    let _ = input_size input in
-    let e = input_entry input in
-    Buffer.add_string b (Entry.entry2s e);
-    Buffer.add_string b "\n";
-    if input.p = String.length c then ()
-    else loop ()
-  in
-  loop () ;
-  Buffer.contents b
-  
-let write log (slab:slab) = 
-  let ss = Buffer.contents slab.b in
-  let () = _seek_write log.fd log.next ss in
-  log.last <- slab.cp;
-  log.next <- log.next + String.length ss
-    
-  
 let inflate_entry es = 
   let input = make_input es 0 in
   input_entry input
 
-let _read_entry_s fd pos = 
-  let ls = _seek_read fd pos 4 in
-  let l = size_from ls 0 in
-  let es = _really_read fd l in
-  es 
-    
-  (* THIS IS MORE EXPENSIVE: 
-  let ls = String.create 4 in
-  let () = Posix.pread_into_exactly fd ls 4 pos in
-  let l = size_from ls 0 in
-  let es = String.create l in
-  let () = Posix.pread_into_exactly fd es l (pos + 4) in
-  es
-  *)
 
-let read t pos = 
-  if pos = 0 then NIL
-  else
-    begin
-      let es = _read_entry_s t.fd pos in
-      inflate_entry es
-    end
 
 let dump ?(out=Pervasives.stdout) (t:t) = 
   _seek t.fd 0 ;
@@ -375,7 +286,111 @@ let dump ?(out=Pervasives.stdout) (t:t) =
     let pos' = pos + 4 + String.length es in
     loop pos'
   in
-  loop _METADATA_SIZE
+  try
+    loop _METADATA_SIZE
+  with _ -> ()
+
+let _add_buffer b mb = 
+  let l = Buffer.length mb in
+  size_to b l;
+  Buffer.add_buffer b mb;
+  l + 4
+
+let deflate_value b _ v =
+  let l = String.length v in
+  let mb = Buffer.create (l+5) in
+  tag_to mb VALUE;
+  string_to mb v;
+  _add_buffer b mb
+
+let pos_remap mb h p = 
+  let o = match p with
+    | Outer x -> x
+    | Inner x -> 
+      let o = Hashtbl.find h x in
+      o
+  in
+  vint_to mb o
+	       
+let deflate_index b h (p0, kps) =
+  let mb = Buffer.create 128 in
+  tag_to mb INDEX;
+  pos_remap mb h p0;
+  let l = List.length kps in
+  vint_to mb l;
+  List.iter (fun (k,p) -> 
+    string_to mb k; 
+    pos_remap mb h p) 
+    kps;
+  _add_buffer b mb
+  
+      
+let deflate_leaf b h kps = 
+  let mb = Buffer.create 128 in
+  tag_to mb LEAF;
+  let l = List.length kps in
+  vint_to mb l;
+  List.iter (fun (k,p) ->
+    string_to mb k;
+    pos_remap mb h p)
+    kps;
+  _add_buffer b mb
+
+let deflate_commit b h p = 
+  let mb = Buffer.create 8 in
+  tag_to mb COMMIT;
+  pos_remap mb h p;
+  _add_buffer b mb
+
+let deflate_entry (b:Buffer.t) h (e:entry) =
+  match e with
+    | NIL -> failwith "NIL?"
+    | Value v  -> deflate_value  b h v
+    | Index i  -> deflate_index  b h i
+    | Leaf l   -> deflate_leaf   b h l
+    | Commit c -> deflate_commit b h c
+
+
+let write log (slab:slab) = 
+  let b = Buffer.create 1024 in
+  let h = Hashtbl.create slab.nes in
+  let rec loop i start = function
+    | [] -> Hashtbl.find h (slab.nes -1) 
+    | e :: es -> 
+      begin
+	let size = deflate_entry b h e in
+	let () = Hashtbl.replace h i start in
+	let start' = start + size in
+	loop (i+1) start' es
+      end
+  in
+  let cp = loop 0 log.next (List.rev slab.es) in
+  let ss = Buffer.contents b in
+  let () = _seek_write log.fd log.next ss in
+  log.last <- cp;
+  log.next <- log.next + String.length ss;
+  ()
+
+
+let sync t = Posix.fsync t.fd
+
+let _read_entry_s fd pos = 
+  let ls = _seek_read fd pos 4 in
+  let l = size_from ls 0 in
+  let es = _really_read fd l in
+  es 
+
+let read t pos = 
+  match pos with
+    | Outer p ->
+      if p = 0 then NIL
+      else
+	begin
+	  let es = _read_entry_s t.fd p in
+	  inflate_entry es
+	end
+    | Inner _ -> failwith "cannot read inner"
+
 
 let init ?(d=4) fn = 
   let fd = openfile fn [O_CREAT;O_WRONLY;] 0o640 in
@@ -390,8 +405,7 @@ let init ?(d=4) fn =
     let () = Unix.close fd in
     let s = Printf.sprintf "%s already exists" fn in
     failwith s
-      
-let sync t = Posix.fsync t.fd
+
 
 let make filename = 
   let fd = openfile filename [O_RDWR] 0o640 in
@@ -406,3 +420,6 @@ let make filename =
       last + 4 + String.length s 
   in
   {fd ; last; next; d}
+
+
+

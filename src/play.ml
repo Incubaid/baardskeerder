@@ -17,6 +17,7 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+open Base
 open Dot
 open Tree
 open Entry
@@ -27,7 +28,8 @@ module MDot = Dot(Mlog);;
 
 
 
-let t0 = Mlog.make ();;
+let t0 = Mlog.make "xxx";;
+(*
 let kvs_x = 
   let rec loop acc = function
     | 0 -> acc
@@ -132,3 +134,4 @@ let find_problem () =
 
 test 109 t0;;
 
+*)

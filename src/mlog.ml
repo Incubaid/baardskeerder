@@ -18,13 +18,15 @@
  *)
 
 open Entry
+open Base
 
 type t = { mutable es : entry array; 
 	   mutable next:int}
 
 let _d = ref 2 
 
-type slab = {mutable _es: entry list; mutable pos : int}
+type slab = {mutable _es : entry list; 
+	     mutable _nes : int}
 
 let init ?(d=2) _ = _d := d
 let get_d t = !_d
@@ -33,18 +35,33 @@ let close t = ()
 
 let make  (_:string) = {es = Array.make 32 NIL; next = 0}
 
-let make_slab t = {_es=[]; pos = t.next}
+let make_slab t = {_es=[]; _nes = 0}
 
 let add slab e = 
   slab._es <- e :: slab._es;
-  let c = slab.pos in
-  slab.pos <- c + 1; 
-  c
+  let c = slab._nes in
+  slab._nes <- c + 1; 
+  Inner c
 
 
 let write t slab = 
+  let off = t.next in
+  let externalize_pos = function
+    | (Outer i) as p -> p
+    | Inner i -> Outer (i + off)
+  in
+  let externalize_leaf  l = List.map (function (k,p) -> (k,externalize_pos p)) l in
+  let externalize_index (p0, l) = (externalize_pos p0, externalize_leaf l) in
+  let externalize_commit p = externalize_pos p in
+  let externalize = function
+    | NIL -> NIL
+    | (Value v) as e -> e
+    | Leaf l -> Leaf (externalize_leaf l)
+    | Index i -> Index (externalize_index i)
+    | Commit p -> Commit (externalize_commit p)
+  in
   let do_one e = 
-    t.es.(t.next) <- e;
+    t.es.(t.next) <- (externalize e);
     t.next <- t.next + 1
   in
   let current = Array.length t.es in
@@ -59,10 +76,13 @@ let write t slab =
     end;
   List.iter do_one (List.rev slab._es)
     
-let last t = t.next -1
-let next t = t.next
+let last t = Outer (t.next -1)
+let next t = Outer t.next
 let size (_:entry) = 1
-let read t pos = if pos < 0 then NIL else t.es.(pos)
+let read t = function
+  | Outer pos -> if pos < 0 then NIL else t.es.(pos)
+  | Inner _ -> failwith "can't read inner"
+
 
 let dump ?out:(o=stdout) (t:t) =
   Printf.fprintf o "Next = %d\n" t.next;
