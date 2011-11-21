@@ -17,21 +17,12 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-open Entry
-open Base
-open Slab
 
-module type LOG = sig
-  type t
-  val init: ?d:int -> string  -> unit
-  val write : t -> Slab.t -> unit 
-  val last  : t -> pos
-  val next  : t -> pos
-  val read  : t -> pos -> entry
-  val sync  : t -> unit
-  val make  : string -> t
-  val close : t -> unit
-  val clear: t -> unit
-  val get_d: t -> int
-  val dump: ?out:Pervasives.out_channel -> t -> unit
-end
+type t
+val make : unit -> t
+val string_of_slab : t -> string
+val add : t -> Entry.entry -> Pos.pos
+val length : t -> int
+val iter : (Entry.entry -> unit) -> t -> unit
+
+val rev_es : t -> Entry.entry list

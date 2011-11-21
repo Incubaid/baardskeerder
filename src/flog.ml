@@ -20,6 +20,7 @@
 open Unix
 
 open Entry
+open Pos
 open Posix
 
 open Flog_serialization
@@ -62,18 +63,11 @@ type t = {
   cache: OffsetEntryCache.t;
 }
 
-type slab = {
-  b: Buffer.t;
-  mutable cp : offset;
-  mutable pos: offset;
-  mutable es: (offset * entry) list;
-}
-
-let chr0 = Char.chr 0
-let chr1 = Char.chr 1
-let chr2 = Char.chr 2
-let chr3 = Char.chr 3
-let chr4 = Char.chr 4
+let chr0 = '\000'
+let chr1 = '\001'
+let chr2 = '\002'
+let chr3 = '\003'
+let chr4 = '\004'
 
 let value_tag = chr1
 and leaf_tag = chr2
@@ -197,11 +191,9 @@ let serialize_commit o =
   s
 
 and deserialize_commit s o =
-  Commit (read_uint64 s o)
+  let i = (read_uint64 s o) in
+  Commit (Outer i)
 
-and commit2s = function
-  | Commit o -> Printf.sprintf "Commit %d" o
-  | Value _ | Leaf _ | Index _ | NIL -> invalid_arg "Flog.commit2s"
 
 let marker = 0x0baadeed
 let marker' =
@@ -326,7 +318,12 @@ let int8_placeholder = '0'
 let int32_placeholder = "0123"
 let int64_placeholder = "01234567"
 
-let serialize_leaf l =
+let pos_remap h = function
+  | Outer p -> p
+  | Inner p -> Hashtbl.find h p
+
+
+let serialize_leaf h l =
   let b = Buffer.create 256 in
 
   let s32 = String.create 4
@@ -339,10 +336,11 @@ let serialize_leaf l =
   Buffer.add_char b int8_placeholder;
 
   let c = ref 0 in
-  List.iter (fun (k, p) ->
+  List.iter (fun (k, pos) ->
     write_uint32 (String.length k) s32 0;
     Buffer.add_string b s32;
     Buffer.add_string b k;
+    let p = pos_remap h pos in
     write_uint64 p s64 0;
     Buffer.add_string b s64;
     incr c;
@@ -373,12 +371,13 @@ let deserialize_leaf s o =
         let kl = read_uint32 s o in
         let k = String.sub s (o + 4) kl in
         let p = read_uint64 s (o + 4 + kl) in
-        loop ((k, p) :: acc) (o + 4 + kl + 8) (pred n)
+	let pos = Outer p in
+        loop ((k, pos) :: acc) (o + 4 + kl + 8) (pred n)
   in
 
   Leaf (loop [] (o + 2) count)
 
-let serialize_index (p, kps) =
+let serialize_index h (p0, kps) =
   let b = Buffer.create 256 in
 
   let s32 = String.create 4
@@ -393,10 +392,11 @@ let serialize_index (p, kps) =
   Buffer.add_char b int8_placeholder;
 
   let c = ref 0 in
-  List.iter(fun (k, p) ->
+  List.iter(fun (k, (pos:Pos.pos)) ->
     write_uint32 (String.length k) s32 0;
     Buffer.add_string b s32;
     Buffer.add_string b k;
+    let p = pos_remap h pos in
     write_uint64 p s64 0;
     Buffer.add_string b s64;
     incr c;
@@ -408,6 +408,7 @@ let serialize_index (p, kps) =
   let sl = String.length s in
 
   write_uint32 (sl - 4) s 0;
+  let p = pos_remap h p0 in
   write_uint64 p s 6;
   write_uint8 (!c) s 14;
 
@@ -420,8 +421,8 @@ let deserialize_index s o =
   let options = read_uint8 s o in
   assert (options = 0);
 
-  let p = read_uint64 s (o + 1) in
-
+  let p0 = read_uint64 s (o + 1) in
+  let pos0 = Outer p0 in
   let count = read_uint8 s (o + 9) in
 
   let rec loop acc o = function
@@ -430,10 +431,11 @@ let deserialize_index s o =
         let kl = read_uint32 s o in
         let k = String.sub s (o + 4) kl in
         let p = read_uint64 s (o + 4 + kl) in
-        loop ((k, p) :: acc) (o + 4 + kl + 8) (pred n)
+	let pos = Outer p in
+        loop ((k, pos) :: acc) (o + 4 + kl + 8) (pred n)
   in
 
-  Index (p, loop [] (o + 10) count)
+  Index (pos0, loop [] (o + 10) count)
 
 
 let calculate_size_value v = size_uint32 + size_uint8 + size_uint8 + String.length v + size_crc32
@@ -461,10 +463,37 @@ and deserialize_value s o =
   let sl = String.length s in
   Value (String.sub s (o + 1) (sl - o - 5))
 
-let write t slab =
-  let l = Buffer.length slab.b
-  and s = Buffer.contents slab.b in
 
+
+  
+let serialize_entry h e = 
+  match e with
+    | NIL -> failwith "serialize NIL?"
+    | Commit pos -> serialize_commit (pos_remap h pos)
+    | Value v -> serialize_value v
+    | Index index -> serialize_index h index
+    | Leaf leaf -> serialize_leaf h leaf
+  
+
+let write t slab =
+  let b = Buffer.create 1024 in
+  let sl = Slab.length slab in
+  let h = Hashtbl.create sl in
+  let rec loop i start = function
+    | [] -> Hashtbl.find h (sl -1)
+    | e :: es ->
+      begin
+	let s = serialize_entry h e in
+	let size = String.length s in
+	let () = Hashtbl.replace h i start in
+	let start' = start + size in
+	loop (i+1) start' es
+      end
+  in
+  let cp = loop 0 t.offset (Slab.rev_es slab) in
+  (* as before *)
+  let s = Buffer.contents b in
+  let l = String.length s in
   if t.space_left < l
   then
     let e = extend_file t.fd_append t.offset in
@@ -473,16 +502,26 @@ let write t slab =
     ();
 
   safe_write t.fd_append s 0 l;
-  t.commit_offset <- slab.cp;
+  t.commit_offset <- cp;
   t.offset <- t.offset + l;
-  t.space_left <- t.space_left - l;
+  t.space_left <- t.space_left - l
 
   (* TODO We might want to List.rev slab.es, if slabs get > cache.s big *)
-  List.iter (fun (p, e) -> OffsetEntryCache.add t.cache p e) slab.es
+  (* 
+     Slab.iter (fun (p, e) -> OffsetEntryCache.add t.cache p e) slab.es
+  *)
 
-let last t = t.commit_offset
-let next t = t.offset
-let read t pos =
+let last t = Outer t.commit_offset
+
+let next t = Outer t.offset
+
+let unwrap = function
+  | Outer p -> p
+  | Inner _ -> failwith "Inner?"
+
+
+let read t w =
+  let pos = unwrap w in
   if pos = 0 then NIL
   else
   match OffsetEntryCache.get t.cache pos with
@@ -551,48 +590,8 @@ let sync t =
   t.metadata <- md';
   t.last_metadata <- i
 
-(* TODO Don't really need to serialize! *)
-let size = function
-  | NIL     -> failwith "Flog.size: NIL entry"
-  | Value v -> calculate_size_value v
-  | Leaf l -> String.length (serialize_leaf l)
-  | Index i -> String.length (serialize_index i)
-  | Commit o -> calculate_size_commit o
-
-let make_slab t = {
-  b=Buffer.create 2048;
-  cp=last t;
-  pos=next t;
-  es=[];
-}
-let add s e =
-  let s', c = match e with
-    | NIL -> failwith "Flog.add: NIL"
-    | Commit o -> (serialize_commit o, true)
-    | Value v -> (serialize_value v, false)
-    | Leaf l -> (serialize_leaf l, false)
-    | Index i -> (serialize_index i, false)
-  in
-
-  Buffer.add_string s.b marker';
-  let l = String.length s' in
-  Buffer.add_string s.b s';
-
-  let p = s.pos in
-  s.pos <- p + 4 + l;
-
-  if c
-  then
-    s.cp <- p
-  else
-    ();
-
-  s.es <- (p, e) :: s.es;
-
-  p
 
 let clear _ = ()
-let string_of_slab _ = failwith "Not implemented"
 
 (* Hole punching compaction *)
 module OffsetOrder = struct
@@ -608,6 +607,10 @@ type compact_state = {
   cs_offset: offset;
   cs_entries: OffsetSet.t;
 }
+
+let size _ = failwith "todo"
+
+
 
 let rec compact' =
   let punch =
@@ -661,7 +664,7 @@ let rec compact' =
   let h' = OffsetSet.max_elt os in
   let os' = OffsetSet.remove h' os in
 
-  let e = read l h' in
+  let e = read l (Pos.out h') in
 
   let do_punch =
     if mb = 0 then do_punch_always
@@ -669,17 +672,18 @@ let rec compact' =
       let b' = b / 2 in
       if b' = 4096 then do_punch_4096 else do_punch_generic b'
   in
-
-  let (e', os'') = match e with
-    | Value _ as v -> (h' + size v + 4, os')
-    | Leaf rs as l ->
-        (h' + size l + 4,
-         List.fold_right OffsetSet.add (List.map snd rs) os')
-    | Index (p, kps) as i ->
-        (h' + size i + 4,
-         List.fold_right OffsetSet.add (List.map snd kps) (OffsetSet.add p os'))
-    | Commit _ -> failwith "Flog.compact': Commit entry"
-    | NIL -> failwith "Flog.compact': NIL entry"
+  let (e', os'') = 
+    let osnd (_,pos ) = unwrap pos in
+    match e with
+      | Value _ as v -> (h' + size v + 4, os')
+      | Leaf rs as l ->
+	(h' + size l + 4,
+	 List.fold_right OffsetSet.add (List.map osnd rs) os')
+      | Index (p0, kps) as i ->
+	(h' + size i + 4,
+	 List.fold_right OffsetSet.add (List.map osnd kps) (OffsetSet.add (unwrap p0) os'))
+      | Commit _ -> failwith "Flog.compact': Commit entry"
+      | NIL -> failwith "Flog.compact': NIL entry"
   in
 
   do_punch l.fd_random mb e' (n - e');
@@ -698,9 +702,10 @@ let compact ?min_blocks:(mb=0) t =
   let b' = b * 2
   and o = t.commit_offset in
 
-  match (read t o) with
+  match (read t (Pos.out o)) with
     | Commit r ->
-        compact' t mb b' { cs_offset=o; cs_entries=OffsetSet.singleton r; }
+      let p = unwrap r in
+      compact' t mb b' { cs_offset=o; cs_entries=OffsetSet.singleton p; }
     | NIL ->
         failwith "Flog.compact: read NIL iso commit entry"
     | Leaf _ | Value _ | Index _ ->

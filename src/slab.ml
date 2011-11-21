@@ -20,15 +20,22 @@
 open Entry
 open Pos
 
-type slab = { mutable es: entry list; mutable nes: int}
+type t = { mutable es: entry list; mutable nes: int}
 
-let make_slab _ = { es = []; nes = 0}
+let make () = { es = []; nes = 0}
 
 let string_of_slab s = Printf.sprintf "{ es = %s; nes = %i}" 
   (Pretty.string_of_list entry2s s.es) s.nes
-
+  
 let add slab e =
   slab.es <- e :: slab.es;
   let c = slab.nes in
   slab.nes <- c + 1;
   Inner c
+    
+let length slab = slab.nes
+  
+let rev_es t= List.rev t.es
+
+let iter f slab = List.iter f (List.rev slab.es)
+

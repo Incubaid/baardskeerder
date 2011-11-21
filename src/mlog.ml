@@ -19,14 +19,12 @@
 
 open Entry
 open Base
+open Slab
 
 type t = { mutable es : entry array; 
 	   mutable next:int}
 
 let _d = ref 2 
-
-type slab = {mutable _es : entry list; 
-	     mutable _nes : int}
 
 let init ?(d=2) _ = _d := d
 let get_d t = !_d
@@ -35,16 +33,7 @@ let close t = ()
 
 let make  (_:string) = {es = Array.make 32 NIL; next = 0}
 
-let make_slab t = {_es=[]; _nes = 0}
-
-let add slab e = 
-  slab._es <- e :: slab._es;
-  let c = slab._nes in
-  slab._nes <- c + 1; 
-  Inner c
-
-
-let write t slab = 
+let write t (slab:Slab.t) = 
   let off = t.next in
   let externalize_pos = function
     | (Outer i) as p -> p
@@ -65,7 +54,7 @@ let write t slab =
     t.next <- t.next + 1
   in
   let current = Array.length t.es in
-  let needed = t.next + List.length slab._es in
+  let needed = t.next + Slab.length slab in
   if needed > current
   then
     begin
@@ -74,7 +63,7 @@ let write t slab =
       Array.blit t.es 0 bigger 0 current;
       t.es <- bigger
     end;
-  List.iter do_one (List.rev slab._es)
+  Slab.iter do_one slab
     
 let last t = Outer (t.next -1)
 let next t = Outer t.next
@@ -101,4 +90,3 @@ let clear (t:t) =
   loop 0;
   t.next <- 0
 
-let string_of_slab s = Pretty.string_of_list entry2s s._es

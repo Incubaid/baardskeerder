@@ -21,7 +21,6 @@ open Base
 open Entry
 open Unix
 
-include Slab
 
 let _really_write fd string = 
   let l = String.length string in
@@ -40,7 +39,7 @@ let _really_read fd n =
   let rec loop start = function
     | 0 -> r
     | n -> let br = Unix.read fd r start n in
-	   if br = 0 then failwith "eof"
+	   if br = 0 then raise End_of_file
 	   else
 	     if br = n 
 	     then r
@@ -288,7 +287,7 @@ let dump ?(out=Pervasives.stdout) (t:t) =
   in
   try
     loop _METADATA_SIZE
-  with _ -> ()
+  with End_of_file -> ()
 
 let _add_buffer b mb = 
   let l = Buffer.length mb in
@@ -351,11 +350,12 @@ let deflate_entry (b:Buffer.t) h (e:entry) =
     | Commit c -> deflate_commit b h c
 
 
-let write log (slab:slab) = 
+let write log slab = 
   let b = Buffer.create 1024 in
-  let h = Hashtbl.create slab.nes in
+  let sl = Slab.length slab in
+  let h = Hashtbl.create sl in
   let rec loop i start = function
-    | [] -> Hashtbl.find h (slab.nes -1) 
+    | [] -> Hashtbl.find h (sl -1) 
     | e :: es -> 
       begin
 	let size = deflate_entry b h e in
@@ -364,7 +364,7 @@ let write log (slab:slab) =
 	loop (i+1) start' es
       end
   in
-  let cp = loop 0 log.next (List.rev slab.es) in
+  let cp = loop 0 log.next (Slab.rev_es slab) in
   let ss = Buffer.contents b in
   let () = _seek_write log.fd log.next ss in
   log.last <- cp;

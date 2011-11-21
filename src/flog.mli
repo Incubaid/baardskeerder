@@ -17,8 +17,8 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+
 type t
-type slab
 
 val init : ?d:int -> string -> unit
 val make : string -> t
@@ -28,13 +28,12 @@ val compact : ?min_blocks:int -> t -> unit
 
 val clear : t -> unit
 
-val read : t -> int -> Entry.entry
-val next : t -> int
-val last : t -> int
+val read : t -> Pos.pos -> Entry.entry
+val next : t -> Pos.pos
+val last : t -> Pos.pos
 
-val write : t -> slab -> unit
+val write : t -> Slab.t -> unit
 val get_d : t -> int
-val make_slab : t -> slab
 val dump : ?out:out_channel -> t -> unit
-val add : slab -> Entry.entry -> Base.pos
-val string_of_slab : slab -> string
+
+

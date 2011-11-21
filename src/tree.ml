@@ -25,6 +25,7 @@ open Entry
 open Base
 open Leaf
 open Index
+open Slab
 
 module DB = functor (L:LOG ) -> struct
 
@@ -59,10 +60,10 @@ module DB = functor (L:LOG ) -> struct
     in
     descend_commit (L.last t)
 
-  let _add_value s v = L.add s (Value v) 
-  let _add_leaf  s l = L.add s (Leaf l) 
-  let _add_index s i = L.add s (Index i) 
-  let _add_commit s p = L.add s (Commit p)
+  let _add_value s v = Slab.add s (Value v) 
+  let _add_leaf  s l = Slab.add s (Leaf l) 
+  let _add_index s i = Slab.add s (Index i) 
+  let _add_commit s p = Slab.add s (Commit p)
 
   let _set (t:L.t) slab k v = 
     let d = L.get_d t in
@@ -101,13 +102,13 @@ module DB = functor (L:LOG ) -> struct
 	  let _    = _add_value slab v    in
 	  let lpos = _add_leaf  slab l    in
 	  set_rest slab lpos rest 
-    and set_rest (slab:L.slab) start = function
+    and set_rest (slab:Slab.t) start = function
       | [] -> start
       | (Index_down z) :: rest -> 
 	let index = Indexz.replace start z in
 	let ipos = _add_index slab index    in
 	set_rest slab ipos rest
-    and set_overflow (slab:L.slab) lpos sep rpos trail = 
+    and set_overflow (slab:Slab.t) lpos sep rpos trail = 
       match trail with 
       | [] -> _add_index slab  (lpos, [sep,rpos]) 
       | Index_down z :: rest -> 
@@ -137,7 +138,7 @@ module DB = functor (L:LOG ) -> struct
 
 
   let set (t:L.t) k v =
-    let slab = L.make_slab t in
+    let slab = Slab.make () in
     let (rp':pos) = _set t slab k v in
     let _ = _add_commit slab rp' in
     L.write t slab
@@ -422,7 +423,7 @@ module DB = functor (L:LOG ) -> struct
 		    end
 
 	  end
-	| _ -> let ipos = L.add slab (Index index) in
+	| _ -> let ipos = _add_index slab index in
 	       _delete_rest slab ipos sep_c rest
     in
     let descend_commit () = 
@@ -441,7 +442,7 @@ module DB = functor (L:LOG ) -> struct
 
 
   let delete (t:L.t) k =
-    let slab = L.make_slab t in
+    let slab = Slab.make () in
     let (rp':pos) = _delete t slab k in
     let _ = _add_commit slab rp' in
     L.write t slab

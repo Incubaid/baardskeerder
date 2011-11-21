@@ -133,7 +133,7 @@ let with_tempfile f = fun () ->
     f fn;
     do_unlink ()
   with e ->
-    do_unlink ();
+    (* do_unlink (); *)
     raise e
 
 let test_database_create fn =

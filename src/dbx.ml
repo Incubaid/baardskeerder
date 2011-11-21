@@ -21,11 +21,12 @@ open Base
 open Tree
 open Log
 open Entry
+open Slab
 
 module DBX(L:LOG) = struct
 
   type tx = { log: L.t; 
-	      slab: L.slab; 
+	      slab: Slab.t; 
 	      info: (k,v option) Hashtbl.t;
 	      mutable last:pos
 	    }
@@ -53,13 +54,13 @@ module DBX(L:LOG) = struct
     ()
 
   let with_tx log f = 
-    let slab = L.make_slab log in
+    let slab = Slab.make () in
     let info = Hashtbl.create 127 in
     let last = L.last log in
     let tx = {log;slab;info;last} in
     let () = f tx in
     let c = Commit tx.last in
-    let _ = L.add tx.slab c in
+    let _ = Slab.add tx.slab c in
     L.write log tx.slab
 
 end
