@@ -37,5 +37,40 @@ let length slab = slab.nes
   
 let rev_es t= List.rev t.es
 
-let iter f slab = List.iter f (List.rev slab.es)
+let iter_rev f slab = List.iter f (List.rev slab.es)
 
+let mark slab = 
+  let r = Array.make (slab.nes) false in
+  let maybe_mark = function
+    | Outer _ -> ()
+    | Inner x -> r.(x) <- true
+  in
+  let maybe_mark2 (_,p) = maybe_mark p in
+  let mark = function
+    | NIL | Value _ -> ()
+    | Commit p -> maybe_mark p
+    | Leaf l -> List.iter maybe_mark2 l
+    | Index (p0,kps) -> let () = maybe_mark p0 in List.iter maybe_mark2 kps
+  in
+  let () = List.iter mark slab.es in
+  let () = r.(slab.nes -1) <- true in
+  r
+
+let mapping mark = 
+  let s = Array.length mark in
+  let h = Hashtbl.create s in
+  let rec loop i o =
+    if i = s then h
+    else
+      let v = mark.(i) in
+      let i' = i + 1 in
+      let () = Hashtbl.add h i o in
+      let o' = if v then o + 1 else o in
+      loop i' o'
+  in
+  loop 0 0
+	
+	
+	
+	
+        

@@ -23,6 +23,8 @@ val make : unit -> t
 val string_of_slab : t -> string
 val add : t -> Entry.entry -> Pos.pos
 val length : t -> int
-val iter : (Entry.entry -> unit) -> t -> unit
+val iter_rev : (Entry.entry -> unit) -> t -> unit
 
 val rev_es : t -> Entry.entry list
+val mark: t -> bool array
+val mapping: bool array -> (int,int) Hashtbl.t (* not abstract enough *)

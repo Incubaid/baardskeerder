@@ -63,7 +63,7 @@ let write t (slab:Slab.t) =
       Array.blit t.es 0 bigger 0 current;
       t.es <- bigger
     end;
-  Slab.iter do_one slab
+  Slab.iter_rev do_one slab
     
 let last t = Outer (t.next -1)
 let next t = Outer t.next
