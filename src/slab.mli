@@ -26,5 +26,6 @@ val length : t -> int
 val iter_rev : (Entry.entry -> unit) -> t -> unit
 
 val rev_es : t -> Entry.entry list
+val compact: t -> t
 val mark: t -> bool array
 val mapping: bool array -> (int,int) Hashtbl.t (* not abstract enough *)

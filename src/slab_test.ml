@@ -38,6 +38,10 @@ let t_compaction () =
   let slab = Slab.make () in
   let () = Array.iter (fun e -> ignore(Slab.add slab e)) es in
   let () = Printf.printf "slab:\n%s\n" (Slab.string_of_slab slab) in
+  let slab' = Slab.compact slab in
+  let () = Printf.printf "slab':\n%s\n" (Slab.string_of_slab slab') in
+  ()
+(*
   let mark = Slab.mark slab in
   let p_one i a = 
     let c = match a with
@@ -72,7 +76,7 @@ let t_compaction () =
       ()
   in
   Array.iteri p_one mark
-
+*)
 
 let suite = "Slab" >::: [
   "compaction" >:: t_compaction;
