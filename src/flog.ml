@@ -484,7 +484,9 @@ let write t slab =
     | e :: es ->
       begin
 	let s = serialize_entry h e in
-	let size = String.length s in
+	let size = String.length s + String.length marker' in
+	let () = Buffer.add_string b marker' in
+	let () = Buffer.add_string b s in
 	let () = Hashtbl.replace h i start in
 	let start' = start + size in
 	loop (i+1) start' es
@@ -527,34 +529,34 @@ let read t w =
   match OffsetEntryCache.get t.cache pos with
   | Some e -> e
   | None ->
-
-  let s = String.create 9 in
-
-  pread_into_exactly t.fd_in s 9 pos;
-
-  let m = read_uint32 s 0
-  and l = read_uint32 s 4 in
-  assert (m = marker);
-
-  let c = read_char8 s 8 in
-
-  (* Special-case values to get-around a useless allocation + substring *)
-  if c = value_tag
-  then
-    let s' = String.create (l - 2 - 4) in
-    pread_into_exactly t.fd_in s' (l - 2 - 4)
-      (pos + 4 + 4 + 1 + 1);
-    Value s'
-  else
-    let s' = String.create (l - 1) in
-    pread_into_exactly t.fd_in s' (l - 1) (pos + 4 + 4 + 1);
-
-    match c with
-      | i when i = value_tag -> failwith "Flog.read: value"
-      | i when i = leaf_tag -> deserialize_leaf s' 0
-      | i when i = index_tag -> deserialize_index s' 0
-      | i when i = commit_tag -> deserialize_commit s' 0
-      | _ -> failwith "Flog.read: unknown node type"
+    begin
+      let s = String.create 9 in
+      pread_into_exactly t.fd_in s 9 pos;
+      
+      let m = read_uint32 s 0
+      and l = read_uint32 s 4 in
+      assert (m = marker);
+      
+      let c = read_char8 s 8 in
+      
+      (* Special-case values to get-around a useless allocation + substring *)
+      if c = value_tag
+      then
+	let s' = String.create (l - 2 - 4) in
+	pread_into_exactly t.fd_in s' (l - 2 - 4)
+	  (pos + 4 + 4 + 1 + 1);
+	Value s'
+      else
+	let s' = String.create (l - 1) in
+	pread_into_exactly t.fd_in s' (l - 1) (pos + 4 + 4 + 1);
+	
+	match c with
+	  | i when i = value_tag -> failwith "Flog.read: value"
+	  | i when i = leaf_tag -> deserialize_leaf s' 0
+	  | i when i = index_tag -> deserialize_index s' 0
+	  | i when i = commit_tag -> deserialize_commit s' 0
+	  | _ -> failwith "Flog.read: unknown node type"
+    end
 
 let sync t =
   (* Retrieve current commit offset *)

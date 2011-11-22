@@ -42,7 +42,7 @@ type progress_callback = int -> unit
 
 let logs = Hashtbl.create 3
 let () = Hashtbl.add logs "Flog0" (module Flog0: LOG)
-(* let () = Hashtbl.add logs "Flog"  (module Flog : LOG) *)
+let () = Hashtbl.add logs "Flog"  (module Flog : LOG) 
 
 let () = 
   let n  = ref 1_000_000 in
@@ -50,7 +50,7 @@ let () =
   let fn = ref "test.db" in
   let d = ref 4 in
   let dump = ref false in
-  let log_name = ref "Flog0" in
+  let log_name = ref "Flog" in
   let () = 
     Arg.parse [
       ("--value-size",Set_int vs, Printf.sprintf "size of the values in bytes (%i)" !vs);
