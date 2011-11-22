@@ -610,8 +610,13 @@ type compact_state = {
   cs_entries: OffsetSet.t;
 }
 
-let size _ = failwith "todo"
-
+let value_size v = String.length (serialize_value v)
+let leaf_size l  = 
+  let h0 = Hashtbl.create 1 in
+  String.length (serialize_leaf h0 l) 
+let index_size i = 
+  let h0 = Hashtbl.create 1 in
+  String.length (serialize_index h0 i)
 
 
 let rec compact' =
@@ -677,12 +682,12 @@ let rec compact' =
   let (e', os'') = 
     let osnd (_,pos ) = unwrap pos in
     match e with
-      | Value _ as v -> (h' + size v + 4, os')
-      | Leaf rs as l ->
-	(h' + size l + 4,
+      | Value v -> (h' + value_size v + 4, os')
+      | Leaf rs ->
+	(h' + leaf_size rs + 4,
 	 List.fold_right OffsetSet.add (List.map osnd rs) os')
-      | Index (p0, kps) as i ->
-	(h' + size i + 4,
+      | Index ((p0, kps) as i) ->
+	(h' + index_size i + 4,
 	 List.fold_right OffsetSet.add (List.map osnd kps) (OffsetSet.add (unwrap p0) os'))
       | Commit _ -> failwith "Flog.compact': Commit entry"
       | NIL -> failwith "Flog.compact': NIL entry"
