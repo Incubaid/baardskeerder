@@ -32,7 +32,7 @@ let clock n f =
       | i when i mod step = 0 ->
 	let ti = Unix.gettimeofday () in
 	let d = ti -. t0 in
-	Printf.printf "\t%i (%.2f)\n%!" i d
+	Printf.printf "\t%8i (%4.2f)\n%!" i d
       | _ -> ()
   in
   let () = f () n cb in
@@ -47,6 +47,7 @@ let () = Hashtbl.add logs "Flog"  (module Flog : LOG)
 
 let () = 
   let n  = ref 1_000_000 in
+  let m  = ref 100 in
   let vs = ref 2_000 in
   let fn = ref "test.db" in
   let d = ref 4 in
@@ -156,7 +157,6 @@ let () =
       let () = MyLog.init !fn ~d:!d in 
       let db = MyLog.make !fn in
       let () = Printf.printf "\niterations = %i\nvalue_size = %i\n%!" !n !vs in
-      (*
       let () = Printf.printf "starting sets\n" in
       let d = clock !n (fun () -> set_loop db !vs) in
       Printf.printf "sets: %fs\n%!" d;
@@ -166,10 +166,8 @@ let () =
       let () = Printf.printf "starting deletes\n" in
       let d3 = clock !n (fun () -> delete_loop db) in
       Printf.printf "deletes: %fs\n%!" d3;
-      *)
-      let m = 10 in
-      let () = Printf.printf "starting set_tx (tx_size=%i)\n" m in
-      let d4 = clock !n (fun () -> set_tx_loop db !vs m) in
+      let () = Printf.printf "starting set_tx (tx_size=%i)\n" !m in
+      let d4 = clock !n (fun () -> set_tx_loop db !vs !m) in
       Printf.printf "sets_tx: %fs\n%!" d4;
       let () = MyLog.close db in
       ()

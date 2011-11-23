@@ -22,7 +22,7 @@ open Pos
 
 type t = { mutable es: entry array; mutable nes: int}
 
-let make () = { es = Array.make 16 NIL; 
+let make () = { es = Array.make 32 NIL; 
 		nes = 0}
 
 let string_of_slab s = Printf.sprintf "{ es = %s; nes = %i}" 
@@ -67,7 +67,7 @@ let iteri_rev slab f =
       
 let read slab pos = match pos with
   | Inner x -> slab.es.(x)
-  | Outer x -> failwith "can't read outer"
+  | Outer _ -> failwith "can't read outer"
 
 
 let dump s = 

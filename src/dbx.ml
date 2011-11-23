@@ -43,13 +43,8 @@ module DBX(L:LOG) = struct
     let root = Slab.length tx.slab -1 in
     let c = Commit (Inner root) in
     let _ = Slab.add tx.slab c in
-
-    let slab' = Slab.compact tx.slab in
-
-    let () = Slab.dump tx.slab in
-    let () = Printf.printf "\n---\n" in
-    let () = Slab.dump slab' in
-    let () = Printf.printf "\n---\n" in
+    (* let slab' = slab in *)
+    let slab' = Slab.compact tx.slab in 
     L.write log slab'
 
 end

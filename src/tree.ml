@@ -30,8 +30,12 @@ open Slab
 module DB = functor (L:LOG ) -> struct
 
   let get (t:L.t) (slab:Slab.t) (k:k) = 
+    let _read pos = match pos with
+      | Outer _ -> L.read t pos 
+      | Inner _ -> Slab.read slab pos
+    in
     let rec descend pos = 
-      let e = L.read t pos in
+      let e = _read pos in
       match e with
 	| NIL -> raise (NOT_FOUND k)
 	| Value v -> v
@@ -181,8 +185,12 @@ module DB = functor (L:LOG ) -> struct
 
   let _delete (t:L.t) slab k = 
     let d = L.get_d t in
+    let _read pos = match pos with 
+      | Inner x -> Slab.read slab pos
+      | Outer x -> L.read t pos  
+    in
     let rec descend pos trail = 
-      let e = L.read t pos in
+      let e = _read pos in
       match e with
 	| NIL -> failwith "corrupt"
 	| Value _ -> trail
@@ -224,7 +232,7 @@ module DB = functor (L:LOG ) -> struct
 	| Index_down z :: rest -> 
 	  begin
 	    let read_leaf pos = 
-	      let e = L.read t pos in
+	      let e = _read pos in
 	      match e with
 		| Leaf l -> l
 		| _ -> failwith "should be leaf"
@@ -348,7 +356,7 @@ module DB = functor (L:LOG ) -> struct
 	  _delete_rest slab ipos' lr' rest
     and xxx_merged slab (start:pos) sep_c (index:Index.index) rest = 
       let read_index pos = 
-	let e = L.read t pos in
+	let e = _read pos in
 	match e with
 	  | Index i -> i
 	  | _ -> failwith "should be index"
