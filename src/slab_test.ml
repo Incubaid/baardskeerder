@@ -23,23 +23,45 @@ open Slab
 open Pos
 
 
-let es = [| Value "A"; 
-	    Leaf[("a",Inner 0)];
-	    Value "B";
-	    Leaf[("a",Inner 0); ("b",Inner 2)];
-	    Value "C";
-	    Leaf[("a",Inner 0);("b",Inner 2);("c",Inner 4)];
-	    Value "D";
-	    Leaf[("a",Inner 0);("b",Inner 2);("c",Inner 4); ("d", Inner 6)];
-	   |]
+let es = [| 
+  Value "xxxxx";
+  Leaf ["key_00000000", Inner 0];
+  Value "xxxxx";
+  Leaf ["key_00000000", Inner 0; "key_00000001", Inner 2];
+  Value "xxxxx";
+  Leaf ["key_00000000", Inner 0; "key_00000001", Inner 2; "key_00000002", Inner 4];
+  Value "xxxxx";
+  Leaf ["key_00000000", Inner 0; "key_00000001", Inner 2];
+  Leaf ["key_00000002", Inner 4; "key_00000003", Inner 6];
+  Index (Inner 7, ["key_00000001", Inner 8]);
+  Value "xxxxx";
+  Leaf ["key_00000002", Inner 4; "key_00000003", Inner 6; "key_00000004", Inner 10];
+  Index (Inner 7, ["key_00000001", Inner 11]);
+  Value "xxxxx";
+  Leaf ["key_00000002", Inner 4; "key_00000003", Inner 6];
+  Leaf ["key_00000004", Inner 10; "key_00000005", Inner 13];
+  Index (Inner 7, ["key_00000001", Inner 14; "key_00000003", Inner 15]);
+  Value "xxxxx";
+  Leaf ["key_00000004", Inner 10; "key_00000005", Inner 13; "key_00000006", Inner 17];
+  Index (Inner 7, ["key_00000001", Inner 14; "key_00000003", Inner 18]);
+  Value "xxxxx";
+  Leaf ["key_00000004", Inner 10; "key_00000005", Inner 13];
+  Leaf ["key_00000006", Inner 17; "key_00000007", Inner 20];
+  Index (Inner 7, ["key_00000001", Inner 14]);
+  Index (Inner 21, ["key_00000005", Inner 22]);
+  Index (Inner 23, ["key_00000003", Inner 24]);
+  Commit (Inner 25);
+	 |]
 
 
 let t_compaction () = 
   let slab = Slab.make () in
   let () = Array.iter (fun e -> ignore(Slab.add slab e)) es in
-  let () = Printf.printf "slab:\n%s\n" (Slab.string_of_slab slab) in
+  let () = Slab.dump slab in
+  let () = print_string "----\n" in
   let slab' = Slab.compact slab in
-  let () = Printf.printf "slab':\n%s\n" (Slab.string_of_slab slab') in
+  let () = Slab.dump slab' in
+  let () = print_string "---\n" in
   ()
 (*
   let mark = Slab.mark slab in

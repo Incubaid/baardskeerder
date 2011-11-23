@@ -354,17 +354,15 @@ let write log slab =
   let b = Buffer.create 1024 in
   let sl = Slab.length slab in
   let h = Hashtbl.create sl in
-  let rec loop i start = function
-    | [] -> Hashtbl.find h (sl -1) 
-    | e :: es -> 
-      begin
-	let size = deflate_entry b h e in
-	let () = Hashtbl.replace h i start in
-	let start' = start + size in
-	loop (i+1) start' es
-      end
+  let start = ref log.next in
+  let do_one i e = 
+    let size = deflate_entry b h e in
+    let () = Hashtbl.replace h i !start in
+    let () = start := !start + size in
+    ()
   in
-  let cp = loop 0 log.next (Slab.rev_es slab) in
+  let () = Slab.iteri slab do_one  in
+  let cp = Hashtbl.find h (sl -1) in
   let ss = Buffer.contents b in
   let () = _seek_write log.fd log.next ss in
   log.last <- cp;

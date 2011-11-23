@@ -25,42 +25,31 @@ open Slab
 
 module DBX(L:LOG) = struct
 
-  type tx = { log: L.t; 
-	      slab: Slab.t; 
-	      info: (k,v option) Hashtbl.t;
-	      mutable last:pos
-	    }
+  type tx = { log: L.t; slab: Slab.t; }
 
   module DBL = DB(L)
 
-  let get tx k = 
-    if Hashtbl.mem tx.info k then
-      match Hashtbl.find tx.info k with
-	| None -> raise (NOT_FOUND k)
-	| Some v -> v
-    else
-      DBL.get tx.log k
+  let get tx k = DBL.get tx.log tx.slab k
 
-  let set tx k v = 
-    Hashtbl.replace tx.info k (Some v);
-    let last' = DBL._set tx.log tx.slab k v in
-    let () = tx.last <- last' in
-    ()
-      
-  let delete tx k = 
-    Hashtbl.replace tx.info k None;
-    let last' = DBL._delete tx.log tx.slab k in
-    let () = tx.last <- last' in
-    ()
+  let set tx k v = let _ = DBL._set tx.log tx.slab k v in ()
+
+  let delete tx k = let _ = DBL._delete tx.log tx.slab k in ()
+
 
   let with_tx log f = 
     let slab = Slab.make () in
-    let info = Hashtbl.create 127 in
-    let last = L.last log in
-    let tx = {log;slab;info;last} in
+    let tx = {log;slab} in
     let () = f tx in
-    let c = Commit tx.last in
+    let root = Slab.length tx.slab -1 in
+    let c = Commit (Inner root) in
     let _ = Slab.add tx.slab c in
-    L.write log tx.slab
+
+    let slab' = Slab.compact tx.slab in
+
+    let () = Slab.dump tx.slab in
+    let () = Printf.printf "\n---\n" in
+    let () = Slab.dump slab' in
+    let () = Printf.printf "\n---\n" in
+    L.write log slab'
 
 end

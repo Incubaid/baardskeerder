@@ -29,7 +29,7 @@ open Slab
 
 module DB = functor (L:LOG ) -> struct
 
-  let get (t:L.t) k = 
+  let get (t:L.t) (slab:Slab.t) (k:k) = 
     let rec descend pos = 
       let e = L.read t pos in
       match e with
@@ -52,13 +52,19 @@ module DB = functor (L:LOG ) -> struct
       let pos' = loop p0 kps in
       descend pos'
     in
-    let rec descend_commit pos = 
-      let e = L.read t pos in
-      match e with 
-	| Commit pos -> descend pos
-	| NIL -> raise (NOT_FOUND k)
+    let rec descend_root () = 
+      if Slab.is_empty slab 
+      then
+	let pos = L.last t in
+	let e = L.read t pos in
+	match e with 
+	  | Commit pos -> descend pos
+	  | NIL -> raise (NOT_FOUND k)
+      else
+	let pos = Slab.last slab in
+	descend pos
     in
-    descend_commit (L.last t)
+    descend_root ()
 
   let _add_value s v = Slab.add s (Value v) 
   let _add_leaf  s l = Slab.add s (Leaf l) 
@@ -68,7 +74,10 @@ module DB = functor (L:LOG ) -> struct
   let _set (t:L.t) slab k v = 
     let d = L.get_d t in
     let rec descend_set pos trail = 
-      let e = L.read t pos in
+      let e = match pos with
+	| Inner x -> Slab.read slab pos
+	| Outer x -> L.read t pos  
+      in
       match e with
 	| NIL     -> []
 	| Value _ -> failwith "value ?"
@@ -124,17 +133,22 @@ module DB = functor (L:LOG ) -> struct
 	  let start' = _add_index slab i' in
 	  set_rest slab start' rest
     in
-    let descend_commit () = 
-      let pos = L.last t in
-      let e = L.read t pos in
-      match e with
-	| NIL -> []
-	| Commit pos -> descend_set pos [] 
-	| e -> 
-	  let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
+    let descend_root () = 
+      if Slab.is_empty slab
+      then	
+	let pos = L.last t in
+	let e = L.read t pos in
+	match e with
+	  | NIL -> []
+	  | Commit pos -> descend_set pos [] 
+	  | e -> let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
+      else
+	let pos = Slab.last slab in
+	descend_set pos []
     in
-    let trail = descend_commit () in
-    set_start slab (L.next t) trail
+    let trail = descend_root () in
+    let next = Slab.next slab in 
+    set_start slab next trail
 
 
   let set (t:L.t) k v =
@@ -426,17 +440,20 @@ module DB = functor (L:LOG ) -> struct
 	| _ -> let ipos = _add_index slab index in
 	       _delete_rest slab ipos sep_c rest
     in
-    let descend_commit () = 
-      let lp = L.last t in
-      let e = L.read t lp in
-      match e with
-	| NIL -> []
-	| Commit pos -> descend pos []
-	| e -> let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in
-	       failwith s
+    let descend_root () = 
+      if Slab.is_empty slab then
+	let lp = L.last t in
+	let e = L.read t lp in
+	match e with
+	  | NIL -> []
+	  | Commit pos -> descend pos []
+	  | e -> let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in
+		 failwith s
+      else
+	descend (Slab.last slab) []
     in
-    let trail = descend_commit () in
-    let start = L.next t in
+    let trail = descend_root () in
+    let start = Slab.next slab in
     let (rp':pos) = delete_start slab start trail in
     rp'
 

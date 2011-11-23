@@ -38,13 +38,15 @@ type 'a q = {
   dump   :?out:out_channel -> 'a -> unit;
 }
 
-let mem_setup () =  {
+let mem_setup () =  
+  let empty = Slab.make () in
+  {
   log = Mlog.make "bla";
   last = Mlog.last;
   read = Mlog.read;
   clear = Mlog.clear;
   set = MDB.set;
-  get = MDB.get;
+  get = (fun log k -> MDB.get log empty k);
   delete = MDB.delete;
   dump = Mlog.dump;
 }

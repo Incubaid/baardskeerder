@@ -49,7 +49,7 @@ let write t (slab:Slab.t) =
     | Index i -> Index (externalize_index i)
     | Commit p -> Commit (externalize_commit p)
   in
-  let do_one e = 
+  let do_one _ e = 
     t.es.(t.next) <- (externalize e);
     t.next <- t.next + 1
   in
@@ -63,7 +63,7 @@ let write t (slab:Slab.t) =
       Array.blit t.es 0 bigger 0 current;
       t.es <- bigger
     end;
-  Slab.iter_rev do_one slab
+  Slab.iteri slab do_one 
     
 let last t = Outer (t.next -1)
 let next t = Outer t.next

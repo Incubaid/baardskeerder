@@ -479,20 +479,20 @@ let write t slab =
   let b = Buffer.create 1024 in
   let sl = Slab.length slab in
   let h = Hashtbl.create sl in
-  let rec loop i start = function
-    | [] -> Hashtbl.find h (sl -1)
-    | e :: es ->
-      begin
-	let s = serialize_entry h e in
-	let size = String.length s + String.length marker' in
-	let () = Buffer.add_string b marker' in
-	let () = Buffer.add_string b s in
-	let () = Hashtbl.replace h i start in
-	let start' = start + size in
-	loop (i+1) start' es
-      end
+  let start = ref t.offset in
+  let rec do_one i e = 
+    begin
+      let s = serialize_entry h e in
+      let size = String.length s + String.length marker' in
+      let () = Buffer.add_string b marker' in
+      let () = Buffer.add_string b s in
+      let () = Hashtbl.replace h i !start in
+      let () = start := !start + size in
+      ()
+    end
   in
-  let cp = loop 0 t.offset (Slab.rev_es slab) in
+  let () = Slab.iteri slab do_one in
+  let cp = Hashtbl.find h (sl -1) in
   (* as before *)
   let s = Buffer.contents b in
   let l = String.length s in
