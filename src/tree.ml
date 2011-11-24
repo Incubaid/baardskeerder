@@ -70,10 +70,10 @@ module DB = functor (L:LOG ) -> struct
     in
     descend_root ()
 
-  let _add_value s v = Slab.add s (Value v) 
-  let _add_leaf  s l = Slab.add s (Leaf l) 
-  let _add_index s i = Slab.add s (Index i) 
-  let _add_commit s p = Slab.add s (Commit p)
+  (* let _add_value s v = Slab.add s (Value v)  *)
+  (* let _add_leaf  s l = Slab.add s (Leaf l)  *)
+  (* let _add_index s i = Slab.add s (Index i) *)
+  (* let _add_commit s p = Slab.add s (Commit p) *)
 
   let _set (t:L.t) slab k v = 
     let d = L.get_d t in
@@ -99,42 +99,42 @@ module DB = functor (L:LOG ) -> struct
     in 
     let rec set_start slab start trail = 
       match trail with 
-      | [] -> let vpos = _add_value slab v in
-	      let lpos = _add_leaf  slab [k,vpos] in
+      | [] -> let vpos = Slab.add_value slab v in
+	      let lpos = Slab.add_leaf  slab [k,vpos] in
 	      lpos
       | Leaf_down z :: rest -> 
 	if Leafz.max d z 
 	then 
 	  let left, (sep,_) , right = Leafz.split d k start z in
-	  let _    = _add_value slab v     in
-	  let lpos = _add_leaf  slab left  in
-	  let rpos = _add_leaf  slab right in
+	  let _    = Slab.add_value slab v     in
+	  let lpos = Slab.add_leaf  slab left  in
+	  let rpos = Slab.add_leaf  slab right in
 	  set_overflow slab lpos sep rpos rest
 	else
 	  let l = Leafz.insert k start z in
-	  let _    = _add_value slab v    in
-	  let lpos = _add_leaf  slab l    in
+	  let _    = Slab.add_value slab v in
+	  let lpos = Slab.add_leaf  slab l in
 	  set_rest slab lpos rest 
     and set_rest (slab:Slab.t) start = function
       | [] -> start
       | (Index_down z) :: rest -> 
 	let index = Indexz.replace start z in
-	let ipos = _add_index slab index    in
+	let ipos = Slab.add_index slab index    in
 	set_rest slab ipos rest
     and set_overflow (slab:Slab.t) lpos sep rpos trail = 
       match trail with 
-      | [] -> _add_index slab  (lpos, [sep,rpos]) 
+      | [] -> Slab.add_index slab  (lpos, [sep,rpos]) 
       | Index_down z :: rest -> 
 	if Indexz.max d z 
 	then 
 	  let left, sep', right  = Indexz.split d lpos sep rpos z in
-	  let lpos' = _add_index slab left  in
-	  let rpos' = _add_index slab right in
+	  let lpos' = Slab.add_index slab left  in
+	  let rpos' = Slab.add_index slab right in
 	  set_overflow slab lpos' sep' rpos' rest
 	else
 	  let z' = Indexz.insert lpos sep rpos z in
 	  let i' = Indexz.close z' in
-	  let start' = _add_index slab i' in
+	  let start' = Slab.add_index slab i' in
 	  set_rest slab start' rest
     in
     let descend_root () = 
@@ -158,7 +158,7 @@ module DB = functor (L:LOG ) -> struct
   let set (t:L.t) k v =
     let slab = Slab.make () in
     let (rp':pos) = _set t slab k v in
-    let _ = _add_commit slab rp' in
+    let _ = Slab.add_commit slab rp' in
     L.write t slab
 
 
@@ -168,7 +168,7 @@ module DB = functor (L:LOG ) -> struct
       begin	  
 	let _step slab lr z rest = 
 	  let index = Indexz.replace start z in
-	  let ipos = _add_index slab index in
+	  let ipos = Slab.add_index slab index in
 	  _delete_rest slab ipos lr rest
 	in
 	match lr with
@@ -212,13 +212,13 @@ module DB = functor (L:LOG ) -> struct
       | [] -> failwith "corrupt" 
       | [Leaf_down z ]-> 
 	let leaf', _ = Leafz.delete z in
-	_add_leaf slab leaf'
+	Slab.add_leaf slab leaf'
       | Leaf_down z :: rest ->
 	if Leafz.min d z 
 	then leaf_underflow slab z rest
 	else 
 	  let leaf',lr = Leafz.delete z in
-	  let lpos = _add_leaf slab leaf' in
+	  let lpos = Slab.add_leaf slab leaf' in
 	  (* let () = Printf.printf "lpos = %s <-> start = %s\n" (pos2s lpos) (pos2s start) in *)
 	  _delete_rest slab start lr rest
 
@@ -227,7 +227,7 @@ module DB = functor (L:LOG ) -> struct
       match rest with 
 	| [] -> 
 	  let leaf',_ = Leafz.delete leafz in
-	  let (rp:pos) = _add_leaf slab leaf' in 
+	  let (rp:pos) = Slab.add_leaf slab leaf' in 
 	  rp
 	| Index_down z :: rest -> 
 	  begin
@@ -247,7 +247,7 @@ module DB = functor (L:LOG ) -> struct
 		    begin
 		      let left, _  = Leafz.delete leafz in
 		      let h,sep_c  =  leaf_merge left right in
-		      let hpos = _add_leaf slab h in
+		      let hpos = Slab.add_leaf slab h in
 		      let z' = Indexz.suppress Indexz.R hpos sep_c z in
 		      let sep_c' = if Indexz.can_go_right z' then None else sep_c in
 		      let index' = Indexz.close z' in
@@ -258,8 +258,8 @@ module DB = functor (L:LOG ) -> struct
 		      let left, _ = Leafz.delete leafz in
 		      let left', _, right' = leaf_borrow_right left right in
 		      let sep_c = leaf_min_key right in
-		      let lpos = _add_leaf slab left' in
-		      let rpos = _add_leaf slab right' in
+		      let lpos = Slab.add_leaf slab left' in
+		      let rpos = Slab.add_leaf slab right' in
 		      xxx_borrowed_right slab lpos rpos z sep_c rest 
 		    end
 		end
@@ -271,7 +271,7 @@ module DB = functor (L:LOG ) -> struct
 		    begin
 		      let right, _ = Leafz.delete leafz in
 		      let h, sep_c = leaf_merge left right  in
-		      let (hpos:pos) = _add_leaf slab h in
+		      let (hpos:pos) = Slab.add_leaf slab h in
 		      let z' = Indexz.suppress Indexz.L hpos sep_c z in
 		      let index' = Indexz.close z' in
 		      let (rp:pos) = xxx_merged slab hpos sep_c index' rest in
@@ -281,8 +281,8 @@ module DB = functor (L:LOG ) -> struct
 		    begin
 		      let right, sep_c = Leafz.delete leafz in
 		      let left', sep', right' = leaf_borrow_left left right in
-		      let lpos = _add_leaf slab left' in
-		      let rpos = _add_leaf slab right' in
+		      let lpos = Slab.add_leaf slab left' in
+		      let rpos = Slab.add_leaf slab right' in
 		      xxx_borrowed_left slab lpos sep' rpos z sep_c rest
 		    end
 		end
@@ -295,7 +295,7 @@ module DB = functor (L:LOG ) -> struct
 		      begin
 			let right, _ = Leafz.delete leafz in
 			let h, lr = leaf_merge left right in
-			let hpos = _add_leaf slab h in
+			let hpos = Slab.add_leaf slab h in
 			let z' = Indexz.suppress Indexz.L hpos lr z in 
 			let index' = Indexz.close z' in
 			let lr'  = 
@@ -309,7 +309,7 @@ module DB = functor (L:LOG ) -> struct
 		      begin
 			let left,_ = Leafz.delete leafz in
 			let h, lr = leaf_merge left right in
-			let hpos = _add_leaf slab h in
+			let hpos = Slab.add_leaf slab h in
 			let z' = Indexz.suppress Indexz.R hpos lr z in
 			let index' = Indexz.close z' in
 			let lr' = 
@@ -323,8 +323,8 @@ module DB = functor (L:LOG ) -> struct
 		      begin
 			let right, sep_c = Leafz.delete leafz in
 			let left', sep', right' = leaf_borrow_left left right in
-			let lpos = _add_leaf slab left' in
-			let rpos = _add_leaf slab right' in
+			let lpos = Slab.add_leaf slab left' in
+			let rpos = Slab.add_leaf slab right' in
 			xxx_borrowed_left slab lpos sep' rpos z sep_c rest
 		      end		    
 		end
@@ -334,14 +334,14 @@ module DB = functor (L:LOG ) -> struct
       let z' = Indexz.borrowed_right lpos lr rpos z in
       let lr' = if Indexz.can_go_right z' then None else Some lr in
       let index' = Indexz.close z' in
-      let ipos = _add_index slab index' in
+      let ipos = Slab.add_index slab index' in
       _delete_rest slab ipos lr' rest
     and xxx_borrowed_left slab (lpos:pos) sep (rpos:pos) z lr rest = 
       match lr with
 	| None -> 
 	  let z2 = Indexz.borrowed_left lpos sep rpos z in
 	  let index' = Indexz.close z2 in
-	  let ipos' = _add_index slab index' in
+	  let ipos' = Slab.add_index slab index' in
 	  _delete_rest slab ipos' None rest
 	| Some s ->
 	  let z2 = 
@@ -352,7 +352,7 @@ module DB = functor (L:LOG ) -> struct
 	  let z3 = Indexz.borrowed_left lpos sep rpos z2 in
 	  let lr' = if Indexz.can_go_right z3 then None else lr in
 	  let index' = Indexz.close z3 in	  
-	  let ipos' = _add_index slab index' in
+	  let ipos' = Slab.add_index slab index' in
 	  _delete_rest slab ipos' lr' rest
     and xxx_merged slab (start:pos) sep_c (index:Index.index) rest = 
       let read_index pos = 
@@ -365,7 +365,7 @@ module DB = functor (L:LOG ) -> struct
 	begin
 	  let sep = Indexz.separator Indexz.L z in
 	  let index1 = index_merge left sep index in
-	  let ipos1 = _add_index slab index1 in
+	  let ipos1 = Slab.add_index slab index1 in
 	  let z2 = Indexz.suppress Indexz.L ipos1 sep_c z in
 	  let lr' = if Indexz.can_go_right z2 then None else sep_c in
 	  let index2 = Indexz.close z2 in
@@ -378,14 +378,14 @@ module DB = functor (L:LOG ) -> struct
 	    | None ->
 	      let sep = Indexz.separator Indexz.R z in
 	      let index' = index_merge index sep right in
-	      let ipos' = _add_index slab index' in
+	      let ipos' = Slab.add_index slab index' in
 	      let z2 = Indexz.suppress Indexz.R ipos' sep_c z in
 	      let sep_c = None in (* after the merge, we're clueless *)
 	      let index2 = Indexz.close z2 in
 	      xxx_merged slab ipos' sep_c index2 rest
 	    | Some s ->
 	      let index' = index_merge index s right in
-	      let ipos' = _add_index slab index' in
+	      let ipos' = Slab.add_index slab index' in
 	      let z2 = Indexz.suppress Indexz.R ipos' lr z in
 	      let sep_c = None in
 	      let index2 = Indexz.close z2 in
@@ -394,7 +394,7 @@ module DB = functor (L:LOG ) -> struct
       in
       match index, rest with
 	| (_,[]) , []  -> (start:pos)
-	| index , [] -> _add_index slab index 
+	| index , [] -> Slab.add_index slab index 
 	| index , Index_down z :: rest when index_below_min d index -> 
 	  begin
 	    let nb = Indexz.neighbours z in
@@ -407,8 +407,8 @@ module DB = functor (L:LOG ) -> struct
 		  else (* borrow from left *)
 		    let psep = Indexz.separator Indexz.L z in
 		    let left',sep',right' = index_borrow_left left psep index in
-		    let lpos' = _add_index slab left' in
-		    let rpos' = _add_index slab right' in
+		    let lpos' = Slab.add_index slab left' in
+		    let rpos' = Slab.add_index slab right' in
 		    xxx_borrowed_left slab lpos' sep' rpos' z sep_c rest
 		end
 		  
@@ -423,8 +423,8 @@ module DB = functor (L:LOG ) -> struct
 		      | Some s -> s
 		    in
 		    let left', right' = index_borrow_right index (Some sep) right in
-		    let lpos = _add_index slab left' in
-		    let rpos = _add_index slab right' in
+		    let lpos = Slab.add_index slab left' in
+		    let rpos = Slab.add_index slab right' in
 		    let lr' = index_min_key right in
 		    xxx_borrowed_right slab lpos rpos z lr' rest
 		end
@@ -439,13 +439,13 @@ module DB = functor (L:LOG ) -> struct
 		    begin
 		      let psep = Indexz.separator Indexz.L z in
 		      let left', sep', right' = index_borrow_left left psep index in
-		      let lpos' = _add_index slab left' in
-		      let rpos' = _add_index slab right' in
+		      let lpos' = Slab.add_index slab left' in
+		      let rpos' = Slab.add_index slab right' in
 		      xxx_borrowed_left slab lpos' sep' rpos' z sep_c rest
 		    end
 
 	  end
-	| _ -> let ipos = _add_index slab index in
+	| _ -> let ipos = Slab.add_index slab index in
 	       _delete_rest slab ipos sep_c rest
     in
     let descend_root () = 
@@ -469,7 +469,7 @@ module DB = functor (L:LOG ) -> struct
   let delete (t:L.t) k =
     let slab = Slab.make () in
     let (rp':pos) = _delete t slab k in
-    let _ = _add_commit slab rp' in
+    let _ = Slab.add_commit slab rp' in
     L.write t slab
 
 

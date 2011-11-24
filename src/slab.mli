@@ -22,6 +22,11 @@ type t
 val make : unit -> t
 val string_of_slab : t -> string
 val add : t -> Entry.entry -> Pos.pos
+
+val add_value: t -> string -> Pos.pos
+val add_leaf : t -> Leaf.leaf -> Pos.pos
+val add_index: t -> Index.index -> Pos.pos
+val add_commit: t -> Pos.pos -> Pos.pos
 val is_empty: t -> bool
 val last: t -> Pos.pos
 val next: t -> Pos.pos
@@ -32,4 +37,6 @@ val iteri_rev : t -> (int -> Entry.entry -> unit) -> unit
 val compact: t -> t
 val mark: t -> bool array
 val mapping: bool array -> (int,int) Hashtbl.t (* not abstract enough *)
+
+
 val dump: t -> unit

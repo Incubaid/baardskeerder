@@ -35,12 +35,19 @@ let add slab e =
   let c = slab.nes in
   let () = 
     if c = Array.length slab.es 
-    then slab.es <- Array.init (2*c) (fun i -> if i < c then slab.es.(i) else NIL)
+    then 
+      slab.es <- Array.init (4*c) (fun i -> if i < c then slab.es.(i) else NIL)
   in
   slab.es.(c) <- e;
   slab.nes <- c + 1;
   Inner c
-    
+
+
+let add_value slab v = add slab (Value v)
+let add_leaf slab kps = add slab (Leaf kps)
+let add_index slab index = add slab (Index index)
+let add_commit slab p = add slab (Commit p)
+
 let length slab = slab.nes
   
 let is_empty slab = slab.nes = 0
