@@ -34,4 +34,5 @@ module type LOG = sig
   val clear: t -> unit
   val get_d: t -> int
   val dump: ?out:Pervasives.out_channel -> t -> unit
+  val compact: ?min_blocks:int -> t -> unit
 end

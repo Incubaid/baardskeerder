@@ -45,6 +45,7 @@ type command =
   | Bench
   | Dump
   | Rewrite 
+  | Punch
 
 let logs = Hashtbl.create 3
 let () = Hashtbl.add logs "Flog0" (module Flog0: LOG)
@@ -54,6 +55,7 @@ let () =
   let command = ref Bench in
   let dump () = command := Dump in
   let rewrite () = command := Rewrite in
+  let punch () = command:= Punch in
   let n  = ref 1_000_000 in
   let m  = ref 100 in
   let vs = ref 2_000 in
@@ -70,6 +72,7 @@ let () =
       ("--log-name", Set_string log_name, Printf.sprintf "name of the log implementation (%s)" !log_name);
       ("--dump", Unit dump, Printf.sprintf "doesn't run a benchmark, but dumps info about the file");
       ("--rewrite", Unit rewrite, "rewrite the log into another file");
+      ("--punch", Unit punch, "compact the log file through hole punching");
       ("--file2" , Set_string fn2, Printf.sprintf "name of the compacted log file (%s)" !fn2);
 
     ]
@@ -172,6 +175,12 @@ let () =
 	let () = MyRewrite.rewrite l0 (MyLog.last l0) l1 in
 	MyLog.close l0;
 	MyLog.close l1
+      end
+    | Punch ->
+      begin
+	let l0 = MyLog.make !fn in
+	let () = MyLog.compact l0 in
+	MyLog.close l0
       end
     | Bench ->
       begin
