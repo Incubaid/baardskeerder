@@ -41,17 +41,25 @@ let clock n f =
 
 type progress_callback = int -> unit
 
+type command = 
+  | Bench
+  | Dump
+  | Rewrite 
+
 let logs = Hashtbl.create 3
 let () = Hashtbl.add logs "Flog0" (module Flog0: LOG)
 let () = Hashtbl.add logs "Flog"  (module Flog : LOG) 
 
 let () = 
+  let command = ref Bench in
+  let dump () = command := Dump in
+  let rewrite () = command := Rewrite in
   let n  = ref 1_000_000 in
   let m  = ref 100 in
   let vs = ref 2_000 in
   let fn = ref "test.db" in
+  let fn2 = ref "test_compacted.db" in
   let d = ref 4 in
-  let dump = ref false in
   let log_name = ref "Flog" in
   let () = 
     Arg.parse [
@@ -60,7 +68,10 @@ let () =
       ("--bench-size",Set_int n,  Printf.sprintf "number of sets/gets/deletes (%i)" !n);
       ("--d", Set_int d, Printf.sprintf "1/2 of the fan-out (%i)" !d);
       ("--log-name", Set_string log_name, Printf.sprintf "name of the log implementation (%s)" !log_name);
-      ("--dump", Set dump, Printf.sprintf "doesn't run a benchmark, but dumps info about the file");
+      ("--dump", Unit dump, Printf.sprintf "doesn't run a benchmark, but dumps info about the file");
+      ("--rewrite", Unit rewrite, "rewrite the log into another file");
+      ("--file2" , Set_string fn2, Printf.sprintf "name of the compacted log file (%s)" !fn2);
+
     ]
       (fun _ ->()) 
       "simple baardskeerder benchmark"
@@ -145,30 +156,40 @@ let () =
     in
     loop 0
   in
-
-  if !dump then
-    begin
-      let db = MyLog.make !fn in
-      MyLog.dump db;
-      MyLog.close db
-    end
-  else
-    begin
-      let () = MyLog.init !fn ~d:!d in 
-      let db = MyLog.make !fn in
-      let () = Printf.printf "\niterations = %i\nvalue_size = %i\n%!" !n !vs in
-      let () = Printf.printf "starting sets\n" in
-      let d = clock !n (fun () -> set_loop db !vs) in
-      Printf.printf "sets: %fs\n%!" d;
-      let () = Printf.printf "starting gets\n" in
-      let d2 = clock !n (fun () -> get_loop db) in
-      Printf.printf "gets: %fs\n%!" d2;
-      let () = Printf.printf "starting deletes\n" in
-      let d3 = clock !n (fun () -> delete_loop db) in
-      Printf.printf "deletes: %fs\n%!" d3;
-      let () = Printf.printf "starting set_tx (tx_size=%i)\n" !m in
-      let d4 = clock !n (fun () -> set_tx_loop db !vs !m) in
-      Printf.printf "sets_tx: %fs\n%!" d4;
-      let () = MyLog.close db in
-      ()
-    end;;
+  match !command with
+    | Dump ->
+      begin
+	let db = MyLog.make !fn in
+	MyLog.dump db;
+	MyLog.close db
+      end
+    | Rewrite -> 
+      begin
+	let module MyRewrite = Rewrite.Rewrite(MyLog)(MyLog) in
+	let l0 = MyLog.make !fn in
+	let () = MyLog.init !fn2 in
+	let l1 = MyLog.make !fn2 in
+	let () = MyRewrite.rewrite l0 (MyLog.last l0) l1 in
+	MyLog.close l0;
+	MyLog.close l1
+      end
+    | Bench ->
+      begin
+	let () = MyLog.init !fn ~d:!d in 
+	let db = MyLog.make !fn in
+	let () = Printf.printf "\niterations = %i\nvalue_size = %i\n%!" !n !vs in
+	let () = Printf.printf "starting sets\n" in
+	let d = clock !n (fun () -> set_loop db !vs) in
+	Printf.printf "sets: %fs\n%!" d;
+	let () = Printf.printf "starting gets\n" in
+	let d2 = clock !n (fun () -> get_loop db) in
+	Printf.printf "gets: %fs\n%!" d2;
+	let () = Printf.printf "starting deletes\n" in
+	let d3 = clock !n (fun () -> delete_loop db) in
+	Printf.printf "deletes: %fs\n%!" d3;
+	let () = Printf.printf "starting set_tx (tx_size=%i)\n" !m in
+	let d4 = clock !n (fun () -> set_tx_loop db !vs !m) in
+	Printf.printf "sets_tx: %fs\n%!" d4;
+	let () = MyLog.close db in
+	()
+      end;;

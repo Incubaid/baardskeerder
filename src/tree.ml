@@ -70,11 +70,6 @@ module DB = functor (L:LOG ) -> struct
     in
     descend_root ()
 
-  (* let _add_value s v = Slab.add s (Value v)  *)
-  (* let _add_leaf  s l = Slab.add s (Leaf l)  *)
-  (* let _add_index s i = Slab.add s (Index i) *)
-  (* let _add_commit s p = Slab.add s (Commit p) *)
-
   let _set (t:L.t) slab k v = 
     let d = L.get_d t in
     let rec descend_set pos trail = 
