@@ -583,5 +583,37 @@ module DB = functor (L:LOG ) -> struct
     then let _  = _set t s k v in ()
     else ()
 
+  let depth (t:L.t) (slab:Slab.t )= 
+    let rec _depth_descend t slab pos c = 
+      let e = match pos with
+        | Inner _ -> Slab.read slab pos
+        | Outer _ -> L.read t pos
+      in
+      match e with
+        | NIL -> c
+        | Value _ -> c
+        | Leaf l -> 
+          begin
+            match l with
+              | [] -> c
+              | (_,p) :: _ -> _depth_descend t slab p (c+1)
+          end
+        | Index (p0,_) -> _depth_descend t slab p0 (c+1)
+    in
+    let _depth_descend_root t slab =
+      if Slab.is_empty slab
+      then
+        let pos = L.last t in
+        let e = L.read t pos in
+        match e with
+          | NIL -> 0
+          | Commit pos -> _depth_descend t slab pos 1
+          | Index _ | Value _ | Leaf _ -> 
+            let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
+      else
+        let pos = Slab.last slab in 
+        _depth_descend t slab pos 1
+    in
+    _depth_descend_root t slab
 end 
 

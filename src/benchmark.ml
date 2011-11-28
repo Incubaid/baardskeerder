@@ -46,6 +46,7 @@ type command =
   | Dump
   | Rewrite 
   | Punch
+  | Info
 
 let logs = Hashtbl.create 3
 let () = Hashtbl.add logs "Flog0" (module Flog0: LOG)
@@ -56,6 +57,7 @@ let () =
   let dump () = command := Dump in
   let rewrite () = command := Rewrite in
   let punch () = command:= Punch in
+  let info () = command:= Info in
   let n  = ref 1_000_000 in
   let m  = ref 100 in
   let vs = ref 2_000 in
@@ -73,11 +75,11 @@ let () =
       ("--log-name", Set_string log_name, Printf.sprintf "name of the log implementation (%s)" !log_name);
       ("--min-blocks", Set_int mb, Printf.sprintf
         "minimal number of consecutive blocks to punch (%i)" !mb);
-      ("--dump", Unit dump, Printf.sprintf "doesn't run a benchmark, but dumps info about the file");
+      ("--dump", Unit dump, Printf.sprintf "doesn't run a benchmark, but dumps file's contents");
       ("--rewrite", Unit rewrite, "rewrite the log into another file");
       ("--punch", Unit punch, "compact the log file through hole punching");
       ("--file2" , Set_string fn2, Printf.sprintf "name of the compacted log file (%s)" !fn2);
-
+      ("--info", Unit info, Printf.sprintf "returns information about the file (%s)" !fn);
     ]
       (fun _ ->()) 
       "simple baardskeerder benchmark"
@@ -168,6 +170,15 @@ let () =
 	let db = MyLog.make !fn in
 	MyLog.dump db;
 	MyLog.close db
+      end
+    | Info ->
+      begin
+        let log = MyLog.make !fn in
+        let empty = Slab.make () in
+        let depth = MyDB.depth log empty in
+        let () = Printf.printf "d=%i\n" (MyLog.get_d log) in
+        let () = Printf.printf "depth=%i\n" depth in
+        MyLog.close log
       end
     | Rewrite -> 
       begin
