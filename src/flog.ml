@@ -309,6 +309,7 @@ let close db =
   then ()
   else begin
     Unix.close db.fd_in;
+    ftruncate db.fd_append db.offset;
     Unix.close db.fd_append;
     Unix.close db.fd_random;
     db.closed <- true
