@@ -182,7 +182,21 @@ let () =
     | Punch ->
       begin
 	let l0 = MyLog.make !fn in
-	let () = MyLog.compact ~min_blocks:!mb l0 in
+        let cb =
+          let l = ref 0 in
+          fun t d ->
+            if !l = 0 then (l := t) else ();
+            if (!l - d) >= (t / 20)
+            then begin
+              let p = 100. -. ((float_of_int d /. float_of_int t) *. 100.) in
+              Printf.fprintf Pervasives.stderr "Progress: %f%%\n%!" p;
+              l := d
+            end
+            else
+              ()
+        in
+
+	let () = MyLog.compact ~min_blocks:!mb ~progress_cb:(Some cb) l0 in
 	MyLog.close l0
       end
     | Bench ->
