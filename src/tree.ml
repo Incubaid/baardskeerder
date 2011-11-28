@@ -571,6 +571,17 @@ module DB = functor (L:LOG ) -> struct
     let f k = acc := k :: !acc in
     let _ = _range t first finc last linc max f in
     List.rev !acc
-    
+
+  let confirm (t:L.t) (s:Slab.t) k v =
+    let set_needed =
+      try
+	let vc = get t s k  in
+	vc <> v
+      with NOT_FOUND _ -> true
+    in
+    if set_needed
+    then let _  = _set t s k v in ()
+    else ()
+
 end 
 
