@@ -73,28 +73,43 @@ module DB = functor (L:LOG ) -> struct
     in
     descend_root ()
 
+  let rec _set_descend (t:L.t) slab (k:k) pos trail = 
+    let e = match pos with
+      | Inner _ -> Slab.read slab pos
+      | Outer _ -> L.read t pos  
+    in
+    match e with
+      | NIL     -> []
+      | Value _ -> failwith "value ?"
+      | Leaf l  -> descend_leaf k trail l
+      | Index i -> descend_index t slab k trail i
+      | Commit _-> failwith "commit ?"
+  and descend_leaf k trail leaf =
+    let z = leaf_find_set leaf k in
+    Leaf_down z :: trail
+  and descend_index t slab k trail index = 
+    let z = Indexz.find_set index k in
+    let trail' = Index_down z :: trail in
+    let pos' = Indexz.pos z in
+    _set_descend t slab k pos' trail'
+
+  let _set_descend_root t slab k = 
+    if Slab.is_empty slab
+    then	
+      let pos = L.last t in
+      let e = L.read t pos in
+      match e with
+	| NIL -> []
+	| Commit pos -> _set_descend t slab k pos [] 
+	| Index _ | Value _ | Leaf _ -> 
+	  let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
+    else
+      let pos = Slab.last slab in
+      _set_descend t slab k pos []  
+	
+	
   let _set (t:L.t) slab k v = 
     let d = L.get_d t in
-    let rec descend_set pos trail = 
-      let e = match pos with
-	| Inner _ -> Slab.read slab pos
-	| Outer _ -> L.read t pos  
-      in
-      match e with
-	| NIL     -> []
-	| Value _ -> failwith "value ?"
-	| Leaf l  -> descend_leaf trail l
-	| Index i -> descend_index trail i
-	| Commit _-> failwith "commit ?"
-    and descend_leaf trail leaf =
-      let z = leaf_find_set leaf k in
-      Leaf_down z :: trail
-    and descend_index trail index = 
-      let z = Indexz.find_set index k in
-      let trail' = Index_down z :: trail in
-      let pos' = Indexz.pos z in
-      descend_set pos' trail'
-    in 
     let rec set_start slab start trail = 
       match trail with 
       | [] -> let vpos = Slab.add_value slab v in
@@ -138,25 +153,11 @@ module DB = functor (L:LOG ) -> struct
 	  set_rest slab start' rest
       | Leaf_down _ :: _ -> failwith "rest of trail cannot contain Leaf_down _ "
     in
-    let descend_root () = 
-      if Slab.is_empty slab
-      then	
-	let pos = L.last t in
-	let e = L.read t pos in
-	match e with
-	  | NIL -> []
-	  | Commit pos -> descend_set pos [] 
-	  | Index _ | Value _ | Leaf _ -> 
-	    let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
-      else
-	let pos = Slab.last slab in
-	descend_set pos []
-    in
-    let trail = descend_root () in
+    let trail = _set_descend_root t slab k in
     let next = Slab.next slab in 
     set_start slab next trail
 
-
+	
   let set (t:L.t) k v =
     let slab = Slab.make () in
     let (rp':pos) = _set t slab k v in
