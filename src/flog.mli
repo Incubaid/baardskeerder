@@ -20,11 +20,14 @@
 
 type t
 
+type offset = int
+
 val init : ?d:int -> string -> unit
 val make : string -> t
 val close : t -> unit
 val sync : t -> unit
-val compact : ?min_blocks:int -> t -> unit
+val compact : ?min_blocks:int ->
+  ?progress_cb:(offset -> offset -> unit) option -> t -> unit
 
 val clear : t -> unit
 

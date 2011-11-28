@@ -21,6 +21,8 @@ open Entry
 open Base
 open Slab
 
+type offset = int
+
 module type LOG = sig
   type t
   val init: ?d:int -> string  -> unit
@@ -34,5 +36,6 @@ module type LOG = sig
   val clear: t -> unit
   val get_d: t -> int
   val dump: ?out:Pervasives.out_channel -> t -> unit
-  val compact: ?min_blocks:int -> t -> unit
+  val compact: ?min_blocks:int ->
+    ?progress_cb:(offset -> offset -> unit) option -> t -> unit
 end
