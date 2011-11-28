@@ -27,16 +27,16 @@ type t = { mutable es : entry array;
 let _d = ref 2 
 
 let init ?(d=2) _ = _d := d
-let get_d t = !_d
-let sync t = ()
-let close t = ()
+let get_d (_:t) = !_d
+let sync (_:t)  = ()
+let close (_:t) = ()
 
 let make  (_:string) = {es = Array.make 32 NIL; next = 0}
 
 let write t (slab:Slab.t) = 
   let off = t.next in
   let externalize_pos = function
-    | (Outer i) as p -> p
+    | (Outer _) as p -> p
     | Inner i -> Outer (i + off)
   in
   let externalize_leaf  l = List.map (function (k,p) -> (k,externalize_pos p)) l in
@@ -44,7 +44,7 @@ let write t (slab:Slab.t) =
   let externalize_commit p = externalize_pos p in
   let externalize = function
     | NIL -> NIL
-    | (Value v) as e -> e
+    | (Value _) as e -> e
     | Leaf l -> Leaf (externalize_leaf l)
     | Index i -> Index (externalize_index i)
     | Commit p -> Commit (externalize_commit p)
