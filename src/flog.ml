@@ -304,17 +304,6 @@ let dump ?(out=Pervasives.stdout) (_:t) =
   assert (out=out);
   failwith "todo"
 
-let close db =
-  if db.closed
-  then ()
-  else begin
-    Unix.close db.fd_in;
-    ftruncate db.fd_append db.offset;
-    Unix.close db.fd_append;
-    Unix.close db.fd_random;
-    db.closed <- true
-  end
-
 let int8_placeholder = '0'
 let int32_placeholder = "0123"
 let int64_placeholder = "01234567"
@@ -593,6 +582,18 @@ let sync t =
   t.metadata <- md';
   t.last_metadata <- i
 
+
+let close db =
+  if db.closed
+  then ()
+  else begin
+    sync db;
+    Unix.close db.fd_in;
+    ftruncate db.fd_append db.offset;
+    Unix.close db.fd_append;
+    Unix.close db.fd_random;
+    db.closed <- true
+  end
 
 let clear _ = ()
 
