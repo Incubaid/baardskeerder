@@ -90,6 +90,7 @@ let clear (t:t) =
   loop 0;
   t.next <- 0
 
-let compact ?(min_blocks=1) (_:t) = 
+let compact ?(min_blocks=1) ?(progress_cb=None) (_:t) =
   ignore min_blocks;
+  ignore progress_cb;
   failwith "todo"

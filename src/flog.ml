@@ -665,7 +665,7 @@ let rec compact' =
     | n -> punch f s n
   in
 
-  fun l mb b s ->
+  fun l pc mb b s ->
 
   let os = s.cs_entries
   and n = s.cs_offset in
@@ -695,14 +695,24 @@ let rec compact' =
       | NIL -> failwith "Flog.compact': NIL entry"
   in
 
+  let cb i =
+    match pc with
+      | None -> ()
+      | Some fn -> fn (l.offset) i
+  in
+
+  cb e';
   do_punch l.fd_random mb e' (n - e');
 
   if OffsetSet.is_empty os''
-  then do_punch l.fd_random mb b (h' - b)
-  else compact' l mb b { cs_offset=h'; cs_entries=os''; }
+  then begin
+    cb b;
+    do_punch l.fd_random mb b (h' - b)
+  end
+  else compact' l pc mb b { cs_offset=h'; cs_entries=os''; }
 
 
-let compact ?min_blocks:(mb=0) t =
+let compact ?min_blocks:(mb=0) ?progress_cb:(pc=None) t =
   sync t;
 
   let md = (if t.last_metadata = 0 then fst else snd) t.metadata in
@@ -714,7 +724,7 @@ let compact ?min_blocks:(mb=0) t =
   match (read t (Pos.out o)) with
     | Commit r ->
       let p = unwrap r in
-      compact' t mb b' { cs_offset=o; cs_entries=OffsetSet.singleton p; }
+      compact' t pc mb b' { cs_offset=o; cs_entries=OffsetSet.singleton p; }
     | NIL ->
         failwith "Flog.compact: read NIL iso commit entry"
     | Leaf _ | Value _ | Index _ ->

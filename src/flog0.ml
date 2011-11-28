@@ -372,8 +372,9 @@ let write log slab =
 
 let sync t = Posix.fsync t.fd
 
-let compact ?(min_blocks=1) (_:t) = 
+let compact ?(min_blocks=1) ?(progress_cb=None) (_:t) =
   ignore min_blocks;
+  ignore progress_cb;
   failwith "todo"
 
 let _read_entry_s fd pos = 
