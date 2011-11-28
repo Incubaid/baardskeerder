@@ -63,6 +63,7 @@ let () =
   let fn2 = ref "test_compacted.db" in
   let d = ref 4 in
   let log_name = ref "Flog" in
+  let mb = ref 1 in
   let () = 
     Arg.parse [
       ("--value-size",Set_int vs, Printf.sprintf "size of the values in bytes (%i)" !vs);
@@ -70,6 +71,8 @@ let () =
       ("--bench-size",Set_int n,  Printf.sprintf "number of sets/gets/deletes (%i)" !n);
       ("--d", Set_int d, Printf.sprintf "1/2 of the fan-out (%i)" !d);
       ("--log-name", Set_string log_name, Printf.sprintf "name of the log implementation (%s)" !log_name);
+      ("--min-blocks", Set_int mb, Printf.sprintf
+        "minimal number of consecutive blocks to punch (%i)" !mb);
       ("--dump", Unit dump, Printf.sprintf "doesn't run a benchmark, but dumps info about the file");
       ("--rewrite", Unit rewrite, "rewrite the log into another file");
       ("--punch", Unit punch, "compact the log file through hole punching");
@@ -179,7 +182,7 @@ let () =
     | Punch ->
       begin
 	let l0 = MyLog.make !fn in
-	let () = MyLog.compact l0 in
+	let () = MyLog.compact ~min_blocks:!mb l0 in
 	MyLog.close l0
       end
     | Bench ->
