@@ -41,6 +41,8 @@ module DB = functor (L:LOG ) -> struct
 	| Value v -> v
 	| Leaf l -> descend_leaf l
 	| Index i -> descend_index i
+	| Commit _ -> let msg = Printf.sprintf "descend reached a second commit %s" (Pos.pos2s pos) in
+		      failwith msg
     and descend_leaf = function
       | [] -> raise (NOT_FOUND k)
       | (k0,p0) :: t -> 
@@ -64,6 +66,7 @@ module DB = functor (L:LOG ) -> struct
 	match e with 
 	  | Commit pos -> descend pos
 	  | NIL -> raise (NOT_FOUND k)
+	  | Index _ | Leaf _ | Value _ -> failwith "descend_root does not start at appropriate level"
       else
 	let pos = Slab.last slab in
 	descend pos
@@ -74,8 +77,8 @@ module DB = functor (L:LOG ) -> struct
     let d = L.get_d t in
     let rec descend_set pos trail = 
       let e = match pos with
-	| Inner x -> Slab.read slab pos
-	| Outer x -> L.read t pos  
+	| Inner _ -> Slab.read slab pos
+	| Outer _ -> L.read t pos  
       in
       match e with
 	| NIL     -> []
@@ -110,12 +113,14 @@ module DB = functor (L:LOG ) -> struct
 	  let _    = Slab.add_value slab v in
 	  let lpos = Slab.add_leaf  slab l in
 	  set_rest slab lpos rest 
+      | Index_down _ :: _ -> failwith "trail must start with Leaf_down _"
     and set_rest (slab:Slab.t) start = function
       | [] -> start
       | (Index_down z) :: rest -> 
 	let index = Indexz.replace start z in
 	let ipos = Slab.add_index slab index    in
 	set_rest slab ipos rest
+      | Leaf_down _ :: _ -> failwith "rest of trail cannot contain Leaf_down _ "
     and set_overflow (slab:Slab.t) lpos sep rpos trail = 
       match trail with 
       | [] -> Slab.add_index slab  (lpos, [sep,rpos]) 
@@ -131,6 +136,7 @@ module DB = functor (L:LOG ) -> struct
 	  let i' = Indexz.close z' in
 	  let start' = Slab.add_index slab i' in
 	  set_rest slab start' rest
+      | Leaf_down _ :: _ -> failwith "rest of trail cannot contain Leaf_down _ "
     in
     let descend_root () = 
       if Slab.is_empty slab
@@ -140,7 +146,8 @@ module DB = functor (L:LOG ) -> struct
 	match e with
 	  | NIL -> []
 	  | Commit pos -> descend_set pos [] 
-	  | e -> let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
+	  | Index _ | Value _ | Leaf _ -> 
+	    let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
       else
 	let pos = Slab.last slab in
 	descend_set pos []
@@ -177,12 +184,12 @@ module DB = functor (L:LOG ) -> struct
 	    else
 	      _step slab lr z rest
       end
-
+    | Leaf_down _ :: _ -> failwith "rest trail cannot contain Leaf_down _ "
   let _delete (t:L.t) slab k = 
     let d = L.get_d t in
     let _read pos = match pos with 
-      | Inner x -> Slab.read slab pos
-      | Outer x -> L.read t pos  
+      | Inner _ -> Slab.read slab pos
+      | Outer _ -> L.read t pos  
     in
     let rec descend pos trail = 
       let e = _read pos in
@@ -191,6 +198,8 @@ module DB = functor (L:LOG ) -> struct
 	| Value _ -> trail
 	| Leaf l -> descend_leaf trail l
 	| Index i -> descend_index trail i
+	| Commit _ -> let msg = Printf.sprintf "descend reached a second commit %s" (Pos.pos2s pos) in
+		      failwith msg
     and descend_leaf trail leaf = 
       match Leafz.find_delete leaf k with
 	| None -> raise (NOT_FOUND k)
@@ -213,10 +222,10 @@ module DB = functor (L:LOG ) -> struct
 	then leaf_underflow slab z rest
 	else 
 	  let leaf',lr = Leafz.delete z in
-	  let lpos = Slab.add_leaf slab leaf' in
+	  let _ = Slab.add_leaf slab leaf' in
 	  (* let () = Printf.printf "lpos = %s <-> start = %s\n" (pos2s lpos) (pos2s start) in *)
 	  _delete_rest slab start lr rest
-
+      | Index_down _ :: _ -> failwith "trail cannot start with Index_down _"
 
     and leaf_underflow slab leafz rest = 
       match rest with 
@@ -230,7 +239,7 @@ module DB = functor (L:LOG ) -> struct
 	      let e = _read pos in
 	      match e with
 		| Leaf l -> l
-		| _ -> failwith "should be leaf"
+		| Index _ | Value _ | Commit _ | NIL -> failwith "should be leaf"
 	    in
 	    let nb = Indexz.neighbours z in
 	    match nb with
@@ -324,7 +333,7 @@ module DB = functor (L:LOG ) -> struct
 		      end		    
 		end
 	  end
-	| _ -> failwith "corrupt"
+	| Leaf_down _ :: _  -> failwith "rest of trail cannot contain Leaf_down"
     and xxx_borrowed_right slab lpos rpos  z (lr:k) rest = 
       let z' = Indexz.borrowed_right lpos lr rpos z in
       let lr' = if Indexz.can_go_right z' then None else Some lr in
@@ -354,7 +363,7 @@ module DB = functor (L:LOG ) -> struct
 	let e = _read pos in
 	match e with
 	  | Index i -> i
-	  | _ -> failwith "should be index"
+	  | Value _ | Leaf _ | Commit _ | NIL -> failwith "should be index"
       in
       let merge_left left index z rest = 
 	begin
@@ -450,8 +459,9 @@ module DB = functor (L:LOG ) -> struct
 	match e with
 	  | NIL -> []
 	  | Commit pos -> descend pos []
-	  | e -> let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in
-		 failwith s
+	  | Index _ | Leaf _ | Value _  -> 
+	    let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in
+	    failwith s
       else
 	descend (Slab.last slab) []
     in
@@ -553,7 +563,7 @@ module DB = functor (L:LOG ) -> struct
 	  in
 	  walk 0 root
 	end
-      | _ -> failwith "not expected entry type"
+      | Index _ | Leaf _ | Value _ -> failwith "not expected entry type"
 
   let range (t:L.t) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int option) = 
     let acc = ref [] in
