@@ -17,15 +17,46 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-open Tree
-module F2db = DB(Flog2)
+open OUnit
+open Pos
+open Entry
+let kps = ["xxxyyyzzz-123", out 1100;
+           "xxxyyyzzz-235", out 1200;
+           "xxxyyyzzz-236", out 1300;
+           "xxxyyyzzz-237", out 1400;
+           "xxxyyyzzz-238", out 1500;
+           "xxxyyyzzz-239", out 1600;
+           "xxxyyyzzz-238", out 1700;]
+let pu_leaf () = 
+  let b = Buffer.create 128 in
+  let h = Hashtbl.create 7 in
+  let _ = Flog0.deflate_leaf b h kps in
+  let bs = Buffer.contents b in
+  let () = Printf.printf "\n%S\n" bs in
+  let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
+  let input = Flog0.make_input bs 5 in (* only leaf part *)
+  let leaf' = Flog0.inflate_leaf input in
+  let leaf = Leaf kps in
+  let () = OUnit.assert_equal ~printer:entry2s leaf leaf' in
+  ()
+              
 
-let () =
-  let fn = "/tmp/flog2.db" in
-  let log = Flog2.make fn in
-  List.iter (fun k -> F2db.set log k (String.uppercase k)) ["a" ; "d"; "g";"j";"m";"q";"t";"w";"z"];
-  Flog2.close log;
-  let log2 = Flog2.make fn in
-  let () = Flog2.dump log2 in
-  Flog2.close log2
+let pu_index () =
+  let b = Buffer.create 128 in
+  let h = Hashtbl.create 7 in
+  let index = out 0, kps in
+  let i0 = Index index in
+  let _ = Flog0.deflate_index b h index in
+  let bs = Buffer.contents b in
+  let () = Printf.printf "\n%S\n" bs in
+  let () = Printf.printf "\bs:%i bytes\n" (String.length bs) in
+  let input = Flog0.make_input bs 5 in (* only index part *)
+  let i1 = Flog0.inflate_index input in
+  let () = OUnit.assert_equal ~printer:entry2s i0 i1 in
+  ()
   
+let suite = 
+  "Flog0" >::: [
+    "pu_leaf" >:: pu_leaf;
+    "pu_index" >:: pu_index;
+  ]

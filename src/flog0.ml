@@ -252,11 +252,20 @@ let inflate_commit input =
 
 let inflate_value input = Value (input_string input)
 
-let inflate_leaf input = Leaf (input_list input_kp input)
+let input_suffix_list input =
+  let prefix = input_string input in
+  let suffixes = input_list input_kp input in
+  let kps = List.map (fun (s,p) -> (prefix ^s, p)) suffixes in
+  kps
+
+let inflate_leaf input = Leaf (input_suffix_list input)
+
+
+
 
 let inflate_index input = 
   let p0 = input_vint input in
-  let kps = input_list input_kp input in
+  let kps = input_suffix_list input in
   Index (Outer p0,kps)
 
 let input_entry input = 
@@ -311,29 +320,33 @@ let pos_remap mb h p =
   in
   vint_to mb o
 	       
+let kps_to mb h kps = 
+  let px = Leaf.shared_prefix kps in
+  let pxs = String.length px in
+  string_to mb px;
+  let l = List.length kps in
+  vint_to mb l;
+  List.iter (fun (k,p) ->
+    let suffix = String.sub k pxs (String.length k - pxs) in
+    string_to mb suffix;
+    pos_remap mb h p)
+    kps
+
+
 let deflate_index b h (p0, kps) =
   let mb = Buffer.create 128 in
   tag_to mb INDEX;
   pos_remap mb h p0;
-  let l = List.length kps in
-  vint_to mb l;
-  List.iter (fun (k,p) -> 
-    string_to mb k; 
-    pos_remap mb h p) 
-    kps;
+  kps_to mb h kps;
   _add_buffer b mb
   
       
 let deflate_leaf b h kps = 
   let mb = Buffer.create 128 in
   tag_to mb LEAF;
-  let l = List.length kps in
-  vint_to mb l;
-  List.iter (fun (k,p) ->
-    string_to mb k;
-    pos_remap mb h p)
-    kps;
+  kps_to mb h kps;
   _add_buffer b mb
+
 
 let deflate_commit b h p = 
   let mb = Buffer.create 8 in
