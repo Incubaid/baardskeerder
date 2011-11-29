@@ -176,8 +176,12 @@ let () =
         let log = MyLog.make !fn in
         let empty = Slab.make () in
         let depth = MyDB.depth log empty in
-        let () = Printf.printf "d=%i\n" (MyLog.get_d log) in
-        let () = Printf.printf "depth=%i\n" depth in
+        let next = MyLog.next log in
+        let last = MyLog.last log in
+        let () = Printf.printf "d:\t%i\n" (MyLog.get_d log) in
+        let () = Printf.printf "depth:\t%i\n" depth in
+        let () = Printf.printf "next:\t%s\n" (Pos.pos2s next) in
+        let () = Printf.printf "last:\t%s\n" (Pos.pos2s last) in
         MyLog.close log
       end
     | Rewrite -> 
