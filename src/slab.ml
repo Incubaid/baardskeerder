@@ -92,7 +92,7 @@ let mark slab =
   let mark _ e = 
     match e with
       | NIL | Value _ -> ()
-      | Commit (p,_) -> maybe_mark p
+      | Commit c -> let p = Commit.get_pos c in maybe_mark p
       | Leaf l -> List.iter maybe_mark2 l
       | Index (p0,kps) -> let () = maybe_mark p0 in List.iter maybe_mark2 kps
   in
@@ -130,7 +130,13 @@ let compact s =
   in
   let rewrite_leaf kps        = List.map (fun (k,p) -> (k,lookup_pos p)) kps in
   let rewrite_index (p0,kps)  = (lookup_pos p0 , rewrite_leaf kps) in
-  let rewrite_commit (p,actions)  = (lookup_pos p, rewrite_actions actions) in
+  let rewrite_commit c  = 
+    let p = lookup_pos (Commit.get_pos c) 
+    and actions =rewrite_actions (Commit.get_actions c) 
+    and i = Commit.get_i c 
+    in
+    Commit.make_commit p i actions
+  in
   let esa = s.es in
   let size = s.nes in
   let r = Array.create size NIL in

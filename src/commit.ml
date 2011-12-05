@@ -27,8 +27,16 @@ let action2s = function
   | Set (k,p) -> Printf.sprintf "Set (%S,%s)" k (pos2s p)
   | Delete k  -> Printf.sprintf "Delete %S" k
 
-type commit = (pos * (action list))
+type commit = { pos: pos ; i:int; actions: action list;}
 
-let get_pos (pos,_) = pos
+let make_commit pos i actions = {pos;i;actions }
 
-let commit2s (pos,actions) = Printf.sprintf "(%s, %s)" (pos2s pos) (Pretty.string_of_list action2s actions)
+let get_pos t = t.pos
+
+let get_actions t = t.actions
+
+let get_i t = t.i
+
+let commit2s t = Printf.sprintf "{%s;%i; %s}" 
+  (pos2s t.pos) t.i
+  (Pretty.string_of_list action2s t.actions)

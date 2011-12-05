@@ -56,7 +56,7 @@ module Rewrite (L0:LOG) (L1:LOG) = struct
 	| Value _ -> acc
 	| Leaf leaf -> walk_leaf acc leaf
 	| Index index -> walk_index acc index
-	| Commit (pos,_) -> walk acc pos
+	| Commit c -> let pos = Commit.get_pos c in walk acc pos
     and walk_leaf acc leaf = 
       let rec loop acc = function
 	| [] -> acc

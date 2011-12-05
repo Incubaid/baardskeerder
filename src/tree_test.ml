@@ -66,7 +66,8 @@ let check_empty q =
   let i = q.last q.log in
   let n = q.read q.log i in
   match n with
-    | Commit (pos,_) -> 
+    | Commit c -> 
+      let pos = Commit.get_pos c in
       let e = q.read q.log pos in
       OUnit.assert_equal e (Leaf [])
     | _ -> failwith "last is not a commit entry"
@@ -111,7 +112,7 @@ let check_invariants (q: 'a q) =
   let i = q.last q.log in
   let n = q.read q.log i in
   match n with
-    | Commit (pos,_) -> walk pos
+    | Commit c -> let pos = Commit.get_pos c in walk pos
     | NIL -> () 
     | e -> let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in 
 	   failwith s

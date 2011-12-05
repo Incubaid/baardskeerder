@@ -43,7 +43,9 @@ module DBX(L:LOG) = struct
     let tx = {log;slab;actions = []} in
     let () = f tx in
     let root = Slab.length tx.slab -1 in
-    let c = Commit (Inner root, tx.actions) in
+    let i' = 0 in
+    let commit = make_commit (Inner root) i' tx.actions in
+    let c = Commit commit in
     let _ = Slab.add tx.slab c in
     (* let slab' = slab in *)
     let slab' = Slab.compact tx.slab in 

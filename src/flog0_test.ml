@@ -58,10 +58,12 @@ let pu_index () =
 let pu_commit() = 
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
-  let com = out 0, [Commit.Set ("set0", Outer 0);
-                    Commit.Set ("set1", Outer 1);
-                    Commit.Delete "delete0" ]
-  in
+  let p = out 0 
+  and actions = [Commit.Set ("set0", Outer 0);
+                 Commit.Set ("set1", Outer 1);
+                 Commit.Delete "delete0" ]
+  and i = 125 in
+  let com= Commit.make_commit p i actions in
   let c0 = Commit com in
   let _ = Flog0.deflate_commit b h com in
   let bs = Buffer.contents b in

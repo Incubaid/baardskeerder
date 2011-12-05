@@ -265,8 +265,10 @@ let inflate_action input =
                
 let inflate_commit input = 
   let p = input_vint input in
+  let i = input_vint input in
   let actions = input_list inflate_action input in    
-  Commit (Outer p, actions)
+  Commit (Commit.make_commit (Outer p) i actions)
+
 
 let inflate_value input = Value (input_string input)
 
@@ -375,10 +377,14 @@ let deflate_action b h = function
     Buffer.add_char b 'D';
     string_to b k
 
-let deflate_commit b h (p,actions) = 
+let deflate_commit b h c = 
   let mb = Buffer.create 8 in
   tag_to mb COMMIT;
+  let p = Commit.get_pos c in
+  let i = Commit.get_i c in
+  let actions = Commit.get_actions c in
   pos_remap mb h p;
+  vint_to mb i;
   vint_to mb (List.length actions);
   List.iter (fun a -> deflate_action mb h a) actions;
   _add_buffer b mb

@@ -191,9 +191,11 @@ let serialize_commit o =
   s
 
 and deserialize_commit s o =
-  let i = (read_uint64 s o) in
-  
-  Commit (Outer i,[])
+  let p = Outer (read_uint64 s o)
+  and i = 0 
+  and a = [] in
+  let c = Commit.make_commit p i a in
+  Commit c
 
 
 let marker = 0x0baadeed
@@ -460,7 +462,7 @@ and deserialize_value s o =
 let serialize_entry h e = 
   match e with
     | NIL -> failwith "serialize NIL?"
-    | Commit (pos,_) -> serialize_commit (pos_remap h pos)
+    | Commit c -> let pos = Commit.get_pos c in serialize_commit (pos_remap h pos)
     | Value v -> serialize_value v
     | Index index -> serialize_index h index
     | Leaf leaf -> serialize_leaf h leaf
@@ -723,7 +725,8 @@ let compact ?min_blocks:(mb=0) ?progress_cb:(pc=None) t =
   and o = t.commit_offset in
 
   match (read t (Pos.out o)) with
-    | Commit (r,_) ->
+    | Commit c ->
+      let r = Commit.get_pos c in
       let p = unwrap r in
       compact' t pc mb b' { cs_offset=o; cs_entries=OffsetSet.singleton p; }
     | NIL ->

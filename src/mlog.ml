@@ -49,13 +49,18 @@ let write t (slab:Slab.t) =
   in
   let externalize_leaf  l = List.map (function (k,p) -> (k,externalize_pos p)) l in
   let externalize_index (p0, l) = (externalize_pos p0, externalize_leaf l) in
-  let externalize_commit (p, actions) = (externalize_pos p, externalize_actions actions) in
+  let externalize_commit c = 
+    let p = externalize_pos (Commit.get_pos c) in
+    let actions = externalize_actions (Commit.get_actions c) in
+    let i = Commit.get_i c in
+    Commit.make_commit p i actions
+  in
   let externalize = function
     | NIL -> NIL
     | (Value _) as e -> e
     | Leaf l -> Leaf (externalize_leaf l)
     | Index i -> Index (externalize_index i)
-    | Commit pa -> Commit (externalize_commit pa)
+    | Commit c -> Commit (externalize_commit c)
   in
   let do_one _ e = 
     t.es.(t.next) <- (externalize e);
