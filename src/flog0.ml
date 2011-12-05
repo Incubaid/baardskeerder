@@ -72,6 +72,9 @@ let vint_to b n =
 	   loop r
   in loop n
 
+let time_to b (x,y) = 
+  vint_to b x;
+  vint_to b y
 
 let string_to b s = 
   let l = String.length s in
@@ -203,17 +206,17 @@ type t = { fd : file_descr;
 	   mutable last: int; 
 	   mutable next:int;
 	   mutable d: int;
-           mutable next_i: int;
+           mutable now: Time.t;
 	 }
 
 let get_d t = t.d
 
-let t2s t = Printf.sprintf "{...;last=%i; next=%i;next_i=%i}" t.last t.next t.next_i
+let t2s t = Printf.sprintf "{...;last=%i; next=%i;now=%s}" t.last t.next (Time.time2s t.now)
 
 let next t = Outer t.next
 let last t = Outer t.last
 
-let get_i t = t.next_i
+let now t = t.now
 
 
 let close t = 
@@ -228,7 +231,8 @@ let clear t =
   in
   _write_metadata t.fd meta;
   t.last  <- commit;
-  t.next <- _METADATA_SIZE
+  t.next <- _METADATA_SIZE;
+  t.now  <- Time.make 0 0
 
 
 type tag = 
@@ -264,12 +268,18 @@ let inflate_action input =
              Commit.Set (k,Outer p)
     | t   -> let s = Printf.sprintf "%C action?" t in failwith s
 
-               
+       
+let input_time input =
+  let x = input_vint input in
+  let y = input_vint input in
+  Time.make x y 
+
+
 let inflate_commit input = 
   let p = input_vint input in
-  let i = input_vint input in
+  let t = input_time input in
   let actions = input_list inflate_action input in    
-  Commit.make_commit (Outer p) i actions
+  Commit.make_commit (Outer p) t actions
 
 
 let inflate_value input = input_string input
@@ -381,10 +391,10 @@ let deflate_commit b h c =
   let mb = Buffer.create 8 in
   tag_to mb COMMIT;
   let p = Commit.get_pos c in
-  let i = Commit.get_i c in
+  let t = Commit.get_time c in
   let actions = Commit.get_actions c in
   pos_remap mb h p;
-  vint_to mb i;
+  time_to mb t;
   vint_to mb (List.length actions);
   List.iter (fun a -> deflate_action mb h a) actions;
   _add_buffer b mb
@@ -415,7 +425,7 @@ let write log slab =
   let () = _seek_write log.fd log.next ss in
   log.last <- cp;
   log.next <- log.next + String.length ss;
-  log.next_i <- log.next_i + 1;
+  log.now <- Slab.time slab;
   ()
 
 
@@ -464,21 +474,26 @@ let make filename =
   let m = _read_metadata fd in
   let last = m.commit in
   let d = m.td in
-  let next,next_i = 
+  let (next:int),(now:Time.t) = 
     if last = 0 
-    then _METADATA_SIZE , 0
+    then _METADATA_SIZE , Time.make 0 0
     else 
       let s = _read_entry_s fd last in
       let input = make_input s 0 in
       let e = input_entry input in
       match e with
         | Commit c ->
-          let next_i = Commit.get_i c + 1 in
-          last + 4 + String.length s , next_i
+          let now = Commit.get_time c in
+          (last + 4 + String.length s) , now
         | NIL | Value _ | Index _ | Leaf _ -> 
           let msg = Printf.sprintf "%s should have been a commit" (entry2s e) in failwith msg
   in
-  {fd ; last; next; d; next_i}
+  let flog0 = {fd =fd ; last = last; 
+               next = next; 
+               d=d; 
+               now = now} 
+  in
+  flog0
 
 
 

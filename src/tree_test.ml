@@ -39,8 +39,8 @@ type 'a q = {
 }
 
 let mem_setup () =  
-  let i = 0 in
-  let empty = Slab.make i in
+  let fut = Time.make 1 2 in
+  let empty = Slab.make fut in
   {
   log = Mlog.make "bla";
   last = Mlog.last;

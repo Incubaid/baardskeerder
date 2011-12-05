@@ -39,4 +39,4 @@ val write : t -> Slab.t -> unit
 val get_d : t -> int
 val dump : ?out:out_channel -> t -> unit
 
-val get_i : t -> int
+val now : t -> Time.t

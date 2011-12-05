@@ -19,7 +19,7 @@
 
 
 type t
-val make : int -> t
+val make : Time.t -> t
 val string_of_slab : t -> string
 val add : t -> Entry.entry -> Pos.pos
 
@@ -36,6 +36,7 @@ val iteri: t -> (int -> Entry.entry -> unit) -> unit
 val iteri_rev : t -> (int -> Entry.entry -> unit) -> unit
 val compact: t -> t
 val mark: t -> bool array
+val time: t -> Time.t
 val mapping: bool array -> (int,int) Hashtbl.t (* not abstract enough *)
 
 

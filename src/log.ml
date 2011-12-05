@@ -35,7 +35,7 @@ module type LOG = sig
   val close : t -> unit
   val clear: t -> unit
   val get_d: t -> int
-  val get_i: t -> int
+  val now: t -> Time.t
   val dump: ?out:Pervasives.out_channel -> t -> unit
   val compact: ?min_blocks:int ->
     ?progress_cb:(offset -> offset -> unit) option -> t -> unit

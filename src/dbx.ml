@@ -44,13 +44,14 @@ module DBX(L:LOG) = struct
     ()
 
 
-  let with_tx log f = 
-    let i = L.get_i log in
-    let slab = Slab.make i in
+  let with_tx ?(inc=Time.next_major) log f = 
+    let now = L.now log in
+    let fut = inc now in
+    let slab = Slab.make fut in
     let tx = {log;slab;actions = []} in
     let () = f tx in
     let root = Slab.length tx.slab -1 in
-    let commit = make_commit (Inner root) i tx.actions in
+    let commit = make_commit (Inner root) fut tx.actions in
     let c = Commit commit in
     let _ = Slab.add tx.slab c in
     (* let slab' = slab in *)

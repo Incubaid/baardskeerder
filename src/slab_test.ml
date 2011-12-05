@@ -50,13 +50,13 @@ let es = [|
   Index (Inner 7, ["key_00000001", Inner 14]);
   Index (Inner 21, ["key_00000005", Inner 22]);
   Index (Inner 23, ["key_00000003", Inner 24]);
-  Commit (Commit.make_commit (Inner 25) 12 []) (* should be correct values *);
+  Commit (Commit.make_commit (Inner 25) (Time.make 1 2) []) (* should be correct values *);
 	 |]
 
 
 let t_compaction () = 
-  let i = 12 in
-  let slab = Slab.make 12 in
+  let fut = Time.make 1 2 in
+  let slab = Slab.make fut in
   let () = Array.iter (fun e -> ignore(Slab.add slab e)) es in
   let () = Slab.dump slab in
   let () = print_string "----\n" in

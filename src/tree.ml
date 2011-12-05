@@ -159,11 +159,12 @@ module DB = functor (L:LOG ) -> struct
 
 	
   let set (t:L.t) k v =
-    let i = L.get_i t in
-    let slab = Slab.make i in
+    let now = L.now t in
+    let fut = Time.next_major now in
+    let slab = Slab.make fut in
     let (rp':pos) = _set t slab k v in
     let action = Commit.Set (k,Inner 0) in (* a little knowledge is a dangerous thing *)
-    let commit = Commit.make_commit rp' i [action] in (* UGLY *)
+    let commit = Commit.make_commit rp' fut [action] in (* UGLY *)
     let _ = Slab.add_commit slab commit in
     L.write t slab
 
@@ -476,11 +477,12 @@ module DB = functor (L:LOG ) -> struct
 
 
   let delete (t:L.t) k =
-    let i = L.get_i t in
-    let slab = Slab.make i in
+    let now = L.now t in
+    let fut = Time.next_major now in
+    let slab = Slab.make fut in
     let (rp':pos) = _delete t slab k in
     let action = Commit.Delete k in
-    let commit = Commit.make_commit rp' i [action] in
+    let commit = Commit.make_commit rp' fut [action] in
     let _ = Slab.add_commit slab commit in
     L.write t slab
 

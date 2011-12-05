@@ -61,8 +61,8 @@ let pu_commit() =
   and actions = [Commit.Set ("set0", Outer 0);
                  Commit.Set ("set1", Outer 1);
                  Commit.Delete "delete0" ]
-  and i = 125 in
-  let c0= Commit.make_commit p i actions in
+  and now = Time.make 1 2 in
+  let c0= Commit.make_commit p now actions in
   let () = Printf.printf "com=%s\n" (Commit.commit2s c0) in
   let _ = Flog0.deflate_commit b h c0 in
   let bs = Buffer.contents b in

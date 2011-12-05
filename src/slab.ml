@@ -20,13 +20,13 @@
 open Entry
 open Pos
 
-type t = { mutable es: entry array; mutable nes: int; i: int}
+type t = { mutable es: entry array; mutable nes: int; time: Time.t}
 
-let make i = { es = Array.make 32 NIL; 
-	       nes = 0; i}
+let make time = { es = Array.make 32 NIL; 
+	       nes = 0; time}
 
-let string_of_slab s = Printf.sprintf "{ es = %s; nes = %i;i=%i}" 
-  (Pretty.string_of_array entry2s s.es) s.nes s.i
+let string_of_slab s = Printf.sprintf "{ es = %s; nes = %i;time=%s}" 
+  (Pretty.string_of_array entry2s s.es) s.nes (Time.time2s s.time)
   
 
 
@@ -49,6 +49,8 @@ let add_index slab index = add slab (Index index)
 let add_commit slab p = add slab (Commit p)
 
 let length slab = slab.nes
+
+let time slab = slab.time
   
 let is_empty slab = slab.nes = 0
 
@@ -133,16 +135,16 @@ let compact s =
   let rewrite_commit c  = 
     let p = lookup_pos (Commit.get_pos c) 
     and actions =rewrite_actions (Commit.get_actions c) 
-    and i = Commit.get_i c 
+    and t = Commit.get_time c 
     in
-    Commit.make_commit p i actions
+    Commit.make_commit p t actions
   in
   let esa = s.es in
   let size = s.nes in
   let r = Array.create size NIL in
   let rec loop c i = 
     if i = size 
-    then { es = r; nes = c; i = s.i}
+    then { es = r; nes = c; time = s.time}
     else
       begin
 	let i' = i + 1 in

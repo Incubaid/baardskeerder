@@ -24,7 +24,7 @@ open Slab
 
 type t = { mutable es : entry array; 
 	   mutable next:int;
-           mutable next_i: int;
+           mutable now: Time.t;
          }
 
 let _d = ref 2 
@@ -33,13 +33,13 @@ let init ?(d=2) _ = _d := d
 
 let get_d (_:t) = !_d
 
-let get_i t = t.next_i
+let now t = t.now
 
 let sync (_:t)  = ()
 
 let close (_:t) = ()
 
-let make  (_:string) = {es = Array.make 32 NIL; next = 0; next_i = 0}
+let make  (_:string) = {es = Array.make 32 NIL; next = 0; now = Time.make 0 0}
 
 
 let write t (slab:Slab.t) = 
@@ -60,8 +60,8 @@ let write t (slab:Slab.t) =
   let externalize_commit c = 
     let p = externalize_pos (Commit.get_pos c) in
     let actions = externalize_actions (Commit.get_actions c) in
-    let i = Commit.get_i c in
-    Commit.make_commit p i actions
+    let time = Commit.get_time c in
+    Commit.make_commit p time actions
   in
   let externalize = function
     | NIL -> NIL
@@ -85,7 +85,7 @@ let write t (slab:Slab.t) =
       t.es <- bigger
     end;
   Slab.iteri slab do_one ;
-  t.next_i <- t.next_i + 1
+  t.now <- Slab.time slab
     
 let last t = Outer (t.next -1)
 

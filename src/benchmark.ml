@@ -105,8 +105,8 @@ let () =
   in
 
   let get_loop db n (cb: progress_callback) = 
-    let i = MyLog.get_i db in
-    let empty = Slab.make i in
+    let now = MyLog.now db in
+    let empty = Slab.make now in
     let get k = 
       MyDB.get db empty k in
     let rec loop i =
@@ -175,8 +175,8 @@ let () =
     | Info ->
       begin
         let log = MyLog.make !fn in
-        let i = MyLog.get_i log in
-        let empty = Slab.make i in
+        let now = MyLog.now log in
+        let empty = Slab.make now in
         let depth = MyDB.depth log empty in
         let next = MyLog.next log in
         let last = MyLog.last log in
