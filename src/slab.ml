@@ -92,7 +92,7 @@ let mark slab =
   let mark _ e = 
     match e with
       | NIL | Value _ -> ()
-      | Commit p -> maybe_mark p
+      | Commit (p,_) -> maybe_mark p
       | Leaf l -> List.iter maybe_mark2 l
       | Index (p0,kps) -> let () = maybe_mark p0 in List.iter maybe_mark2 kps
   in
@@ -122,9 +122,15 @@ let compact s =
     | Outer x -> Outer x
     | Inner x -> Inner (Hashtbl.find s_map x)
   in
-  let rewrite_leaf kps       = List.map (fun (k,p) -> (k,lookup_pos p)) kps in
-  let rewrite_index (p0,kps) = (lookup_pos p0 , rewrite_leaf kps) in
-  let rewrite_commit p       = lookup_pos p in
+  let rewrite_actions actions = List.map 
+    (function
+      | Commit.Set (k,p) -> Commit.Set (k, lookup_pos p)
+      | (Commit.Delete _) as d  -> d)
+    actions
+  in
+  let rewrite_leaf kps        = List.map (fun (k,p) -> (k,lookup_pos p)) kps in
+  let rewrite_index (p0,kps)  = (lookup_pos p0 , rewrite_leaf kps) in
+  let rewrite_commit (p,actions)  = (lookup_pos p, rewrite_actions actions) in
   let esa = s.es in
   let size = s.nes in
   let r = Array.create size NIL in
@@ -140,7 +146,7 @@ let compact s =
 	  let e' = match e with
 	    | Leaf  l  -> Leaf (rewrite_leaf l) 
 	    | Index i  -> Index (rewrite_index i)
-	    | Commit p -> Commit (rewrite_commit p)
+	    | Commit c -> Commit (rewrite_commit c)
 	    | Value _ 
 	    | NIL -> e
 	  in

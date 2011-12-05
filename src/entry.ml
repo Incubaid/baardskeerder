@@ -22,14 +22,16 @@ open Base
 open Leaf
 open Index
 open Indexz
+open Commit
 open Leafz
+
 
 type entry = 
   | NIL
   | Value of v
   | Leaf of leaf
   | Index of index
-  | Commit of pos
+  | Commit of commit
 
 type dir = 
   | Leaf_down of leaf_z
@@ -39,10 +41,10 @@ type path = dir list
 
 let entry2s = function
   | NIL -> "NIL"
-  | Value v -> Printf.sprintf "Value \"%s\"" v
-  | Leaf l -> Printf.sprintf "Leaf %s" (leaf2s l)
-  | Index i -> Printf.sprintf "Index %s" (index2s i)
-  | Commit pos -> Printf.sprintf "Commit (%s)" (pos2s pos)
+  | Value v  -> Printf.sprintf "Value \"%s\"" v
+  | Leaf l   -> Printf.sprintf "Leaf %s" (leaf2s l)
+  | Index i  -> Printf.sprintf "Index %s" (index2s i)
+  | Commit c -> Printf.sprintf "Commit %s" (commit2s c)
 
 let string_of_dir = function
   | Leaf_down l  -> Printf.sprintf "Leaf_down %s" (lz2s l)

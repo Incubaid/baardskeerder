@@ -21,6 +21,7 @@ open Entry
 open Base
 open Slab
 
+
 type t = { mutable es : entry array; 
 	   mutable next:int}
 
@@ -39,15 +40,22 @@ let write t (slab:Slab.t) =
     | (Outer _) as p -> p
     | Inner i -> Outer (i + off)
   in
+  let externalize_actions xs = 
+    let externalize_action = function
+      | Commit.Set (k,p) -> Commit.Set (k, externalize_pos p) 
+      | (Commit.Delete _) as x-> x
+    in
+    List.fold_left (fun acc a -> externalize_action a :: acc) [] xs
+  in
   let externalize_leaf  l = List.map (function (k,p) -> (k,externalize_pos p)) l in
   let externalize_index (p0, l) = (externalize_pos p0, externalize_leaf l) in
-  let externalize_commit p = externalize_pos p in
+  let externalize_commit (p, actions) = (externalize_pos p, externalize_actions actions) in
   let externalize = function
     | NIL -> NIL
     | (Value _) as e -> e
     | Leaf l -> Leaf (externalize_leaf l)
     | Index i -> Index (externalize_index i)
-    | Commit p -> Commit (externalize_commit p)
+    | Commit pa -> Commit (externalize_commit pa)
   in
   let do_one _ e = 
     t.es.(t.next) <- (externalize e);

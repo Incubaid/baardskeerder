@@ -29,7 +29,7 @@ module Dot = functor (L:LOG) -> struct
     Printf.fprintf f "digraph Tree{\n";
     let rec walk pos = 
       match L.read log pos with
-	| Commit p -> walk p
+	| Commit (p,_) -> walk p
 	| NIL -> ()
 	| Value v -> Printf.fprintf f "\tnode%i [shape = box label = %S];\n" (p2i pos) v
 	| Leaf kps -> 
@@ -76,8 +76,8 @@ module Dot = functor (L:LOG) -> struct
 	let e = L.read log (Outer i) in
 	let () = match e with
 	  | NIL      -> ()
-	  | Commit p -> 
-	    Printf.fprintf f "\tnode%i [label = \"{commit | %i}\";\n" i i;
+	  | Commit (p,_) -> 
+	    Printf.fprintf f "\tnode%i [label = \"{commit | %i}\"];\n" i i;
 	    Printf.fprintf f "\tnode%i -> node%i;\n" i (p2i p)
 	  | Value v  -> Printf.fprintf f "\tnode%i [label = \"{%s | %i }\"];\n" i v i;
 	  | Leaf kps -> 

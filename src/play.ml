@@ -135,3 +135,6 @@ let find_problem () =
 test 109 t0;;
 
 *)
+MDB.set t0 "a" "A";;
+MDB.set t0 "b" "B";;
+MDB.set t0 "c" "C";;

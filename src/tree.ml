@@ -64,7 +64,7 @@ module DB = functor (L:LOG ) -> struct
 	let pos = L.last t in
 	let e = L.read t pos in
 	match e with 
-	  | Commit pos -> descend pos
+	  | Commit (pos,_) -> descend pos
 	  | NIL -> raise (NOT_FOUND k)
 	  | Index _ | Leaf _ | Value _ -> failwith "descend_root does not start at appropriate level"
       else
@@ -100,7 +100,7 @@ module DB = functor (L:LOG ) -> struct
       let e = L.read t pos in
       match e with
 	| NIL -> []
-	| Commit pos -> _set_descend t slab k pos [] 
+	| Commit (pos,_) -> _set_descend t slab k pos [] 
 	| Index _ | Value _ | Leaf _ -> 
 	  let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
     else
@@ -161,7 +161,8 @@ module DB = functor (L:LOG ) -> struct
   let set (t:L.t) k v =
     let slab = Slab.make () in
     let (rp':pos) = _set t slab k v in
-    let _ = Slab.add_commit slab rp' in
+    let action = Commit.Set (k,Inner 0) in (* a little knowledge is a dangerous thing *)
+    let _ = Slab.add_commit slab (rp',[action]) in
     L.write t slab
 
 
@@ -459,7 +460,7 @@ module DB = functor (L:LOG ) -> struct
 	let e = L.read t lp in
 	match e with
 	  | NIL -> []
-	  | Commit pos -> descend pos []
+	  | Commit (pos,_) -> descend pos []
 	  | Index _ | Leaf _ | Value _  -> 
 	    let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in
 	    failwith s
@@ -475,7 +476,8 @@ module DB = functor (L:LOG ) -> struct
   let delete (t:L.t) k =
     let slab = Slab.make () in
     let (rp':pos) = _delete t slab k in
-    let _ = Slab.add_commit slab rp' in
+    let action = Commit.Delete k in
+    let _ = Slab.add_commit slab (rp',[action]) in
     L.write t slab
 
 
@@ -488,7 +490,7 @@ module DB = functor (L:LOG ) -> struct
     let e = L.read t lp in
     match e with 
       | NIL  -> 0
-      | Commit pos -> 
+      | Commit (pos,_) -> 
 	begin
 	  let root = pos in
 	  let t_left k = match first with
@@ -515,7 +517,7 @@ module DB = functor (L:LOG ) -> struct
 	      | Value _ -> count
 	      | Leaf leaf -> walk_leaf count leaf
 	      | Index index -> walk_index count index
-	      | Commit pos -> walk count pos
+	      | Commit (pos,_) -> walk count pos
 	  and walk_leaf count leaf = 
 	    let rec loop count = function
 	      | [] -> count
@@ -607,7 +609,7 @@ module DB = functor (L:LOG ) -> struct
         let e = L.read t pos in
         match e with
           | NIL -> 0
-          | Commit pos -> _depth_descend t slab pos 1
+          | Commit (pos,_) -> _depth_descend t slab pos 1
           | Index _ | Value _ | Leaf _ -> 
             let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
       else

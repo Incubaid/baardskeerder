@@ -18,35 +18,17 @@
  *)
 
 open Base
-open Tree
-open Log
-open Entry
-open Slab
-open Commit
 
-module DBX(L:LOG) = struct
+type action = 
+  | Set of (k * pos)
+  | Delete of k
 
-  type tx = { log: L.t; slab: Slab.t; 
-              mutable actions: action list}
+let action2s = function
+  | Set (k,p) -> Printf.sprintf "Set (%S,%s)" k (pos2s p)
+  | Delete k  -> Printf.sprintf "Delete %S" k
 
-  module DBL = DB(L)
+type commit = (pos * (action list))
 
-  let get tx k = DBL.get tx.log tx.slab k
+let get_pos (pos,_) = pos
 
-  let set tx k v = let _ = DBL._set tx.log tx.slab k v in ()
-
-  let delete tx k = let _ = DBL._delete tx.log tx.slab k in ()
-
-
-  let with_tx log f = 
-    let slab = Slab.make () in
-    let tx = {log;slab;actions = []} in
-    let () = f tx in
-    let root = Slab.length tx.slab -1 in
-    let c = Commit (Inner root, tx.actions) in
-    let _ = Slab.add tx.slab c in
-    (* let slab' = slab in *)
-    let slab' = Slab.compact tx.slab in 
-    L.write log slab'
-
-end
+let commit2s (pos,actions) = Printf.sprintf "(%s, %s)" (pos2s pos) (Pretty.string_of_list action2s actions)

@@ -111,6 +111,12 @@ let size_to b (p:int) =
   add 3
 
 
+let input_char input = 
+  let c = input.s.[input.p] in
+  let () = input.p <- input.p + 1 in
+  c
+
+
 let input_vint input = 
   let s = input.s in
   let start = input.p in
@@ -246,9 +252,21 @@ let input_tag input =
     | _ -> let s = Printf.sprintf "%C tag?" tc in failwith s
 
 
+let inflate_action input = 
+  let t = input_char input in
+  match t with
+    | 'D' -> let k = input_string input in
+             Commit.Delete k
+    | 'S' -> let k = input_string input in
+             let p = input_vint input in
+             Commit.Set (k,Outer p)
+    | t   -> let s = Printf.sprintf "%C action?" t in failwith s
+
+               
 let inflate_commit input = 
   let p = input_vint input in
-  Commit (Outer p)
+  let actions = input_list inflate_action input in    
+  Commit (Outer p, actions)
 
 let inflate_value input = Value (input_string input)
 
@@ -348,10 +366,21 @@ let deflate_leaf b h kps =
   _add_buffer b mb
 
 
-let deflate_commit b h p = 
+let deflate_action b h = function
+  | Commit.Set (k,p) -> 
+    Buffer.add_char b 'S';
+    string_to b k;
+    pos_remap b h p
+  | Commit.Delete k ->
+    Buffer.add_char b 'D';
+    string_to b k
+
+let deflate_commit b h (p,actions) = 
   let mb = Buffer.create 8 in
   tag_to mb COMMIT;
   pos_remap mb h p;
+  vint_to mb (List.length actions);
+  List.iter (fun a -> deflate_action b h a) actions;
   _add_buffer b mb
 
 let deflate_entry (b:Buffer.t) h (e:entry) =

@@ -24,8 +24,6 @@ type leaf = kp list
 
 let leaf2s l = kpl2s l
 
-
-
 let length t = List.length t
 let leaf_min d t = length t = d
 let leaf_mergeable d t = length t <= d

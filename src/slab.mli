@@ -23,10 +23,10 @@ val make : unit -> t
 val string_of_slab : t -> string
 val add : t -> Entry.entry -> Pos.pos
 
-val add_value: t -> string -> Pos.pos
-val add_leaf : t -> Leaf.leaf -> Pos.pos
-val add_index: t -> Index.index -> Pos.pos
-val add_commit: t -> Pos.pos -> Pos.pos
+val add_value: t -> string         -> Pos.pos
+val add_leaf : t -> Leaf.leaf      -> Pos.pos
+val add_index: t -> Index.index    -> Pos.pos
+val add_commit: t -> Commit.commit -> Pos.pos
 val is_empty: t -> bool
 val last: t -> Pos.pos
 val next: t -> Pos.pos
