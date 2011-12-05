@@ -20,13 +20,13 @@
 open Entry
 open Pos
 
-type t = { mutable es: entry array; mutable nes: int}
+type t = { mutable es: entry array; mutable nes: int; i: int}
 
-let make () = { es = Array.make 32 NIL; 
-		nes = 0}
+let make i = { es = Array.make 32 NIL; 
+	       nes = 0; i}
 
-let string_of_slab s = Printf.sprintf "{ es = %s; nes = %i}" 
-  (Pretty.string_of_array entry2s s.es) s.nes
+let string_of_slab s = Printf.sprintf "{ es = %s; nes = %i;i=%i}" 
+  (Pretty.string_of_array entry2s s.es) s.nes s.i
   
 
 
@@ -142,7 +142,7 @@ let compact s =
   let r = Array.create size NIL in
   let rec loop c i = 
     if i = size 
-    then { es = r; nes = c}
+    then { es = r; nes = c; i = s.i}
     else
       begin
 	let i' = i + 1 in

@@ -42,7 +42,8 @@ let test_presence () =
   List.iter (fun (k,v) -> MDB.set m0 k v) kvs;
   let root0 = Mlog.last m0 in
   let () = MMRewrite.rewrite m0 root0 m1 in
-  let empty = Slab.make () in 
+  let i = Mlog.get_i m0 in
+  let empty = Slab.make i in 
   let () = List.iter (fun (k,v) -> let v' = MDB.get m1 empty k in OUnit.assert_equal v' v) kvs in
   ()
 

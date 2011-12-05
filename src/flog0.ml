@@ -175,7 +175,7 @@ let list_to b e_to list =
 
 let _METADATA_SIZE = 4096
 type metadata = {commit : int; 
-		 td: int }
+		 td: int; }
 
 let metadata2s m = Printf.sprintf "{commit=%i;td=%i}" m.commit m.td
 
@@ -203,15 +203,17 @@ type t = { fd : file_descr;
 	   mutable last: int; 
 	   mutable next:int;
 	   mutable d: int;
+           mutable next_i: int;
 	 }
 
 let get_d t = t.d
 
-let t2s t = Printf.sprintf "{...;last=%i; next=%i}" t.last t.next
+let t2s t = Printf.sprintf "{...;last=%i; next=%i;next_i=%i}" t.last t.next t.next_i
 
 let next t = Outer t.next
 let last t = Outer t.last
 
+let get_i t = t.next_i
 
 
 let close t = 
@@ -267,10 +269,10 @@ let inflate_commit input =
   let p = input_vint input in
   let i = input_vint input in
   let actions = input_list inflate_action input in    
-  Commit (Commit.make_commit (Outer p) i actions)
+  Commit.make_commit (Outer p) i actions
 
 
-let inflate_value input = Value (input_string input)
+let inflate_value input = input_string input
 
 let input_suffix_list input =
   let prefix = input_string input in
@@ -278,22 +280,20 @@ let input_suffix_list input =
   let kps = List.map (fun (s,p) -> (prefix ^s, p)) suffixes in
   kps
 
-let inflate_leaf input = Leaf (input_suffix_list input)
-
-
+let inflate_leaf input = input_suffix_list input
 
 
 let inflate_index input = 
   let p0 = input_vint input in
   let kps = input_suffix_list input in
-  Index (Outer p0,kps)
+  Outer p0,kps
 
 let input_entry input = 
   match input_tag input with
-    | COMMIT -> inflate_commit input
-    | LEAF   -> inflate_leaf input
-    | INDEX  -> inflate_index input
-    | VALUE  -> inflate_value input
+    | COMMIT -> Commit (inflate_commit input)
+    | LEAF   -> Leaf (inflate_leaf input)
+    | INDEX  -> Index (inflate_index input)
+    | VALUE  -> Value (inflate_value input)
 
 let inflate_entry es = 
   let input = make_input es 0 in
@@ -304,7 +304,7 @@ let inflate_entry es =
 let dump ?(out=Pervasives.stdout) (t:t) = 
   _seek t.fd 0 ;
   let m = _read_metadata t.fd in
-  Printf.fprintf out "meta: %s\n" (metadata2s m);
+  Printf.fprintf out "meta: %s\n%!" (metadata2s m);
   let rec loop pos= 
     let ls = _really_read t.fd 4 in
     let l = size_from ls 0 in
@@ -415,6 +415,7 @@ let write log slab =
   let () = _seek_write log.fd log.next ss in
   log.last <- cp;
   log.next <- log.next + String.length ss;
+  log.next_i <- log.next_i + 1;
   ()
 
 
@@ -463,14 +464,21 @@ let make filename =
   let m = _read_metadata fd in
   let last = m.commit in
   let d = m.td in
-  let next = 
+  let next,next_i = 
     if last = 0 
-    then _METADATA_SIZE 
+    then _METADATA_SIZE , 0
     else 
       let s = _read_entry_s fd last in
-      last + 4 + String.length s 
+      let input = make_input s 0 in
+      let e = input_entry input in
+      match e with
+        | Commit c ->
+          let next_i = Commit.get_i c + 1 in
+          last + 4 + String.length s , next_i
+        | NIL | Value _ | Index _ | Leaf _ -> 
+          let msg = Printf.sprintf "%s should have been a commit" (entry2s e) in failwith msg
   in
-  {fd ; last; next; d}
+  {fd ; last; next; d; next_i}
 
 
 

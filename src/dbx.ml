@@ -33,18 +33,24 @@ module DBX(L:LOG) = struct
 
   let get tx k = DBL.get tx.log tx.slab k
 
-  let set tx k v = let _ = DBL._set tx.log tx.slab k v in ()
+  let set tx k v = 
+    let _ = DBL._set tx.log tx.slab k v in 
+    ()
 
-  let delete tx k = let _ = DBL._delete tx.log tx.slab k in ()
+  let delete tx k = 
+    let _ = DBL._delete tx.log tx.slab k in 
+    let a = Delete k in
+    let () = tx.actions <- a :: tx.actions in
+    ()
 
 
   let with_tx log f = 
-    let slab = Slab.make () in
+    let i = L.get_i log in
+    let slab = Slab.make i in
     let tx = {log;slab;actions = []} in
     let () = f tx in
     let root = Slab.length tx.slab -1 in
-    let i' = 0 in
-    let commit = make_commit (Inner root) i' tx.actions in
+    let commit = make_commit (Inner root) i tx.actions in
     let c = Commit commit in
     let _ = Slab.add tx.slab c in
     (* let slab' = slab in *)

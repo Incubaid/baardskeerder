@@ -60,6 +60,7 @@ type t = {
 
   mutable space_left: int;
 
+  mutable next_i: int;
   cache: OffsetEntryCache.t;
 }
 
@@ -207,7 +208,7 @@ let marker' =
 let find_commit f o =
   let s = String.create 5 in
 
-  let rec loop a o =
+  let rec loop a o next_i=
     try
       pread_into_exactly f s 4 o;
       assert (read_uint32 s 0 = marker);
@@ -215,21 +216,21 @@ let find_commit f o =
       pread_into_exactly f s 5 (o + 4);
 
       let s' = read_uint32 s 0 in
-
+      let o' = o + 8 + s' in
       match read_char8 s 4 with
-        | i when i = leaf_tag -> loop a (o + 8 + s')
-        | i when i = index_tag -> loop a (o + 8 + s')
-        | i when i = value_tag -> loop a (o + 8 + s')
-        | i when i = commit_tag -> loop o (o + 8 + s')
+        | i when i = leaf_tag -> loop a o' next_i
+        | i when i = index_tag -> loop a o' next_i
+        | i when i = value_tag -> loop a o' next_i
+        | i when i = commit_tag -> loop o o' next_i
         | c -> failwith
                 (Printf.sprintf "Flog.find_root: unknown entry type: %d"
                   (Char.code c))
 
     with End_of_file ->
-      a
+      a, next_i
   in
 
-  loop 0 o
+  loop 0 o 0
 
 let extend_file =
   let ks = Posix.fallocate_FALLOC_FL_KEEP_SIZE ()
@@ -287,7 +288,7 @@ let make (f: string): t =
     else md2.md_offset
   in
   let s = if s = 0 then (2 * bs) else s in
-  let last = find_commit fd_in s in
+  let last,next_i = find_commit fd_in s in
 
   (* TODO Choose correct last_metadata *)
   (* TODO Write 'best' metadata into both blocks *)
@@ -299,9 +300,12 @@ let make (f: string): t =
     last_metadata=0; metadata=(md1, md2); space_left=extent;
     d = md1.md_d;
     cache=cache;
+    next_i = next_i;
   }
 
 let get_d (t:t) = t.d
+
+let get_i (t:t) = t.next_i
 
 let dump ?(out=Pervasives.stdout) (_:t) = 
   assert (out=out);

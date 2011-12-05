@@ -37,6 +37,6 @@ let get_actions t = t.actions
 
 let get_i t = t.i
 
-let commit2s t = Printf.sprintf "{%s;%i; %s}" 
+let commit2s t = Printf.sprintf "{pos=%s;i=%i; actions=%s}" 
   (pos2s t.pos) t.i
   (Pretty.string_of_list action2s t.actions)

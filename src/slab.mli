@@ -19,7 +19,7 @@
 
 
 type t
-val make : unit -> t
+val make : int -> t
 val string_of_slab : t -> string
 val add : t -> Entry.entry -> Pos.pos
 

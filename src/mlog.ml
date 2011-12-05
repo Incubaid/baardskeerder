@@ -23,16 +23,24 @@ open Slab
 
 
 type t = { mutable es : entry array; 
-	   mutable next:int}
+	   mutable next:int;
+           mutable next_i: int;
+         }
 
 let _d = ref 2 
 
 let init ?(d=2) _ = _d := d
+
 let get_d (_:t) = !_d
+
+let get_i t = t.next_i
+
 let sync (_:t)  = ()
+
 let close (_:t) = ()
 
-let make  (_:string) = {es = Array.make 32 NIL; next = 0}
+let make  (_:string) = {es = Array.make 32 NIL; next = 0; next_i = 0}
+
 
 let write t (slab:Slab.t) = 
   let off = t.next in
@@ -76,11 +84,15 @@ let write t (slab:Slab.t) =
       Array.blit t.es 0 bigger 0 current;
       t.es <- bigger
     end;
-  Slab.iteri slab do_one 
+  Slab.iteri slab do_one ;
+  t.next_i <- t.next_i + 1
     
 let last t = Outer (t.next -1)
+
 let next t = Outer t.next
+
 let size (_:entry) = 1
+
 let read t = function
   | Outer pos -> if pos < 0 then NIL else t.es.(pos)
   | Inner _ -> failwith "can't read inner"

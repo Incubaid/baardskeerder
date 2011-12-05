@@ -55,7 +55,8 @@ let es = [|
 
 
 let t_compaction () = 
-  let slab = Slab.make () in
+  let i = 12 in
+  let slab = Slab.make 12 in
   let () = Array.iter (fun e -> ignore(Slab.add slab e)) es in
   let () = Slab.dump slab in
   let () = print_string "----\n" in

@@ -36,23 +36,22 @@ let pu_leaf () =
   let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
   let input = Flog0.make_input bs 5 in (* only leaf part *)
   let leaf' = Flog0.inflate_leaf input in
-  let leaf = Leaf kps in
-  let () = OUnit.assert_equal ~printer:entry2s leaf leaf' in
+  let leaf = kps in
+  let () = OUnit.assert_equal ~printer:Leaf.leaf2s leaf leaf' in
   ()
               
 
 let pu_index () =
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
-  let index = out 0, kps in
-  let i0 = Index index in
-  let _ = Flog0.deflate_index b h index in
+  let i0 = out 0, kps in
+  let _ = Flog0.deflate_index b h i0 in
   let bs = Buffer.contents b in
   let () = Printf.printf "\n%S\n" bs in
   let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
   let input = Flog0.make_input bs 5 in (* only index part *)
   let i1 = Flog0.inflate_index input in
-  let () = OUnit.assert_equal ~printer:entry2s i0 i1 in
+  let () = OUnit.assert_equal ~printer:Index.index2s i0 i1 in
   ()
 
 let pu_commit() = 
@@ -63,15 +62,15 @@ let pu_commit() =
                  Commit.Set ("set1", Outer 1);
                  Commit.Delete "delete0" ]
   and i = 125 in
-  let com= Commit.make_commit p i actions in
-  let c0 = Commit com in
-  let _ = Flog0.deflate_commit b h com in
+  let c0= Commit.make_commit p i actions in
+  let () = Printf.printf "com=%s\n" (Commit.commit2s c0) in
+  let _ = Flog0.deflate_commit b h c0 in
   let bs = Buffer.contents b in
   let () = Printf.printf "\n%S\n" bs in
   let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
   let input = Flog0.make_input bs 5 in (* only commit part *) 
   let c1 = Flog0.inflate_commit input in
-  let () = OUnit.assert_equal ~printer:entry2s c0 c1 in
+  let () = OUnit.assert_equal ~printer:Commit.commit2s c0 c1 in
   ()
 let suite = 
   "Flog0" >::: [
