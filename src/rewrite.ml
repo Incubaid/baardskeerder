@@ -37,7 +37,6 @@ module Rewrite (L0:LOG) (L1:LOG) = struct
   let update_w u = u.w
     
   let rewrite (l0:L0.t) (root0:pos) (l1:L1.t) = 
-    
     let apply_update u = 
       DBX1.with_tx l1 ~inc:Time.next_minor
 	(fun tx ->

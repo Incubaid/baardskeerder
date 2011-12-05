@@ -173,14 +173,21 @@ let list_to b e_to list =
   let l = Leaf.length list in
   vint_to b l;
   List.iter (e_to b) list
-  
+
+let input_time input =
+  let x = input_vint input in
+  let y = input_vint input in
+  Time.make x y   
 
 
 let _METADATA_SIZE = 4096
-type metadata = {commit : int; 
-		 td: int; }
+type metadata = {
+  commit : int; 
+  td: int; 
+  t0: Time.t;
+}
 
-let metadata2s m = Printf.sprintf "{commit=%i;td=%i}" m.commit m.td
+let metadata2s m = Printf.sprintf "{commit=%i;td=%i;t0=%s}" m.commit m.td (Time.time2s m.t0)
 
 
 
@@ -188,6 +195,7 @@ let _write_metadata fd m =
   let b = Buffer.create 128 in
   let () = vint_to b m.commit in
   let () = vint_to b m.td in
+  let () = time_to b m.t0 in
   let block = String.create _METADATA_SIZE in
   
   let () = Buffer.blit b 0 block 0 (Buffer.length b) in
@@ -200,13 +208,16 @@ let _read_metadata fd =
   let input = make_input m 0 in
   let commit = input_vint input in
   let td = input_vint input in
-  {commit; td}
+  let t0 = input_time input in
+  {commit; td;t0}
 
 type t = { fd : file_descr; 
+           start : Time.t;
 	   mutable last: int; 
 	   mutable next:int;
 	   mutable d: int;
            mutable now: Time.t;
+           
 	 }
 
 let get_d t = t.d
@@ -220,14 +231,16 @@ let now t = t.now
 
 
 let close t = 
-  let meta = {commit = t.last; td = t.d} in
+  let meta = {commit = t.last; td = t.d; t0 = t.start} in
   let () = _write_metadata t.fd meta in
   Unix.close t.fd
 
 let clear t = 
   let commit = 0 in
   let meta = {commit;
-	      td = t.d } 
+	      td = t.d;
+              t0 = Time.zero;
+             } 
   in
   _write_metadata t.fd meta;
   t.last  <- commit;
@@ -269,10 +282,7 @@ let inflate_action input =
     | t   -> let s = Printf.sprintf "%C action?" t in failwith s
 
        
-let input_time input =
-  let x = input_vint input in
-  let y = input_vint input in
-  Time.make x y 
+
 
 
 let inflate_commit input = 
@@ -454,13 +464,13 @@ let read t pos =
     | Inner _ -> failwith "cannot read inner"
 
 
-let init ?(d=4) fn = 
+let init ?(d=4) fn t0 = 
   let fd = openfile fn [O_CREAT;O_WRONLY;] 0o640 in
   let stat = fstat fd in
   let len = stat.st_size in
   if len = 0 then
     let commit = 0 in
-    let () = _write_metadata fd {commit;td = d} in   
+    let () = _write_metadata fd {commit;td = d; t0} in   
     let () = Unix.close fd in
     ()
   else
@@ -476,7 +486,8 @@ let make filename =
   let d = m.td in
   let (next:int),(now:Time.t) = 
     if last = 0 
-    then _METADATA_SIZE , Time.make 0 0
+    then 
+      _METADATA_SIZE , m.t0
     else 
       let s = _read_entry_s fd last in
       let input = make_input s 0 in
@@ -491,7 +502,9 @@ let make filename =
   let flog0 = {fd =fd ; last = last; 
                next = next; 
                d=d; 
-               now = now} 
+               now = now;
+               start = m.t0;
+              } 
   in
   flog0
 

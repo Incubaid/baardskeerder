@@ -24,7 +24,7 @@ module MDBX = DBX(Mlog)
 
 let get_after_delete () = 
   let fn = "bla" in
-  let () = Mlog.init ~d:2 fn in
+  let () = Mlog.init ~d:2 Time.zero fn in
   let mlog = Mlog.make fn in
   let () = MDBX.with_tx mlog (fun tx -> MDBX.set tx "a" "A") in
   let test tx = 

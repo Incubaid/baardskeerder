@@ -180,17 +180,21 @@ let () =
         let depth = MyDB.depth log empty in
         let next = MyLog.next log in
         let last = MyLog.last log in
+        let now = MyLog.now log in
         let () = Printf.printf "d:\t%i\n" (MyLog.get_d log) in
         let () = Printf.printf "depth:\t%i\n" depth in
-        let () = Printf.printf "next:\t%s\n" (Pos.pos2s next) in
         let () = Printf.printf "last:\t%s\n" (Pos.pos2s last) in
+        let () = Printf.printf "next:\t%s\n" (Pos.pos2s next) in
+        let () = Printf.printf "now:\t%s\n" (Time.time2s now) in
+
         MyLog.close log
       end
     | Rewrite -> 
       begin
 	let module MyRewrite = Rewrite.Rewrite(MyLog)(MyLog) in
 	let l0 = MyLog.make !fn in
-	let () = MyLog.init !fn2 in
+        let now0 = MyLog.now l0 in
+	let () = MyLog.init !fn2 now0 in
 	let l1 = MyLog.make !fn2 in
 	let () = MyRewrite.rewrite l0 (MyLog.last l0) l1 in
 	MyLog.close l0;
@@ -218,7 +222,7 @@ let () =
       end
     | Bench ->
       begin
-	let () = MyLog.init !fn ~d:!d in 
+	let () = MyLog.init !fn ~d:!d Time.zero in 
 	let db = MyLog.make !fn in
 	let () = Printf.printf "\niterations = %i\nvalue_size = %i\n%!" !n !vs in
 	let () = Printf.printf "starting sets\n" in

@@ -29,7 +29,7 @@ type t = { mutable es : entry array;
 
 let _d = ref 2 
 
-let init ?(d=2) _ = _d := d
+let init ?(d=2) _ _ = _d := d
 
 let get_d (_:t) = !_d
 
@@ -41,6 +41,7 @@ let close (_:t) = ()
 
 let make  (_:string) = {es = Array.make 32 NIL; next = 0; now = Time.make 0 0}
 
+let make2 (_:string) now = {es = Array.make 32 NIL; next =0; now}
 
 let write t (slab:Slab.t) = 
   let off = t.next in

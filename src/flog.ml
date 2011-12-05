@@ -148,7 +148,7 @@ and deserialize_metadata s =
   then Some { md_blocksize=bs; md_spindle=sp; md_offset=o; md_count=c; md_d = d }
   else None
 
-let init ?(d=2) (f: string) =
+let init ?(d=2) (f: string) (_:Time.t) =
   let fd = openfile f [O_WRONLY; O_EXCL; O_CREAT] 0o644 in
 
   set_close_on_exec fd;

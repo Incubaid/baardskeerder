@@ -38,14 +38,18 @@ let test_presence () =
     loop [] 0
   in
   let m0 = Mlog.make "m0" in
-  let m1 = Mlog.make "m1" in
   List.iter (fun (k,v) -> MDB.set m0 k v) kvs;
+  let m0t = Mlog.now m0 in
   let root0 = Mlog.last m0 in
+  let m1 = Mlog.make2 "m1" m0t in
   let () = MMRewrite.rewrite m0 root0 m1 in
   let now = Mlog.now m0 in
   let fut = Time.next_major now in
   let empty = Slab.make fut in 
   let () = List.iter (fun (k,v) -> let v' = MDB.get m1 empty k in OUnit.assert_equal v' v) kvs in
+  let m1t = Mlog.now m1 in
+  let s = Printf.sprintf "%s <> %s" (Time.time2s m0t) (Time.time2s m1t) in
+  OUnit.assert_bool s (Time.same_major m0t m1t);
   ()
 
 

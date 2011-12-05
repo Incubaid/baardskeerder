@@ -25,7 +25,7 @@ type offset = int
 
 module type LOG = sig
   type t
-  val init: ?d:int -> string  -> unit
+  val init: ?d:int -> string  -> Time.t -> unit
   val write : t -> Slab.t -> unit 
   val last  : t -> pos
   val next  : t -> pos

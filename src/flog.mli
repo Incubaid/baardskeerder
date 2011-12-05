@@ -22,7 +22,7 @@ type t
 
 type offset = int
 
-val init : ?d:int -> string -> unit
+val init : ?d:int -> string -> Time.t -> unit
 val make : string -> t
 val close : t -> unit
 val sync : t -> unit
