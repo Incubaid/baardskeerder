@@ -49,14 +49,31 @@ let pu_index () =
   let _ = Flog0.deflate_index b h index in
   let bs = Buffer.contents b in
   let () = Printf.printf "\n%S\n" bs in
-  let () = Printf.printf "\bs:%i bytes\n" (String.length bs) in
+  let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
   let input = Flog0.make_input bs 5 in (* only index part *)
   let i1 = Flog0.inflate_index input in
   let () = OUnit.assert_equal ~printer:entry2s i0 i1 in
   ()
-  
+
+let pu_commit() = 
+  let b = Buffer.create 128 in
+  let h = Hashtbl.create 7 in
+  let com = out 0, [Commit.Set ("set0", Outer 0);
+                    Commit.Set ("set1", Outer 1);
+                    Commit.Delete "delete0" ]
+  in
+  let c0 = Commit com in
+  let _ = Flog0.deflate_commit b h com in
+  let bs = Buffer.contents b in
+  let () = Printf.printf "\n%S\n" bs in
+  let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
+  let input = Flog0.make_input bs 5 in (* only commit part *) 
+  let c1 = Flog0.inflate_commit input in
+  let () = OUnit.assert_equal ~printer:entry2s c0 c1 in
+  ()
 let suite = 
   "Flog0" >::: [
     "pu_leaf" >:: pu_leaf;
     "pu_index" >:: pu_index;
+    "pu_commit" >:: pu_commit;
   ]

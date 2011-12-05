@@ -249,7 +249,7 @@ let input_tag input =
     | '\x02' -> LEAF
     | '\x03' -> INDEX
     | '\x04' -> VALUE
-    | _ -> let s = Printf.sprintf "%C tag?" tc in failwith s
+    | _      -> let s = Printf.sprintf "%C tag?" tc in failwith s
 
 
 let inflate_action input = 
@@ -380,12 +380,12 @@ let deflate_commit b h (p,actions) =
   tag_to mb COMMIT;
   pos_remap mb h p;
   vint_to mb (List.length actions);
-  List.iter (fun a -> deflate_action b h a) actions;
+  List.iter (fun a -> deflate_action mb h a) actions;
   _add_buffer b mb
 
 let deflate_entry (b:Buffer.t) h (e:entry) =
   match e with
-    | NIL -> failwith "NIL?"
+    | NIL      -> failwith "NIL?"
     | Value v  -> deflate_value  b h v
     | Index i  -> deflate_index  b h i
     | Leaf l   -> deflate_leaf   b h l
