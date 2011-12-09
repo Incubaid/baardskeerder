@@ -39,7 +39,7 @@ let sync (_:t)  = ()
 
 let close (_:t) = ()
 
-let make  (_:string) = {es = Array.make 32 NIL; next = 0; now = Time.make 0 0}
+let make  (_:string) = {es = Array.make 32 NIL; next = 0; now = Time.zero}
 
 let make2 (_:string) now = {es = Array.make 32 NIL; next =0; now}
 

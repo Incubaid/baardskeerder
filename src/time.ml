@@ -17,21 +17,27 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-type t = int * int
+type f = int * bool
 
+type t = int * int * bool
 
-let get_major (x,_) = x
-let get_minor (_,y) = y
+let get_major (t,_,_) = t
+let get_minor (_,f,_) = f
 
-let make x y = (x,y)
+let make x y g = (x,y, g)
 
-let zero = (0,0)
+let zero :t = (0, 0, false ) 
 
-let next_major (x,_) = (x+1, 0)
-let next_minor (x,y) = (x,   y+1)
+let next_major (x,_,_) = (x+1, 0,false)
+let next_minor (x,y,g) = 
+  if g 
+  then (x,y+1,true)
+  else failwith "next minor?"
 
-let same_major (x0,_) (x1,_) = x0 = x1
+let last_minor (x,y,_) = (x, y+1, false)
 
-let time2s (x,y) = Printf.sprintf "(%i,%i)" x y
+let same_major (x0,_,_) (x1,_,_) = x0 = x1
+
+let time2s (x,y,g) = Printf.sprintf "(%i, %i, %b)" x y g
 
 

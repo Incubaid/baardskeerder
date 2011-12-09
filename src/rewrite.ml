@@ -24,12 +24,15 @@ open Base
 open Dbx
 
 module Rewrite (L0:LOG) (L1:LOG) = struct
+
   type update = { mutable kvs: (k * v) list; mutable w: int} 
 
   module DBX1 = DBX(L1)
     
   let max_w = 1024 * 1024
+
   let make_update () = {kvs = []; w = 0}
+
   let add_kvs u ((k,v) as kv) = 
     u.kvs <- kv :: u.kvs ;
     u.w <- u.w + (String.length k) + (String.length v)
@@ -37,8 +40,12 @@ module Rewrite (L0:LOG) (L1:LOG) = struct
   let update_w u = u.w
     
   let rewrite (l0:L0.t) (root0:pos) (l1:L1.t) = 
-    let apply_update u = 
-      DBX1.with_tx l1 ~inc:Time.next_minor
+    let apply_update u is_last = 
+      let inc = if is_last 
+        then Time.last_minor
+        else Time.next_minor
+      in
+      DBX1.with_tx l1 ~inc
 	(fun tx ->
 	  List.iter (fun (k,v) -> DBX1.set tx k v) u.kvs)
     in
@@ -68,7 +75,7 @@ module Rewrite (L0:LOG) (L1:LOG) = struct
       let acc2 = 
 	if fat acc1 
 	then 
-	  let () = apply_update acc1 in
+	  let () = apply_update acc1 false in
 	  make_update ()
 	else
 	  acc1
@@ -84,6 +91,6 @@ module Rewrite (L0:LOG) (L1:LOG) = struct
     in
     let u0 = make_update () in
     let u = walk u0 root0 in
-    apply_update u
+    apply_update u true
   
   end

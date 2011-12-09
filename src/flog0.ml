@@ -72,9 +72,13 @@ let vint_to b n =
 	   loop r
   in loop n
 
-let time_to b (x,y) = 
+let time_to b (x,y,g) = 
   vint_to b x;
-  vint_to b y
+  vint_to b y;
+  let c = if g then '\x01' else '\x00' in
+  Buffer.add_char b c
+    
+    
 
 let string_to b s = 
   let l = String.length s in
@@ -177,7 +181,13 @@ let list_to b e_to list =
 let input_time input =
   let x = input_vint input in
   let y = input_vint input in
-  Time.make x y   
+  let c = input_char input in
+  let g = match c with 
+    | '\x00' -> false
+    | '\x01' -> true
+    | _ -> failwith "not a bool"
+  in
+  Time.make x y g
 
 
 let _METADATA_SIZE = 4096
@@ -245,7 +255,7 @@ let clear t =
   _write_metadata t.fd meta;
   t.last  <- commit;
   t.next <- _METADATA_SIZE;
-  t.now  <- Time.make 0 0
+  t.now  <- Time.zero
 
 
 type tag = 

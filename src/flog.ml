@@ -193,8 +193,9 @@ let serialize_commit o =
 
 and deserialize_commit s o =
   let p = Outer (read_uint64 s o)
-  and i = Time.make 0 0 
-  and a = [] in
+  and i = Time.zero 
+  and a = []
+  in
   let c = Commit.make_commit p i a in
   Commit c
 
@@ -230,7 +231,7 @@ let find_commit f o =
       a, next_time
   in
 
-  loop 0 o (Time.make 0 0)
+  loop 0 o (Time.zero)
 
 let extend_file =
   let ks = Posix.fallocate_FALLOC_FL_KEEP_SIZE ()
