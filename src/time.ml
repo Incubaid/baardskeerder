@@ -40,4 +40,16 @@ let same_major (x0,_,_) (x1,_,_) = x0 = x1
 
 let time2s (x,y,g) = Printf.sprintf "(%i, %i, %b)" x y g
 
+let (=>:) (x0,y0,_) (x1,y1,_) = 
+  if x0 < x1 
+  then false
+  else 
+    if x0 > x1 
+    then true
+    else 
+      if y0 < y1 
+      then false
+      else true
+        
+
 

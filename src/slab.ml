@@ -136,8 +136,9 @@ let compact s =
     let p = lookup_pos (Commit.get_pos c) 
     and actions =rewrite_actions (Commit.get_actions c) 
     and t = Commit.get_time c 
+    and prev = lookup_pos (Commit.get_previous c) 
     in
-    Commit.make_commit p t actions
+    Commit.make_commit p prev t actions
   in
   let esa = s.es in
   let size = s.nes in

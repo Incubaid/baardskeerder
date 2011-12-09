@@ -195,8 +195,9 @@ and deserialize_commit s o =
   let p = Outer (read_uint64 s o)
   and i = Time.zero 
   and a = []
+  and prev = Outer (-2) 
   in
-  let c = Commit.make_commit p i a in
+  let c = Commit.make_commit p prev i a in
   Commit c
 
 

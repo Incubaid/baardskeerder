@@ -23,7 +23,11 @@ open Slab
 open Pos
 
 
-let es = [| 
+let es = 
+  let p = Inner 25 in
+  let t0 = Time.make 1 2 false in
+  let prev = Outer (-1) in
+  [| 
   Value "xxxxx";
   Leaf ["key_00000000", Inner 0];
   Value "xxxxx";
@@ -50,7 +54,7 @@ let es = [|
   Index (Inner 7, ["key_00000001", Inner 14]);
   Index (Inner 21, ["key_00000005", Inner 22]);
   Index (Inner 23, ["key_00000003", Inner 24]);
-  Commit (Commit.make_commit (Inner 25) (Time.make 1 2 false) []) (* should be correct values *);
+  Commit (Commit.make_commit p prev t0 []) (* should be correct values *);
 	 |]
 
 

@@ -297,9 +297,10 @@ let inflate_action input =
 
 let inflate_commit input = 
   let p = input_vint input in
+  let prev = input_vint input in
   let t = input_time input in
   let actions = input_list inflate_action input in    
-  Commit.make_commit (Outer p) t actions
+  Commit.make_commit (Outer p) (Outer prev) t actions
 
 
 let inflate_value input = input_string input
@@ -412,8 +413,10 @@ let deflate_commit b h c =
   tag_to mb COMMIT;
   let p = Commit.get_pos c in
   let t = Commit.get_time c in
+  let prev = Commit.get_previous c in
   let actions = Commit.get_actions c in
   pos_remap mb h p;
+  pos_remap mb h prev;
   time_to mb t;
   vint_to mb (List.length actions);
   List.iter (fun a -> deflate_action mb h a) actions;

@@ -17,29 +17,36 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-open Base
+open Log
 
-type action = 
-  | Set of (k * pos)
-  | Delete of k
+module Sync (L:LOG) = struct
+  open Commit
+  open Entry
+  open Time
 
-let action2s = function
-  | Set (k,p) -> Printf.sprintf "Set (%S,%s)" k (pos2s p)
-  | Delete k  -> Printf.sprintf "Delete %S" k
-
-type commit = { pos: pos ; previous: pos; time:Time.t; actions: action list;}
-
-let make_commit pos previous time actions = {pos;previous; time;actions }
-
-let get_pos t = t.pos
-
-let get_actions t = t.actions
-
-let get_time t = t.time
-
-let get_previous t = t.previous
-
-let commit2s t = Printf.sprintf "{pos=%s; previous = %s; time=%s; actions=%s}" 
-  (pos2s t.pos) (pos2s t.previous) 
-  (Time.time2s t.time)
-  (Pretty.string_of_list action2s t.actions)
+  let fold_actions t0 (f:'a -> action -> 'a) a0 log =
+    let read_commit p = 
+      let e = L.read log p in
+      match e with
+        | Commit c -> c
+        | _ -> failwith "not a commit node"
+    in
+    let rec build ps p =
+      let c = read_commit p in
+      let tc = Commit.get_time c in
+      if tc =>: t0  then 
+        let p' = Commit.get_previous c in
+        build (p:: ps) p'
+      else
+        ps 
+    in
+    let p0 = L.last log in
+    let rps = build [] p0 in
+    List.fold_left 
+      (fun acc p -> 
+        let c = read_commit p in
+        let actions = Commit.get_actions c in
+        List.fold_left f acc actions) 
+      a0 rps
+                      
+end

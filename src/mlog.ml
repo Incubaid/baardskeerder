@@ -62,7 +62,8 @@ let write t (slab:Slab.t) =
     let p = externalize_pos (Commit.get_pos c) in
     let actions = externalize_actions (Commit.get_actions c) in
     let time = Commit.get_time c in
-    Commit.make_commit p time actions
+    let prev = externalize_pos (Commit.get_previous c) in
+    Commit.make_commit p prev time actions
   in
   let externalize = function
     | NIL -> NIL
