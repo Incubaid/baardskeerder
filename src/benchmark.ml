@@ -22,6 +22,7 @@ open Tree
 open Arg
 open Log
 open Dbx
+open Sync
 
 let clock n f = 
   let t0 = Unix.gettimeofday () in
@@ -44,6 +45,7 @@ type progress_callback = int -> unit
 type command = 
   | Bench
   | Dump
+  | DumpStream
   | Rewrite 
   | Punch
   | Info
@@ -54,7 +56,9 @@ let () = Hashtbl.add logs "Flog"  (module Flog : LOG)
 
 let () = 
   let command = ref Bench in
+
   let dump () = command := Dump in
+  let dump_stream () = command := DumpStream in
   let rewrite () = command := Rewrite in
   let punch () = command:= Punch in
   let info () = command:= Info in
@@ -76,6 +80,7 @@ let () =
       ("--min-blocks", Set_int mb, Printf.sprintf
         "minimal number of consecutive blocks to punch (%i)" !mb);
       ("--dump", Unit dump, Printf.sprintf "doesn't run a benchmark, but dumps file's contents");
+      ("--dump-stream", Unit dump_stream, Printf.sprintf "dumps the stream of updates");
       ("--rewrite", Unit rewrite, "rewrite the log into another file");
       ("--punch", Unit punch, "compact the log file through hole punching");
       ("--file2" , Set_string fn2, Printf.sprintf "name of the compacted log file (%s)" !fn2);
@@ -87,6 +92,8 @@ let () =
   let module MyLog = (val (Hashtbl.find logs !log_name) : LOG) in
   let module MyDB  = DB(MyLog) in  
   let module MyDBX = DBX(MyLog) in
+  let module MySync = Sync(MyLog) in
+
   let make_key i = Printf.sprintf "key_%08i" i in
 
   let set_loop db vs n (cb: progress_callback) = 
@@ -171,6 +178,14 @@ let () =
 	let db = MyLog.make !fn in
 	MyLog.dump db;
 	MyLog.close db
+      end
+    | DumpStream ->
+      begin
+        let log = MyLog.make !fn in
+        let f () t a = Printf.printf "%s\t: %s\n" (Time.time2s t) (Commit.action2s a) in
+        let t0 = Time.zero in
+        let () = MySync.fold_actions t0 f () log in
+        MyLog.close log
       end
     | Info ->
       begin

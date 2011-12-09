@@ -24,19 +24,24 @@ module Sync (L:LOG) = struct
   open Entry
   open Time
 
-  let fold_actions t0 (f:'a -> action -> 'a) a0 log =
+  let fold_actions t0 (f:'a -> Time.t -> action -> 'a) a0 log =
     let read_commit p = 
       let e = L.read log p in
       match e with
         | Commit c -> c
         | _ -> failwith "not a commit node"
     in
+    let no_prev = Pos.out 0 in
     let rec build ps p =
       let c = read_commit p in
       let tc = Commit.get_time c in
-      if tc =>: t0  then 
+      if tc =>: t0 then 
         let p' = Commit.get_previous c in
-        build (p:: ps) p'
+        let ps' = p :: ps in
+        if p' = no_prev 
+        then ps'
+        else
+          build ps' p'
       else
         ps 
     in
@@ -46,7 +51,9 @@ module Sync (L:LOG) = struct
       (fun acc p -> 
         let c = read_commit p in
         let actions = Commit.get_actions c in
-        List.fold_left f acc actions) 
+        let t = Commit.get_time c in
+        let f' acc a = f acc t a in
+        List.fold_left f' acc actions) 
       a0 rps
                       
 end
