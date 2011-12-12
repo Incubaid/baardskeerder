@@ -1,0 +1,7 @@
+description = "Baardskeerder: an append-only B-tree-ish local database"
+version = "%x.x.x"
+exists_if = "baardskeerder.cma,baardskeerder.cmxa"
+requires = "unix"
+archive(byte) = "baardskeerder.cma"
+archive(native) = "baardskeerder.cmxa"
+

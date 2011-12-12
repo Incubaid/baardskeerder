@@ -5,4 +5,5 @@ true: debug
 <test.*>: package(oUnit), use_posix, use_crc32
 <*_test.*>: package(oUnit)
 <benchmark.*>: package(unix), use_posix, use_crc32
+<baardskeerder.cma>: use_posix
 <hudson_xml.{*}>: package(oUnit)
