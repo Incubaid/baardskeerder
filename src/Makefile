@@ -11,8 +11,7 @@ install:
 	  _build/baardskeerder.cmxa \
 	  _build/baardskeerder.mli \
 	  _build/baardskeerder.cmi \
-          _build/posix.o \
-	  _build/libcrc32c.a \
+	  _build/libbaardskeerder_c.a \
 	  _build/baardskeerder.a
 
 

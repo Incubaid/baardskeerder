@@ -18,5 +18,17 @@
  *)
 
 type t
+type tx
+type k
+type v
+
+val init : string -> unit
 val make : string -> t
 val close : t -> unit
+
+
+val with_tx : t -> (tx -> unit) -> unit
+
+val get   : tx -> k -> v
+val set   : tx -> k -> v -> unit
+val delete: tx -> k -> unit
