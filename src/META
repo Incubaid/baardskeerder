@@ -4,4 +4,5 @@ exists_if = "baardskeerder.cma,baardskeerder.cmxa"
 requires = "unix"
 archive(byte) = "baardskeerder.cma"
 archive(native) = "baardskeerder.cmxa"
+linkopts = "-cclib -lbaardskeerder_c"
 
