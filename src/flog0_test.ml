@@ -20,13 +20,13 @@
 open OUnit
 open Pos
 open Entry
-let kps = ["xxxyyyzzz-123", out 1100;
-           "xxxyyyzzz-235", out 1200;
-           "xxxyyyzzz-236", out 1300;
-           "xxxyyyzzz-237", out 1400;
-           "xxxyyyzzz-238", out 1500;
-           "xxxyyyzzz-239", out 1600;
-           "xxxyyyzzz-238", out 1700;]
+let kps = ["xxxyyyzzz-123", out 0 1100;
+           "xxxyyyzzz-235", out 0 1200;
+           "xxxyyyzzz-236", out 0 1300;
+           "xxxyyyzzz-237", out 0 1400;
+           "xxxyyyzzz-238", out 0 1500;
+           "xxxyyyzzz-239", out 0 1600;
+           "xxxyyyzzz-238", out 0 1700;]
 let pu_leaf () = 
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
@@ -44,7 +44,7 @@ let pu_leaf () =
 let pu_index () =
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
-  let i0 = out 0, kps in
+  let i0 = out 0 0, kps in
   let _ = Flog0.deflate_index b h i0 in
   let bs = Buffer.contents b in
   let () = Printf.printf "\n%S\n" bs in
@@ -57,12 +57,12 @@ let pu_index () =
 let pu_commit() = 
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
-  let p = out 0 
-  and actions = [Commit.Set ("set0", Outer 0);
-                 Commit.Set ("set1", Outer 1);
+  let p = out 0 0 
+  and actions = [Commit.Set ("set0", outer0 (Offset 0));
+                 Commit.Set ("set1", outer0 (Offset 1));
                  Commit.Delete "delete0" ]
   and now = Time.make 1 2 false in
-  let prev = Outer 0 in
+  let prev = outer0 (Offset 0) in
   let c0 = Commit.make_commit p prev now actions in
   let () = Printf.printf "com=%s\n" (Commit.commit2s c0) in
   let _ = Flog0.deflate_commit b h c0 in

@@ -121,7 +121,7 @@ let compact s =
   let s_mark = mark s in
   let s_map = mapping s_mark in
   let lookup_pos = function
-    | Outer x -> Outer x
+    | Outer _ as o -> o
     | Inner x -> Inner (Hashtbl.find s_map x)
   in
   let rewrite_actions actions = List.map 

@@ -17,16 +17,25 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+type spindle = Spindle of int
+type offset = Offset of int
+
 type pos = 
-  | Outer of int
+  | Outer of spindle * offset
   | Inner of int
 
-let out i = Outer i
+let out s o = Outer (Spindle s, Offset o)
+
+let outer0 o = Outer (Spindle 0, o)
+let from_outer0 = function
+  | Outer (Spindle 0, Offset o) -> o
+  | Outer (Spindle _, _) -> invalid_arg "non-zero spindle ID"
+  | Inner _ -> invalid_arg "expected Outer"
 
 let pos2s = function
-  | Outer p -> Printf.sprintf "Outer %i" p
+  | Outer (Spindle s, Offset o) -> Printf.sprintf "Outer (%d, %d)" s o
   | Inner p -> Printf.sprintf "Inner %i" p
 
 let next = function
   | Inner i -> Inner  (i + 1)
-  | Outer i -> failwith "Outer positions have no next"
+  | Outer _ -> failwith "Outer positions have no next"

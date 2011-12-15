@@ -192,10 +192,10 @@ let serialize_commit o =
   s
 
 and deserialize_commit s o =
-  let p = Outer (read_uint64 s o)
+  let p = outer0 (Offset (read_uint64 s o))
   and i = Time.zero 
   and a = []
-  and prev = Outer (-2) 
+  and prev = outer0 (Offset (-2))
   in
   let c = Commit.make_commit p prev i a in
   Commit c
@@ -318,7 +318,7 @@ let int32_placeholder = "0123"
 let int64_placeholder = "01234567"
 
 let pos_remap h = function
-  | Outer p -> p
+  | Outer _ as o -> o
   | Inner p -> Hashtbl.find h p
 
 
@@ -340,7 +340,7 @@ let serialize_leaf h l =
     Buffer.add_string b s32;
     Buffer.add_string b k;
     let p = pos_remap h pos in
-    write_uint64 p s64 0;
+    write_uint64 (from_outer0 p) s64 0;
     Buffer.add_string b s64;
     incr c;
   ) l;
@@ -370,7 +370,7 @@ let deserialize_leaf s o =
         let kl = read_uint32 s o in
         let k = String.sub s (o + 4) kl in
         let p = read_uint64 s (o + 4 + kl) in
-	let pos = Outer p in
+	let pos = outer0 (Offset p) in
         loop ((k, pos) :: acc) (o + 4 + kl + 8) (pred n)
   in
 
@@ -396,7 +396,7 @@ let serialize_index h (p0, kps) =
     Buffer.add_string b s32;
     Buffer.add_string b k;
     let p = pos_remap h pos in
-    write_uint64 p s64 0;
+    write_uint64 (from_outer0 p) s64 0;
     Buffer.add_string b s64;
     incr c;
   ) kps;
@@ -408,7 +408,7 @@ let serialize_index h (p0, kps) =
 
   write_uint32 (sl - 4) s 0;
   let p = pos_remap h p0 in
-  write_uint64 p s 6;
+  write_uint64 (from_outer0 p) s 6;
   write_uint8 (!c) s 14;
 
   let crc = crc32 s 0 (sl - 4) in
@@ -421,7 +421,7 @@ let deserialize_index s o =
   assert (options = 0);
 
   let p0 = read_uint64 s (o + 1) in
-  let pos0 = Outer p0 in
+  let pos0 = outer0 (Offset p0) in
   let count = read_uint8 s (o + 9) in
 
   let rec loop acc o = function
@@ -430,7 +430,7 @@ let deserialize_index s o =
         let kl = read_uint32 s o in
         let k = String.sub s (o + 4) kl in
         let p = read_uint64 s (o + 4 + kl) in
-	let pos = Outer p in
+	let pos = outer0 (Offset p) in
         loop ((k, pos) :: acc) (o + 4 + kl + 8) (pred n)
   in
 
@@ -468,7 +468,10 @@ and deserialize_value s o =
 let serialize_entry h e = 
   match e with
     | NIL -> failwith "serialize NIL?"
-    | Commit c -> let pos = Commit.get_pos c in serialize_commit (pos_remap h pos)
+    | Commit c ->
+        let pos = Commit.get_pos c in
+        let p = pos_remap h pos in
+        serialize_commit (from_outer0 p)
     | Value v -> serialize_value v
     | Index index -> serialize_index h index
     | Leaf leaf -> serialize_leaf h leaf
@@ -485,7 +488,7 @@ let write t slab =
       let size = String.length s + String.length marker' in
       let () = Buffer.add_string b marker' in
       let () = Buffer.add_string b s in
-      let () = Hashtbl.replace h i !start in
+      let () = Hashtbl.replace h i (outer0 (Offset !start)) in
       let () = start := !start + size in
       ()
     end
@@ -503,7 +506,7 @@ let write t slab =
     ();
 
   safe_write t.fd_append s 0 l;
-  t.commit_offset <- cp;
+  t.commit_offset <- from_outer0 cp;
   t.offset <- t.offset + l;
   t.space_left <- t.space_left - l
 
@@ -512,17 +515,17 @@ let write t slab =
      Slab.iter (fun (p, e) -> OffsetEntryCache.add t.cache p e) slab.es
   *)
 
-let last t = Outer t.commit_offset
+let last t = outer0 (Offset t.commit_offset)
 
-let next t = Outer t.offset
+let next t = outer0 (Offset t.offset)
 
 let unwrap = function
-  | Outer p -> p
+  | Outer _ as o -> o
   | Inner _ -> failwith "Inner?"
 
 
 let read t w =
-  let pos = unwrap w in
+  let pos = from_outer0 (unwrap w) in
   if pos = 0 then NIL
   else
   match OffsetEntryCache.get t.cache pos with
@@ -682,7 +685,7 @@ let rec compact' =
   let h' = OffsetSet.max_elt os in
   let os' = OffsetSet.remove h' os in
 
-  let e = read l (Pos.out h') in
+  let e = read l (Pos.outer0 (Pos.Offset h')) in
 
   let do_punch =
     if mb = 0 then do_punch_always
@@ -691,7 +694,7 @@ let rec compact' =
       if b' = 4096 then do_punch_4096 else do_punch_generic b'
   in
   let (e', os'') = 
-    let osnd (_,pos ) = unwrap pos in
+    let osnd (_,pos ) = from_outer0 (unwrap pos) in
     match e with
       | Value v -> (h' + value_size v + 4, os')
       | Leaf rs ->
@@ -699,7 +702,8 @@ let rec compact' =
 	 List.fold_right OffsetSet.add (List.map osnd rs) os')
       | Index ((p0, kps) as i) ->
 	(h' + index_size i + 4,
-	 List.fold_right OffsetSet.add (List.map osnd kps) (OffsetSet.add (unwrap p0) os'))
+	 List.fold_right OffsetSet.add (List.map osnd kps)
+             (OffsetSet.add (from_outer0 (unwrap p0)) os'))
       | Commit _ -> failwith "Flog.compact': Commit entry"
       | NIL -> failwith "Flog.compact': NIL entry"
   in
@@ -730,10 +734,10 @@ let compact ?min_blocks:(mb=0) ?progress_cb:(pc=None) t =
   let b' = b * 2
   and o = t.commit_offset in
 
-  match (read t (Pos.out o)) with
+  match (read t (Pos.outer0 (Pos.Offset o))) with
     | Commit c ->
       let r = Commit.get_pos c in
-      let p = unwrap r in
+      let p = from_outer0 (unwrap r) in
       compact' t pc mb b' { cs_offset=o; cs_entries=OffsetSet.singleton p; }
     | NIL ->
         failwith "Flog.compact: read NIL iso commit entry"

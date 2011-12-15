@@ -47,7 +47,7 @@ let write t (slab:Slab.t) =
   let off = t.next in
   let externalize_pos = function
     | (Outer _) as p -> p
-    | Inner i -> Outer (i + off)
+    | Inner i -> outer0 (Offset (i + off))
   in
   let externalize_actions xs = 
     let externalize_action = function
@@ -89,14 +89,14 @@ let write t (slab:Slab.t) =
   Slab.iteri slab do_one ;
   t.now <- Slab.time slab
     
-let last t = Outer (t.next -1)
+let last t = outer0 (Offset (t.next -1))
 
-let next t = Outer t.next
+let next t = outer0 (Offset t.next)
 
 let size (_:entry) = 1
 
 let read t = function
-  | Outer pos -> if pos < 0 then NIL else t.es.(pos)
+  | Outer _ as o -> let pos = from_outer0 o in if pos < 0 then NIL else t.es.(pos)
   | Inner _ -> failwith "can't read inner"
 
 

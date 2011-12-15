@@ -153,11 +153,11 @@ let input_string input =
 let input_kp input =
   let k = input_string input in
   let p = input_vint input in
-  k, Outer p
+  k, outer0 (Offset p)
 
 
 let pos_to b = function
-  | Outer p -> vint_to b p
+  | Outer _ as o -> let p = from_outer0 o in vint_to b p
   | Inner _ -> failwith "cannot serialize inner pos"
 
 let kp_to b (k,p) =
@@ -234,8 +234,8 @@ let get_d t = t.d
 
 let t2s t = Printf.sprintf "{...;last=%i; next=%i;now=%s}" t.last t.next (Time.time2s t.now)
 
-let next t = Outer t.next
-let last t = Outer t.last
+let next t = outer0 (Offset t.next)
+let last t = outer0 (Offset t.last)
 
 let now t = t.now
 
@@ -288,7 +288,7 @@ let inflate_action input =
              Commit.Delete k
     | 'S' -> let k = input_string input in
              let p = input_vint input in
-             Commit.Set (k,Outer p)
+             Commit.Set (k, outer0 (Offset p))
     | t   -> let s = Printf.sprintf "%C action?" t in failwith s
 
        
@@ -300,7 +300,7 @@ let inflate_commit input =
   let prev = input_vint input in
   let t = input_time input in
   let actions = input_list inflate_action input in    
-  Commit.make_commit (Outer p) (Outer prev) t actions
+  Commit.make_commit (outer0 (Offset p)) (outer0 (Offset prev)) t actions
 
 
 let inflate_value input = input_string input
@@ -317,7 +317,7 @@ let inflate_leaf input = input_suffix_list input
 let inflate_index input = 
   let p0 = input_vint input in
   let kps = input_suffix_list input in
-  Outer p0,kps
+  outer0 (Offset p0), kps
 
 let input_entry input = 
   match input_tag input with
@@ -364,7 +364,7 @@ let deflate_value b _ v =
 
 let pos_remap mb h p = 
   let o = match p with
-    | Outer x -> x
+    | Outer _ as o -> from_outer0 o
     | Inner x -> 
       let o = Hashtbl.find h x in
       o
@@ -467,7 +467,8 @@ let _read_entry_s fd pos =
 
 let read t pos = 
   match pos with
-    | Outer p ->
+    | Outer _ as o ->
+      let p = from_outer0 o in
       if p = 0 then NIL
       else
 	begin
