@@ -7,5 +7,6 @@ true: debug
 <test.{native,byte}>: link_libbaardskeerder
 <*_test.*>: package(oUnit)
 <benchmark.*>: package(unix), use_libbaardskeerder
+<benchmark.{native,byte}>: link_libbaardskeerder
 <baardskeerder.cma>: use_libbaardskeerder, link_libbaardskeerder
 <hudson_xml.{*}>: package(oUnit)
