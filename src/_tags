@@ -1,6 +1,7 @@
 true: annot
 true: debug
-<**/*.ml>: warn_A
+<**/*.ml>: warn_error_A
+<**/*_test.ml>: -warn_error_A, warn_A
 <flog*.ml>: warn_error_A
 <flog0.o>: use_libbaardskeerder
 <test.*>: package(oUnit), use_libbaardskeerder

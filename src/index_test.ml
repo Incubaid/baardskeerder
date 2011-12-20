@@ -75,7 +75,7 @@ let t_split () =
   and rpos = out 0 22
   and z = Loc ((out 0 7, [("j", out 0 18); ("d", out 0 14)]), [])
   in
-  let left,sep', right = Indexz.split d lpos sep rpos z in
+  let left, _ , _ = Indexz.split d lpos sep rpos z in
   OUnit.assert_equal ~printer:index2s (out 0 7, ["d",out 0 14]) left
 
 let t_split2() = 
@@ -84,7 +84,7 @@ let t_split2() =
   and sep = "j"
   and rpos = out 0 22 
   and z = Loc ((out 0 7, [("d", out 0 18)]), [("q", out 0 15)]) in
-  let left,sep',right = Indexz.split d lpos sep rpos z in
+  let left,_,right = Indexz.split d lpos sep rpos z in
   let printer = index2s in
   OUnit.assert_equal ~printer (out 0 7,["d", out 0 21]) left;
   OUnit.assert_equal ~printer (out 0 22,["q",out 0 15]) right

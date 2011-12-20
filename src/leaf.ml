@@ -35,13 +35,15 @@ let leaf_borrow_right left right = match right with
 	    let left' = List.rev (h :: rev) in
 	    left',k, t
 
-let leaf_borrow_left left right = let rev = List.rev left in
+let leaf_borrow_left left right = 
+  let rev = List.rev left in
   match rev with
-    | [] -> failwith "leaf_borrow_left"
     | h0 :: ((k1,_) as h1) :: t -> 
       let right' = h0 :: right in
       let left' = List.rev (h1 :: t) in
       left' , k1, right'
+    | [] | [_] -> failwith "leaf_borrow_left"
+
 
 let shared_prefix = function
   | [] -> ""

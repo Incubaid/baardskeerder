@@ -610,6 +610,7 @@ module DB = functor (L:LOG ) -> struct
               | (_,p) :: _ -> _depth_descend t slab p (c+1)
           end
         | Index (p0,_) -> _depth_descend t slab p0 (c+1)
+        | Commit _ -> failwith "reached a second commit on descend"
     in
     let _depth_descend_root t slab =
       if Slab.is_empty slab
