@@ -28,7 +28,7 @@ type seq =
 let eol = Eol
 let tab = Lit "  "
 let lit s = Lit s
-let (<<) s0 s1 = App (s0,s1)
+let (++) s0 s1 = App (s0,s1)
 
 
 let xml_escape s = 
@@ -85,10 +85,10 @@ let process result =
     | RTodo (p,_)    -> testcase p "todo" (lit "todo")
     | RError (p,m)   -> testcase p "run" (tag "error" ["message", m] (lit ""))
   in
-  let s = lit "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << eol <<
-    lit "<testsuite name=\"nosetests\" tests=\"1\" errors=\"1\" failures=\"0\" skip=\"0\">" << eol <<
-    (List.fold_left (fun acc tr -> acc << tab << (do_one tr) << eol) (lit "") result) 
-    << lit "</testsuite>"
+  let s = lit "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" ++ eol ++
+    lit "<testsuite name=\"nosetests\" tests=\"1\" errors=\"1\" failures=\"0\" skip=\"0\">" ++ eol ++
+    (List.fold_left (fun acc tr -> acc ++ tab ++ (do_one tr) ++ eol) (lit "") result) 
+    ++ lit "</testsuite>"
   in
   let chout = open_out "hudson.xml" in
   Pervasives.output_string chout(seq2s s);

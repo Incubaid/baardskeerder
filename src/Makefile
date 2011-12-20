@@ -1,7 +1,7 @@
 OCAML_FIND ?= ocamlfind
 
 build:
-	ocamlbuild -use-ocamlfind test.native baardskeerder.cma baardskeerder.cmxa baardskeerder.a
+	ocamlbuild -use-ocamlfind test.native benchmark.native baardskeerder.cma baardskeerder.cmxa baardskeerder.a
 
 clean:
 	ocamlbuild -use-ocamlfind -clean
@@ -18,5 +18,11 @@ install:
 uninstall:
 	$(OCAML_FIND) remove baardskeerder
 
+coverage:
+	ocamlbuild -use-ocamlfind \
+	-tag 'package(bisect)' \
+	-tag 'syntax(camlp4o -no_quot)' \
+	-tag 'syntax(bisect_pp)' \
+	test.byte
 
 default: build

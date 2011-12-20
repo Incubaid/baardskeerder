@@ -103,12 +103,10 @@ let size_from s pos =
 
 let size_to b (p:int) = 
   let i32  = Int32.of_int p in
-  let (<<) = Int32.shift_left in
-  let (>>) = Int32.shift_right_logical in
   let char_at n =
     let pos = n * 8 in
-    let mask = Int32.of_int 0xff << pos in
-    let code = (Int32.logand i32 mask)  >> pos in
+    let mask = Int32.shift_left (Int32.of_int 0xff)  pos in
+    let code = Int32.shift_right_logical (Int32.logand i32 mask) pos in
     Char.chr (Int32.to_int code)
   in
   let add i = Buffer.add_char b (char_at i) in
