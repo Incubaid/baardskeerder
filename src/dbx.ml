@@ -31,7 +31,7 @@ module DBX(L:LOG) = struct
 
   module DBL = DB(L)
 
-  let get tx k = DBL.get tx.log tx.slab k
+  let get tx k = DBL._get tx.log tx.slab k
 
   let set tx k v = 
     let vpos = Inner (Slab.length tx.slab) in

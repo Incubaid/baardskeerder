@@ -29,7 +29,7 @@ open Slab
 
 module DB = functor (L:LOG ) -> struct
 
-  let get (t:L.t) (slab:Slab.t) (k:k) = 
+  let _get (t:L.t) (slab:Slab.t) (k:k) = 
     let _read pos = match pos with
       | Outer _ -> L.read t pos 
       | Inner _ -> Slab.read slab pos
@@ -72,6 +72,12 @@ module DB = functor (L:LOG ) -> struct
 	descend pos
     in
     descend_root ()
+
+  let get t k = 
+    let now = L.now t in
+    let fut = Time.next_major now in
+    let slab = Slab.make fut in
+    _get t slab k 
 
   let rec _set_descend (t:L.t) slab (k:k) pos trail = 
     let e = match pos with
@@ -586,7 +592,7 @@ module DB = functor (L:LOG ) -> struct
   let confirm (t:L.t) (s:Slab.t) k v =
     let set_needed =
       try
-	let vc = get t s k  in
+	let vc = _get t s k  in
 	vc <> v
       with NOT_FOUND _ -> true
     in

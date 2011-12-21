@@ -46,7 +46,7 @@ let test_presence () =
   let now = Mlog.now m0 in
   let fut = Time.next_major now in
   let empty = Slab.make fut in 
-  let () = List.iter (fun (k,v) -> let v' = MDB.get m1 empty k in OUnit.assert_equal v' v) kvs in
+  let () = List.iter (fun (k,v) -> let v' = MDB._get m1 empty k in OUnit.assert_equal v' v) kvs in
   let m1t = Mlog.now m1 in
   let s = Printf.sprintf "%s <> %s" (Time.time2s m0t) (Time.time2s m1t) in
   OUnit.assert_bool s (Time.same_major m0t m1t);

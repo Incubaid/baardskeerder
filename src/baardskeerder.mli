@@ -26,7 +26,7 @@ val init : string -> unit
 val make : string -> t
 val close : t -> unit
 
-
+val get_latest : t -> k -> v
 val with_tx : t -> (tx -> unit) -> unit
 
 val get   : tx -> k -> v

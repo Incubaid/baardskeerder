@@ -114,8 +114,7 @@ let () =
   let get_loop db n (cb: progress_callback) = 
     let now = MyLog.now db in
     let empty = Slab.make now in
-    let get k = 
-      MyDB.get db empty k in
+    let get k = MyDB._get db empty k in
     let rec loop i =
       let () = cb i in
       if i = n 

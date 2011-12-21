@@ -19,6 +19,8 @@
 
 module MyLog = Flog0
 module MyDBX = Dbx.DBX(MyLog)
+module MyDB = Tree.DB(MyLog)
+
 type t = MyLog.t
 type tx = MyDBX.tx
 
@@ -31,6 +33,10 @@ let make fn = MyLog.make fn
 let close log = MyLog.close log
 
 let with_tx log f = MyDBX.with_tx log f
+
+
+let get_latest t k = MyDB.get t k
+
 let get tx k = MyDBX.get tx k
 let set tx k v = MyDBX.set tx k v
 let delete tx k = MyDBX.delete tx k

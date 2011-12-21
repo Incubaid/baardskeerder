@@ -47,7 +47,7 @@ let mem_setup () =
   read = Mlog.read;
   clear = Mlog.clear;
   set = MDB.set;
-  get = (fun log k -> MDB.get log empty k);
+  get = (fun log k -> MDB._get log empty k);
   delete = MDB.delete;
   dump = Mlog.dump;
 }

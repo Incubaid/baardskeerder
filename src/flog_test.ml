@@ -171,10 +171,7 @@ let test_database_set_get _ db =
   and v = "bar" in
 
   FDB.set db k v;
-  let now = Flog.now db in
-  let fut = Time.next_major now in
-  let slab = Slab.make fut in
-  let v' = FDB.get db slab k in
+  let v' = FDB.get db k in
 
   OUnit.assert_equal v v'
 
@@ -187,10 +184,7 @@ let test_database_multi_action _ db =
 
   FDB.set db k1 v1;
   FDB.set db k2 v2;
-  let now = Flog.now db in
-  let fut = Time.next_major now in
-  let empty = Slab.make fut in
-  let my_get k = FDB.get db empty k in
+  let my_get k = FDB.get db k in
   OUnit.assert_equal v1 (my_get k1);
   OUnit.assert_equal v2 (my_get k2);
 
@@ -213,10 +207,7 @@ let test_database_reopen fn db =
   Flog.close db;
 
   let db' = make fn in
-  let now = Flog.now db in
-  let fut = Time.next_major now in
-  let empty = Slab.make fut in
-  let my_get k = FDB.get db' empty k in
+  let my_get k = FDB.get db'  k in
   let v1' = my_get k1
   and v2' = my_get k2 in
 
@@ -234,16 +225,13 @@ let test_database_sync fn db =
   (* Set both metadata field *)
   Flog.sync db;
   Flog.sync db;
-  let now = Flog.now db in
-  let fut = Time.next_major now in
-  let empty = Slab.make fut in
-  let my_get k = FDB.get db empty k in
+  let my_get k = FDB.get db k in
   OUnit.assert_equal (my_get k) v;
 
   close db;
 
   let db' = make fn in
-  OUnit.assert_equal (FDB.get db' empty k) v;
+  OUnit.assert_equal (FDB.get db' k) v;
 
   close db'
 
@@ -289,10 +277,7 @@ let test_compaction_basic fn db =
 
   let db' = make fn in
   let id x = x in
-  let now = Flog.now db in
-  let fut = Time.next_major now in
-  let empty = Slab.make fut in
-  let my_get k = FDB.get db' empty k in
+  let my_get k = FDB.get db' k in
   OUnit.assert_equal ~printer:id (my_get "foo") "bal";
   close db';
 
@@ -347,14 +332,11 @@ let test_compaction_all_states m c fn db =
   insert_loop c;
 
   let rec test_loop t =
-    let now = Flog.now db in
-    let fut = Time.next_major now in
-    let empty = Slab.make fut in
     let rec check_deleted n = function
       | i when i = (n - 1) -> ()
       | i ->
           let key = Printf.sprintf "key_%d" i in
-          OUnit.assert_raises (Base.NOT_FOUND key) (fun () -> FDB.get db empty key);
+          OUnit.assert_raises (Base.NOT_FOUND key) (fun () -> FDB.get db key);
           check_deleted n (pred i)
     in
 
@@ -363,9 +345,7 @@ let test_compaction_all_states m c fn db =
       | i ->
           let key = Printf.sprintf "key_%d" i
           and value = Printf.sprintf "value_%d" i in
-
-          OUnit.assert_equal value (FDB.get db empty key);
-
+          OUnit.assert_equal value (FDB.get db key);
           check_existing (pred i)
     in
 
