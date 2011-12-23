@@ -19,8 +19,10 @@
 
 type t
 type tx
-type k
-type v
+type k = string
+type v = string
+
+exception NOT_FOUND of k
 
 val init : string -> unit
 val make : string -> t

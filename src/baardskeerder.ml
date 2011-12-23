@@ -24,8 +24,7 @@ module MyDB = Tree.DB(MyLog)
 type t = MyLog.t
 type tx = MyDBX.tx
 
-type k = string
-type v = string
+include Base
 
 let init fn = MyLog.init ~d:6 fn Time.zero
 let make fn = MyLog.make fn 
@@ -40,5 +39,4 @@ let get_latest t k = MyDB.get t k
 let get tx k = MyDBX.get tx k
 let set tx k v = MyDBX.set tx k v
 let delete tx k = MyDBX.delete tx k
-
 
