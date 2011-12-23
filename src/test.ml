@@ -37,8 +37,3 @@ let suite =
       Flog0_test.suite;
     ]
 
-
-let () = 
-  if Array.length Sys.argv = 2 && Sys.argv.(1) = "--hudson"
-  then Hudson_xml.run_test suite
-  else let _ = run_test_tt_main suite in ()

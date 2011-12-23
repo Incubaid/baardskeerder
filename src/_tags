@@ -5,9 +5,8 @@ true: debug
 <flog*.ml>: warn_error_A
 <flog0.o>: use_libbaardskeerder
 <test.*>: package(oUnit), use_libbaardskeerder
-<test.{native,byte}>: link_libbaardskeerder
 <*_test.*>: package(oUnit)
-<benchmark.*>: package(unix), use_libbaardskeerder
-<benchmark.{native,byte}>: link_libbaardskeerder
+<bsmgr.*>: package(unix), package(oUnit), use_libbaardskeerder
+<bsmgr.{native,byte}>: link_libbaardskeerder
 <baardskeerder.cma>: use_libbaardskeerder, link_libbaardskeerder
 <hudson_xml.{*}>: package(oUnit)

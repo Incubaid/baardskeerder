@@ -49,6 +49,8 @@ type command =
   | Rewrite 
   | Punch
   | Info
+  | Test
+  | Hudson
 
 let logs = Hashtbl.create 3
 let () = Hashtbl.add logs "Flog0" (module Flog0: LOG)
@@ -62,6 +64,8 @@ let () =
   let rewrite () = command := Rewrite in
   let punch () = command:= Punch in
   let info () = command:= Info in
+  let test () = command:= Test in
+  let hudson () = command := Hudson in
   let n  = ref 1_000_000 in
   let m  = ref 100 in
   let vs = ref 2_000 in
@@ -85,6 +89,8 @@ let () =
       ("--punch", Unit punch, "compact the log file through hole punching");
       ("--file2" , Set_string fn2, Printf.sprintf "name of the compacted log file (%s)" !fn2);
       ("--info", Unit info, Printf.sprintf "returns information about the file (%s)" !fn);
+      ("--test", Unit test, Printf.sprintf "runs testsuite");
+      ("--hudson", Unit hudson, Printf.sprintf "runs testsuite with output suitable for hudson");
     ]
       (fun _ ->()) 
       "simple baardskeerder benchmark"
@@ -172,6 +178,9 @@ let () =
     loop 0
   in
   match !command with
+    | Test -> let _ = OUnit.run_test_tt_main Test.suite in ()
+    | Hudson ->
+      Hudson_xml.run_test Test.suite
     | Dump ->
       begin
 	let db = MyLog.make !fn in
