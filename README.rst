@@ -24,9 +24,9 @@ can't (for now) be used on other platforms. Some features require a very recent
 (>= 3.0) kernel and require specific file-system support, currently only
 provided by `ext4`, `XFS` and `OCFS2`.
 
-It's written in OCaml_, so you'll need a recent OCaml compiler on your system
-(we develop using OCaml 3.12, earlier versions might or might not work). The
-build system uses `ocamlbuild` and `ocamlfind`.
+It's written in OCaml_, so you'll need a recent (>= 3.12) OCaml compiler on your system.
+The build system uses `ocamlbuild` and `ocamlfind`.
+
 
 Finally, a working C compiler and up-to-date system header files are required.
 
@@ -39,6 +39,12 @@ Execute `make html` in the `doc` tree to generate HTML output. Execute
 
 .. _OCaml: http://caml.inria.fr/ocaml/
 .. _Sphinx: http://sphinx.pocoo.org/
+
+Warning: the documentation is out of date, and updating it is currently low priority.
+If you want to know how it works, take a look at our blog: `Incubaid Research Blog`_ 
+
+.. _Incubaid Research Blog: http://blog.incubaid.com
+
 
 License
 =======
