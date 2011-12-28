@@ -22,8 +22,11 @@ open Base
 open Slab
 
 
-type t = { mutable es : entry array; 
-	   mutable next:int;
+type s = { mutable es: entry array;
+           mutable next: int;
+         }
+type t = { spindles: s array;
+           mutable current_spindle: int;
            mutable now: Time.t;
          }
 
@@ -39,15 +42,19 @@ let sync (_:t)  = ()
 
 let close (_:t) = ()
 
-let make  (_:string) = {es = Array.make 32 NIL; next = 0; now = Time.zero}
+let make_spindles n p = Array.init n (fun _ -> { es=Array.make p NIL; next=0 })
 
-let make2 (_:string) now = {es = Array.make 32 NIL; next =0; now}
+let make2 (_:string) now = { spindles=make_spindles 4 32; current_spindle=0; now }
+let make (s:string) = make2 s Time.zero
 
-let write t (slab:Slab.t) = 
-  let off = t.next in
+let write (t:t) (slab:Slab.t) =
+  let sp = Spindle t.current_spindle
+  and s = Array.get t.spindles t.current_spindle in
+
+  let off = s.next in
   let externalize_pos = function
     | (Outer _) as p -> p
-    | Inner i -> outer0 (Offset (i + off))
+    | Inner i -> Outer (sp, (Offset (i + off)))
   in
   let externalize_actions xs = 
     let externalize_action = function
@@ -72,48 +79,68 @@ let write t (slab:Slab.t) =
     | Index i -> Index (externalize_index i)
     | Commit c -> Commit (externalize_commit c)
   in
-  let do_one _ e = 
-    t.es.(t.next) <- (externalize e);
-    t.next <- t.next + 1
+
+  let do_one _ e =
+    s.es.(s.next) <- (externalize e);
+    s.next <- s.next + 1
   in
-  let current = Array.length t.es in
-  let needed = t.next + Slab.length slab in
+  let current = Array.length s.es in
+  let needed = s.next + Slab.length slab in
   if needed > current
   then
     begin
       let new_size = max (current * 2) needed in
       let bigger = Array.make new_size NIL in
-      Array.blit t.es 0 bigger 0 current;
-      t.es <- bigger
+      Array.blit s.es 0 bigger 0 current;
+      s.es <- bigger
     end;
   Slab.iteri slab do_one ;
-  t.now <- Slab.time slab
+  t.now <- Slab.time slab;
+  t.current_spindle <- ((t.current_spindle + 1) mod (Array.length t.spindles))
     
-let last t = outer0 (Offset (t.next -1))
+let last t =
+  let i =
+    let j = t.current_spindle - 1 in
+      if j < 0
+      then j + Array.length t.spindles
+      else j
+  in
+  let s = Array.get t.spindles i in
+  Outer (Pos.Spindle i, Offset (s.next - 1))
 
 let size (_:entry) = 1
 
 let read t = function
-  | Outer _ as o -> let pos = from_outer0 o in if pos < 0 then NIL else t.es.(pos)
+  | Outer (Spindle s, Offset o) ->
+      if o < 0
+        then NIL
+        else Array.get (Array.get t.spindles s).es o
   | Inner _ -> failwith "can't read inner"
 
 
 let dump ?out:(o=stdout) (t:t) =
-  Printf.fprintf o "Next = %d\n" t.next;
+  Printf.fprintf o "Next = %d %d\n" t.current_spindle
+    (Array.get t.spindles t.current_spindle).next;
 
   Array.iteri
-    (fun i a ->
-      let s = Entry.entry2s a in
-      Printf.fprintf o "%2i: %s\n" i s)
-    t.es
+    (fun i s ->
+      Printf.fprintf o "Spindle %2i\n" i;
+      Printf.fprintf o "----------\n";
 
-let clear (t:t) = 
-  let rec loop i = 
-    if i = t.next then ()
-    else let () = t.es.(i) <- NIL in loop (i+1) 
-  in
-  loop 0;
-  t.next <- 0
+      Array.iteri
+        (fun i' a ->
+          let s' = Entry.entry2s a in
+          Printf.fprintf o "%2i: %s\n" i' s')
+      s.es)
+    t.spindles
+
+let clear (t:t) =
+  Array.iteri
+    (fun i s ->
+      s.next <- 0;
+      Array.fill s.es 0 (Array.length s.es) NIL)
+  t.spindles;
+  t.current_spindle <- 0
 
 let compact ?(min_blocks=1) ?(progress_cb=None) (_:t) =
   ignore min_blocks;
