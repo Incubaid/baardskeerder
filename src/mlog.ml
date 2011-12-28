@@ -91,8 +91,6 @@ let write t (slab:Slab.t) =
     
 let last t = outer0 (Offset (t.next -1))
 
-let next t = outer0 (Offset t.next)
-
 let size (_:entry) = 1
 
 let read t = function

@@ -234,7 +234,6 @@ let get_d t = t.d
 
 let t2s t = Printf.sprintf "{...;last=%i; next=%i;now=%s}" t.last t.next (Time.time2s t.now)
 
-let next t = outer0 (Offset t.next)
 let last t = outer0 (Offset t.last)
 
 let now t = t.now

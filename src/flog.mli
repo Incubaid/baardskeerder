@@ -32,7 +32,6 @@ val compact : ?min_blocks:int ->
 val clear : t -> unit
 
 val read : t -> Pos.pos -> Entry.entry
-val next : t -> Pos.pos
 val last : t -> Pos.pos
 
 val write : t -> Slab.t -> unit

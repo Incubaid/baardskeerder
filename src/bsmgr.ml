@@ -201,13 +201,11 @@ let () =
         let now = MyLog.now log in
         let empty = Slab.make now in
         let depth = MyDB.depth log empty in
-        let next = MyLog.next log in
         let last = MyLog.last log in
         let now = MyLog.now log in
         let () = Printf.printf "d:\t%i\n" (MyLog.get_d log) in
         let () = Printf.printf "depth:\t%i\n" depth in
         let () = Printf.printf "last:\t%s\n" (Pos.pos2s last) in
-        let () = Printf.printf "next:\t%s\n" (Pos.pos2s next) in
         let () = Printf.printf "now:\t%s\n" (Time.time2s now) in
 
         MyLog.close log

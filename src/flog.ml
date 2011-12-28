@@ -517,8 +517,6 @@ let write t slab =
 
 let last t = outer0 (Offset t.commit_offset)
 
-let next t = outer0 (Offset t.offset)
-
 let unwrap = function
   | Outer _ as o -> o
   | Inner _ -> failwith "Inner?"
