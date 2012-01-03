@@ -4,4 +4,5 @@ src/_build
 
 *.native
 *.byte
-/src/test.db
+src/test.db
+src/test.db.[012]

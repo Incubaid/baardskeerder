@@ -21,7 +21,6 @@ open Base
 open Entry
 open Unix
 
-
 let _really_write fd string = 
   let l = String.length string in
   let rec loop start = function
@@ -152,12 +151,13 @@ let input_string input =
 
 let input_kp input =
   let k = input_string input in
+  let s = input_vint input in
   let p = input_vint input in
-  k, outer0 (Offset p)
+  k, Outer (Spindle s, Offset p)
 
 
 let pos_to b = function
-  | Outer _ as o -> let p = from_outer0 o in vint_to b p
+  | Outer (Spindle s, Offset o) -> vint_to b s; vint_to b o
   | Inner _ -> failwith "cannot serialize inner pos"
 
 let kp_to b (k,p) =
@@ -192,18 +192,22 @@ let input_time input =
 
 let _METADATA_SIZE = 4096
 type metadata = {
-  commit : int; 
+  commit : (spindle * offset);
   td: int; 
   t0: Time.t;
 }
 
-let metadata2s m = Printf.sprintf "{commit=%i;td=%i;t0=%s}" m.commit m.td (Time.time2s m.t0)
+let metadata2s m =
+  let (Spindle s, Offset o) = m.commit in
+  Printf.sprintf "{commit=(%i,%i);td=%i;t0=%s}" s o m.td (Time.time2s m.t0)
 
 
 
 let _write_metadata fd m = 
   let b = Buffer.create 128 in
-  let () = vint_to b m.commit in
+  let (Spindle s, Offset o) = m.commit in
+  let () = vint_to b s in
+  let () = vint_to b o in
   let () = vint_to b m.td in
   let () = time_to b m.t0 in
   let block = String.create _METADATA_SIZE in
@@ -216,15 +220,21 @@ let _read_metadata fd =
   _seek fd 0;
   let m = _really_read fd _METADATA_SIZE in
   let input = make_input m 0 in
-  let commit = input_vint input in
+  let s = input_vint input in
+  let o = input_vint input in
+  let commit = (Spindle s, Offset o) in
   let td = input_vint input in
   let t0 = input_time input in
   {commit; td;t0}
 
-type t = { fd : file_descr; 
+type s = { fd: file_descr;
+           mutable next: int;
+         }
+
+type t = { spindles : s array;
            start : Time.t;
-	   mutable last: int; 
-	   mutable next:int;
+	   mutable last: (spindle * offset);
+           mutable next_spindle: int;
 	   mutable d: int;
            mutable now: Time.t;
            
@@ -232,28 +242,31 @@ type t = { fd : file_descr;
 
 let get_d t = t.d
 
-let t2s t = Printf.sprintf "{...;last=%i; next=%i;now=%s}" t.last t.next (Time.time2s t.now)
+let t2s t =
+  let (Spindle ls, Offset lo) = t.last in
+  let sp = Array.get t.spindles t.next_spindle in
+  Printf.sprintf "{...;last=(%i,%i); next=(%i,%i);now=%s}" ls lo t.next_spindle sp.next
+    (Time.time2s t.now)
 
-let last t = outer0 (Offset t.last)
+let last t = let s, o = t.last in Outer (s, o)
 
 let now t = t.now
 
 
 let close t = 
   let meta = {commit = t.last; td = t.d; t0 = t.start} in
-  let () = _write_metadata t.fd meta in
-  Unix.close t.fd
+  Array.iter (fun s -> _write_metadata s.fd meta; Unix.close s.fd) t.spindles
 
 let clear t = 
-  let commit = 0 in
+  let commit = (Spindle 0, Offset 0) in
   let meta = {commit;
 	      td = t.d;
               t0 = Time.zero;
              } 
   in
-  _write_metadata t.fd meta;
+  Array.iter (fun s -> _write_metadata s.fd meta) t.spindles;
   t.last  <- commit;
-  t.next <- _METADATA_SIZE;
+  t.next_spindle <- 0;
   t.now  <- Time.zero
 
 
@@ -286,8 +299,9 @@ let inflate_action input =
     | 'D' -> let k = input_string input in
              Commit.Delete k
     | 'S' -> let k = input_string input in
+             let s = input_vint input in
              let p = input_vint input in
-             Commit.Set (k, outer0 (Offset p))
+             Commit.Set (k, Outer (Spindle s, Offset p))
     | t   -> let s = Printf.sprintf "%C action?" t in failwith s
 
        
@@ -295,11 +309,13 @@ let inflate_action input =
 
 
 let inflate_commit input = 
+  let s = input_vint input in
   let p = input_vint input in
+  let sprev = input_vint input in
   let prev = input_vint input in
   let t = input_time input in
   let actions = input_list inflate_action input in    
-  Commit.make_commit (outer0 (Offset p)) (outer0 (Offset prev)) t actions
+  Commit.make_commit (Outer (Spindle s, Offset p)) (Outer (Spindle sprev, Offset prev)) t actions
 
 
 let inflate_value input = input_string input
@@ -314,9 +330,10 @@ let inflate_leaf input = input_suffix_list input
 
 
 let inflate_index input = 
+  let s0 = input_vint input in
   let p0 = input_vint input in
   let kps = input_suffix_list input in
-  outer0 (Offset p0), kps
+  Outer (Spindle s0, Offset p0), kps
 
 let input_entry input = 
   match input_tag input with
@@ -332,21 +349,31 @@ let inflate_entry es =
 
 
 let dump ?(out=Pervasives.stdout) (t:t) = 
-  _seek t.fd 0 ;
-  let m = _read_metadata t.fd in
-  Printf.fprintf out "meta: %s\n%!" (metadata2s m);
-  let rec loop pos= 
-    let ls = _really_read t.fd 4 in
-    let l = size_from ls 0 in
-    let es = _really_read t.fd l in
-    let e = inflate_entry es in
-    let () = Printf.fprintf out "%4i : %s\n%!" pos (Entry.entry2s e)  in
-    let pos' = pos + 4 + String.length es in
-    loop pos'
+  let d s =
+    _seek s.fd 0 ;
+    let m = _read_metadata s.fd in
+    Printf.fprintf out "meta: %s\n%!" (metadata2s m);
+    let rec loop pos=
+      let ls = _really_read s.fd 4 in
+      let l = size_from ls 0 in
+      let es = _really_read s.fd l in
+      let e = inflate_entry es in
+      let () = Printf.fprintf out "%4i : %s\n%!" pos (Entry.entry2s e)  in
+      let pos' = pos + 4 + String.length es in
+      loop pos'
+    in
+    try
+      loop _METADATA_SIZE
+    with End_of_file -> ()
   in
-  try
-    loop _METADATA_SIZE
-  with End_of_file -> ()
+
+  Array.iteri
+    (fun i s ->
+      Printf.fprintf out "Spindle %02i\n" i;
+      Printf.fprintf out "----------\n";
+      d s)
+    t.spindles
+
 
 let _add_buffer b mb = 
   let l = Buffer.length mb in
@@ -362,12 +389,13 @@ let deflate_value b _ v =
   _add_buffer b mb
 
 let pos_remap mb h p = 
-  let o = match p with
-    | Outer _ as o -> from_outer0 o
+  let (s, o) = match p with
+    | Outer (Spindle s, Offset o) -> (s, o)
     | Inner x -> 
-      let o = Hashtbl.find h x in
-      o
+      let (Spindle s, Offset o) = Hashtbl.find h x in
+      (s, o)
   in
+  vint_to mb s;
   vint_to mb o
 	       
 let kps_to mb h kps = 
@@ -431,27 +459,48 @@ let deflate_entry (b:Buffer.t) h (e:entry) =
 
 
 let write log slab = 
-  let b = Buffer.create 1024 in
   let sl = Slab.length slab in
   let h = Hashtbl.create sl in
-  let start = ref log.next in
+
+  let l = Array.length log.spindles in
+  let sid = ref log.next_spindle in
+  let buffers = Array.init l (fun _ -> Buffer.create 1024) in
+  let starts = Array.init l (fun i -> ref ((Array.get log.spindles i).next)) in
+
   let do_one i e = 
-    let size = deflate_entry b h e in
-    let () = Hashtbl.replace h i !start in
+    let sid' = !sid in
+    let start = Array.get starts sid' in
+
+    let size = deflate_entry (Array.get buffers sid') h e in
+    let () = Hashtbl.replace h i (Spindle sid', Offset !start) in
+
     let () = start := !start + size in
-    ()
+
+    sid := (sid' + 1) mod l
   in
   let () = Slab.iteri slab do_one  in
+
+  Array.iteri
+    (fun i b ->
+      let ss = Buffer.contents b
+      and s = Array.get log.spindles i
+      and n = !(Array.get starts i) in
+
+      let () = _seek_write s.fd s.next ss in
+
+      assert (n = s.next + String.length ss);
+
+      s.next <- s.next + String.length ss)
+    buffers;
+
   let cp = Hashtbl.find h (sl -1) in
-  let ss = Buffer.contents b in
-  let () = _seek_write log.fd log.next ss in
   log.last <- cp;
-  log.next <- log.next + String.length ss;
+  log.next_spindle <- !sid;
   log.now <- Slab.time slab;
   ()
 
 
-let sync t = Posix.fsync t.fd
+let sync t = Array.iter (fun sp -> Posix.fsync sp.fd) t.spindles
 
 let compact ?(min_blocks=1) ?(progress_cb=None) (_:t) =
   ignore min_blocks;
@@ -466,58 +515,76 @@ let _read_entry_s fd pos =
 
 let read t pos = 
   match pos with
-    | Outer _ as o ->
-      let p = from_outer0 o in
-      if p = 0 then NIL
+    | Outer (Spindle s, Offset o) ->
+      if ((s = 0) && (o = 0)) then NIL
       else
 	begin
-	  let es = _read_entry_s t.fd p in
+          let sp = Array.get t.spindles s in
+	  let es = _read_entry_s sp.fd o in
 	  inflate_entry es
 	end
     | Inner _ -> failwith "cannot read inner"
 
 
 let init ?(d=4) fn t0 = 
-  let fd = openfile fn [O_CREAT;O_WRONLY;] 0o640 in
-  let stat = fstat fd in
-  let len = stat.st_size in
-  if len = 0 then
-    let commit = 0 in
-    let () = _write_metadata fd {commit;td = d; t0} in   
-    let () = Unix.close fd in
-    ()
-  else
-    let () = Unix.close fd in
-    let s = Printf.sprintf "%s already exists" fn in
-    failwith s
+  List.iter
+    (fun fn ->
+      let fd = openfile fn [O_CREAT;O_WRONLY;] 0o640 in
+      let stat = fstat fd in
+      let len = stat.st_size in
+      if len = 0 then
+        let commit = (Spindle 0, Offset 0) in
+        let () = _write_metadata fd {commit;td = d; t0} in
+        let () = Unix.close fd in
+        ()
+      else
+        let () = Unix.close fd in
+        let s = Printf.sprintf "%s already exists" fn in
+        failwith s)
+    (List.map (fun d -> Printf.sprintf "%s.%d" fn d) [0; 1; 2])
 
 
 let make filename = 
-  let fd = openfile filename [O_RDWR] 0o640 in
-  let m = _read_metadata fd in
+  let spindles = Array.init 3
+    (fun i ->
+      let sfd = openfile (Printf.sprintf "%s.%d" filename i) [O_RDWR] 0o640 in
+      let stat = fstat sfd in
+      let len = stat.st_size in
+
+      assert (len > 0);
+
+      { fd=sfd;
+        next=len;
+      }
+    ) in
+
+  let sp0 = Array.get spindles 0 in
+  let m = _read_metadata sp0.fd in
   let last = m.commit in
   let d = m.td in
-  let (next:int),(now:Time.t) = 
-    if last = 0 
+
+  let (now:Time.t) =
+    if last = (Spindle 0, Offset 0)
     then 
-      _METADATA_SIZE , m.t0
-    else 
-      let s = _read_entry_s fd last in
+      m.t0
+    else
+      let (Spindle s, Offset o) = last in
+      let sp = Array.get spindles s in
+      let s = _read_entry_s sp.fd o in
       let input = make_input s 0 in
       let e = input_entry input in
       match e with
-        | Commit c ->
-          let now = Commit.get_time c in
-          (last + 4 + String.length s) , now
+        | Commit c -> Commit.get_time c
         | NIL | Value _ | Index _ | Leaf _ -> 
           let msg = Printf.sprintf "%s should have been a commit" (entry2s e) in failwith msg
   in
-  let flog0 = {fd =fd ; last = last; 
-               next = next; 
-               d=d; 
-               now = now;
-               start = m.t0;
-              } 
+  let flog0 = { spindles=spindles;
+                last=last;
+                next_spindle=0;
+                d=d;
+                now = now;
+                start = m.t0;
+              }
   in
   flog0
 
