@@ -26,9 +26,23 @@ open Posix
 open Flog_serialization
 
 type blocksize = int
+type count = int
+(* TODO *)
 type spindle = int
 type offset = int
-type count = int
+
+
+module OffsetEntryCache = Entrycache.Make(
+  struct
+    type k = offset
+    type v = Entry.entry
+
+    let create _ = (0, NIL)
+  end)
+
+let (>>) = Binary.(>>)
+let (>>=) = Binary.(>>=)
+let ($) a b = a b
 
 type metadata = {
   md_blocksize: blocksize;
@@ -38,13 +52,42 @@ type metadata = {
   md_d : int;
 }
 
-module OffsetEntryCache = Entrycache.Make(
-  struct
-    type k = offset
-    type v = Entry.entry
+let metadata_prefix = "BaArDsKeErDeR"
+let metadata_suffix = "bAaRdSkEeRdEr"
+let metadata_version = 0x01
 
-    let create _ = (0, NIL)
-  end)
+let metadata_writer =
+  Binary.write_literal metadata_prefix >>
+  Binary.const Binary.write_uint8 metadata_version >>
+  Binary.write_uint32 (fun md -> md.md_blocksize) >>
+  Binary.write_uint8 (fun md -> md.md_spindle) >>
+  Binary.write_uint64 (fun md -> md.md_offset) >>
+  Binary.write_uint32 (fun md -> md.md_count) >>
+  Binary.write_uint32 (fun md -> md.md_d) >>
+  Binary.write_literal metadata_suffix >>
+  Binary.write_crc32 0 None
+and metadata_reader =
+  Binary.read_literal metadata_prefix >>= fun () ->
+  Binary.read_uint8 >>= fun metadata_version' ->
+  if metadata_version' <> metadata_version
+  then failwith "Flog.metadata_reader: invalid version"
+  else ();
+  Binary.read_uint32 >>= fun md_blocksize ->
+  Binary.read_uint8 >>= fun md_spindle ->
+  Binary.read_uint64 >>= fun md_offset ->
+  Binary.read_uint32 >>= fun md_count ->
+  Binary.read_uint32 >>= fun md_d ->
+  Binary.read_literal metadata_suffix >>= fun () ->
+  Binary.calc_crc32 0 None >>= fun crc32 ->
+  Binary.read_crc32 >>= fun crc32' ->
+  if crc32' <> crc32
+  then Binary.return None
+  else Binary.return $ Some { md_blocksize=md_blocksize;
+                              md_spindle=md_spindle;
+                              md_offset=md_offset;
+                              md_count=md_count;
+                              md_d=md_d;
+                            }
 
 type t = {
   fd_in: file_descr;
@@ -98,55 +141,18 @@ let safe_write f s o l =
   in
   helper o l
 
-let metadata_prefix = "BaArDsKeErDeR"
-let metadata_suffix = "bAaRdSkEeRdEr"
-let metadata_version = 0x01
-
 let serialize_metadata md =
-  let s = String.make md.md_blocksize chr0
-  and pl = String.length metadata_prefix
-  and sl = String.length metadata_suffix in
-  String.blit metadata_prefix 0 s 0 pl;
-  write_uint8 metadata_version s pl;
-  write_uint32 md.md_blocksize s (pl + 1);
-  write_uint8 md.md_spindle s (pl + 5);
-  write_uint64 md.md_offset s (pl + 6);
-  write_uint32 md.md_count s (pl + 14);
-  write_uint32 md.md_d s (pl + 18);
-  String.blit metadata_suffix 0 s (pl + 22) sl;
+  let b, l = Binary.run_writer ~buffer_size:md.md_blocksize
+    metadata_writer md in
 
-  let crc = crc32 s 0 (pl + 22 + sl) in
-  write_crc32 crc s (pl + 22 + sl);
+  assert (l <= md.md_blocksize);
+
+  let s = String.make md.md_blocksize chr0 in
+  String.blit b 0 s 0 l;
 
   (s, md.md_blocksize)
 
-and deserialize_metadata s =
-  let p1 = String.sub s 0 (String.length metadata_prefix) in
-  assert (p1 = metadata_prefix);
-
-  let pl = String.length p1
-  and sl = String.length metadata_suffix in
-
-  let v = read_uint8 s pl in
-  assert (v = metadata_version);
-
-  let bs = read_uint32 s (pl + 1) in
-
-  assert (String.length s >= bs);
-
-  let sp = read_uint8 s (pl + 5)
-  and o = read_uint64 s (pl + 6)
-  and c = read_uint32 s (pl + 14)
-  and d = read_uint32 s (pl + 18)
-  and p2 = String.sub s (pl + 22) sl in
-
-  assert (p2 = metadata_suffix);
-
-  let crc = read_crc32 s (pl + 22 + sl) in
-
-  if (crc32 s 0 (pl + 22 + sl) = crc)
-  then Some { md_blocksize=bs; md_spindle=sp; md_offset=o; md_count=c; md_d = d }
-  else None
+and deserialize_metadata s = fst $ metadata_reader s 0
 
 let init ?(d=2) (f: string) (_:Time.t) =
   let fd = openfile f [O_WRONLY; O_EXCL; O_CREAT] 0o644 in
