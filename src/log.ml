@@ -21,8 +21,6 @@ open Entry
 open Base
 open Slab
 
-type offset = int
-
 module type LOG = sig
   type t
   val init: ?d:int -> string  -> Time.t -> unit

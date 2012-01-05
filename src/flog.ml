@@ -25,23 +25,20 @@ open Posix
 
 type blocksize = int
 type count = int
-(* TODO *)
-type spindle = int
-type offset = int
-
 
 module OffsetEntryCache = Entrycache.Make(
   struct
-    type k = offset
+    type k = Pos.pos
     type v = Entry.entry
 
-    let create _ = (0, NIL)
+    let create _ = (Outer (Spindle 0, Offset 0), NIL)
   end)
 
 let (>>) = Binary.(>>)
 let (>>=) = Binary.(>>=)
 let ($) a b = a b
 let id = fun x -> x
+let dot f g = fun x -> f $ g x
 
 let chr0 = '\000'
 let chr1 = '\001'
@@ -67,8 +64,8 @@ let metadata_writer =
   Binary.write_literal metadata_prefix >>
   Binary.const Binary.write_uint8 metadata_version >>
   Binary.write_uint32 (fun md -> md.md_blocksize) >>
-  Binary.write_uint8 (fun md -> md.md_spindle) >>
-  Binary.write_uint64 (fun md -> md.md_offset) >>
+  Binary.write_uint8 (fun md -> let (Spindle s) = md.md_spindle in s) >>
+  Binary.write_uint64 (fun md -> let (Offset o) = md.md_offset in o) >>
   Binary.write_uint32 (fun md -> md.md_count) >>
   Binary.write_uint32 (fun md -> md.md_d) >>
   Binary.write_literal metadata_suffix >>
@@ -90,8 +87,8 @@ and metadata_reader =
   if crc32' <> crc32
   then Binary.return None
   else Binary.return $ Some { md_blocksize=md_blocksize;
-                              md_spindle=md_spindle;
-                              md_offset=md_offset;
+                              md_spindle=Spindle md_spindle;
+                              md_offset=Offset md_offset;
                               md_count=md_count;
                               md_d=md_d;
                             }
@@ -150,9 +147,9 @@ let init ?(d=2) (f: string) (_:Time.t) =
   let b = Posix.fstat_blksize fd in
 
   let metadata1, b1 = serialize_metadata
-      { md_blocksize=b; md_spindle=0; md_offset=0; md_count=0; md_d = d }
+      { md_blocksize=b; md_spindle=Spindle 0; md_offset=Offset 0; md_count=0; md_d = d }
   and metadata2, b2 = serialize_metadata
-      { md_blocksize=b; md_spindle=0; md_offset=0; md_count=1; md_d = d } 
+      { md_blocksize=b; md_spindle=Spindle 0; md_offset=Offset 0; md_count=1; md_d = d } 
   in
 
   lseek_set fd 0;
@@ -211,13 +208,20 @@ and commit_tag = chr4
 let calculate_size_commit =
   calculate_size_envelope (fun (_:int) -> Binary.size_char8 + Binary.size_uint64)
 and commit_writer =
+  let extract = function
+    | Inner _ -> failwith "Flog.commit_writer.extract: Inner"
+    | Outer (Spindle s, Offset o) -> (s, o)
+  in
+
   Binary.const Binary.write_char8 commit_tag >>
-  Binary.write_uint64 id
+  Binary.write_uint8 (dot fst extract) >>
+  Binary.write_uint64 (dot snd extract)
 and commit_reader =
   Binary.read_char8 >>= fun t ->
   assert (t = commit_tag);
+  Binary.read_uint8 >>= fun s ->
   Binary.read_uint64 >>= fun o ->
-  let p = outer0 (Offset o)
+  let p = Outer (Spindle s, Offset o)
   and i = Time.zero
   and a = []
   and prev = outer0 (Offset (-2)) in
@@ -347,7 +351,7 @@ let extend_file =
   let ks = Posix.fallocate_FALLOC_FL_KEEP_SIZE ()
   and extent = 1024 * 1024 * 512 (* 512 MB *) in
 
-  fun fd offset ->
+  fun fd (Offset offset) ->
     Posix.fallocate fd ks offset extent;
     extent
 
@@ -383,17 +387,17 @@ let make (f: string): t =
   posix_fadvise fd_in 0 (max tbs (2 * bs)) POSIX_FADV_DONTNEED;
 
   (* TODO Use 'best' metadata instead of checking it's value *)
-  assert (md1.md_blocksize == md2.md_blocksize);
-  assert (md1.md_spindle == md2.md_spindle);
+  assert (md1.md_blocksize = md2.md_blocksize);
+  assert (md1.md_spindle = md2.md_spindle);
 
   let fd_append = openfile f [O_APPEND; O_WRONLY] 0o644 in
   set_close_on_exec fd_append;
 
   let offset = lseek fd_append 0 SEEK_END in
 
-  let extent = extend_file fd_append offset in
+  let extent = extend_file fd_append (Offset offset) in
 
-  let s =
+  let (Offset s) =
     if md1.md_count > md2.md_count
     then md1.md_offset
     else md2.md_offset
@@ -406,8 +410,9 @@ let make (f: string): t =
 
   let cache = OffsetEntryCache.create 32 in
 
-  { fd_in=fd_in; fd_append=fd_append; fd_random=fd_random; offset=offset;
-    commit_offset=last; closed=false;
+  { fd_in=fd_in; fd_append=fd_append; fd_random=fd_random;
+    offset=Offset offset; commit_offset=Offset last;
+    closed=false;
     last_metadata=0; metadata=(md1, md2); space_left=extent;
     d = md1.md_d;
     cache=cache;
@@ -429,7 +434,7 @@ let serialize_entry h e =
     | Commit c ->
         let pos = Commit.get_pos c in
         let p = pos_remap h pos in
-        serialize_commit (from_outer0 p)
+        serialize_commit p
     | Value v -> serialize_value v
     | Index index -> serialize_index h index
     | Leaf leaf -> serialize_leaf h leaf
@@ -439,7 +444,7 @@ let write t slab =
   let b = Buffer.create 1024 in
   let sl = Slab.length slab in
   let h = Hashtbl.create sl in
-  let start = ref t.offset in
+  let start = ref (let Offset o = t.offset in o) in
   let rec do_one i e = 
     begin
       let s = serialize_entry h e in
@@ -464,8 +469,8 @@ let write t slab =
     ();
 
   safe_write t.fd_append s 0 l;
-  t.commit_offset <- from_outer0 cp;
-  t.offset <- t.offset + l;
+  t.commit_offset <- Offset (from_outer0 cp);
+  t.offset <- Offset (let Offset o = t.offset in o + l);
   t.space_left <- t.space_left - l
 
   (* TODO We might want to List.rev slab.es, if slabs get > cache.s big *)
@@ -473,23 +478,23 @@ let write t slab =
      Slab.iter (fun (p, e) -> OffsetEntryCache.add t.cache p e) slab.es
   *)
 
-let last t = outer0 (Offset t.commit_offset)
+let last t = outer0 (t.commit_offset)
 
 let unwrap = function
   | Outer _ as o -> o
   | Inner _ -> failwith "Inner?"
 
 
-let read t w =
-  let pos = from_outer0 (unwrap w) in
-  if pos = 0 then NIL
+let read t pos =
+  if pos = Outer (Spindle 0, Offset 0) then NIL
   else
   match OffsetEntryCache.get t.cache pos with
   | Some e -> e
   | None ->
     begin
+      let pos' = from_outer0 pos in
       let s = String.create 9 in
-      pread_into_exactly t.fd_in s 9 pos;
+      pread_into_exactly t.fd_in s 9 pos';
       
       let m = fst $ Binary.read_uint32 s 0
       and l = fst $ Binary.read_uint32 s 4 in
@@ -502,11 +507,11 @@ let read t w =
       then
         let s' = String.create (l - 2 - 4 - 4) in
         pread_into_exactly t.fd_in s' (l - 2 - 4 - 4)
-          (pos + 4 + 4 + 1 + 1 + 4);
+          (pos' + 4 + 4 + 1 + 1 + 4);
 	Value s'
       else
         let s' = String.create (l + 4) in
-        pread_into_exactly t.fd_in s' (l + 4) (pos + 4);
+        pread_into_exactly t.fd_in s' (l + 4) (pos' + 4);
 
         match c with
           | i when i = value_tag -> failwith "Flog.read: value"
@@ -557,7 +562,7 @@ let close db =
   else begin
     sync db;
     Unix.close db.fd_in;
-    ftruncate db.fd_append db.offset;
+    ftruncate db.fd_append (let Offset o = db.offset in o);
     Unix.close db.fd_append;
     Unix.close db.fd_random;
     db.closed <- true
@@ -637,11 +642,13 @@ let rec compact' =
 
   let os = s.cs_entries
   and n = s.cs_offset in
+  let n' = (let Offset o = n in o) in
 
   let h' = OffsetSet.max_elt os in
+  let h'' = (let Offset o = h' in o) in
   let os' = OffsetSet.remove h' os in
 
-  let e = read l (Pos.outer0 (Pos.Offset h')) in
+  let e = read l (Pos.outer0 h') in
 
   let do_punch =
     if mb = 0 then do_punch_always
@@ -649,17 +656,22 @@ let rec compact' =
       let b' = b / 2 in
       if b' = 4096 then do_punch_4096 else do_punch_generic b'
   in
-  let (e', os'') = 
-    let osnd (_,pos ) = from_outer0 (unwrap pos) in
+  let (e', os'') =
+    let unpack_offset = function
+      | Inner _ -> failwith "Inner"
+      | Outer (Spindle 0, o) -> o
+      | Outer (Spindle _, _) -> failwith "Non-0 spindle"
+    in
+    let osnd = dot unpack_offset snd in
     match e with
-      | Value v -> (h' + value_size v + 4, os')
+      | Value v -> (h'' + value_size v + 4, os')
       | Leaf rs ->
-	(h' + leaf_size rs + 4,
+	(h'' + leaf_size rs + 4,
 	 List.fold_right OffsetSet.add (List.map osnd rs) os')
       | Index ((p0, kps) as i) ->
-	(h' + index_size i + 4,
+	(h'' + index_size i + 4,
 	 List.fold_right OffsetSet.add (List.map osnd kps)
-             (OffsetSet.add (from_outer0 (unwrap p0)) os'))
+             (OffsetSet.add (unpack_offset p0) os'))
       | Commit _ -> failwith "Flog.compact': Commit entry"
       | NIL -> failwith "Flog.compact': NIL entry"
   in
@@ -667,16 +679,16 @@ let rec compact' =
   let cb i =
     match pc with
       | None -> ()
-      | Some fn -> fn (l.offset) i
+      | Some fn -> fn (l.offset) (Offset i)
   in
 
   cb e';
-  do_punch l.fd_random mb e' (n - e');
+  do_punch l.fd_random mb e' (n' - e');
 
   if OffsetSet.is_empty os''
   then begin
     cb b;
-    do_punch l.fd_random mb b (h' - b)
+    do_punch l.fd_random mb b (h'' - b)
   end
   else compact' l pc mb b { cs_offset=h'; cs_entries=os''; }
 
@@ -690,11 +702,11 @@ let compact ?min_blocks:(mb=0) ?progress_cb:(pc=None) t =
   let b' = b * 2
   and o = t.commit_offset in
 
-  match (read t (Pos.outer0 (Pos.Offset o))) with
+  match (read t (Pos.outer0 o)) with
     | Commit c ->
       let r = Commit.get_pos c in
       let p = from_outer0 (unwrap r) in
-      compact' t pc mb b' { cs_offset=o; cs_entries=OffsetSet.singleton p; }
+      compact' t pc mb b' { cs_offset=o; cs_entries=OffsetSet.singleton $ Offset p; }
     | NIL ->
         failwith "Flog.compact: read NIL iso commit entry"
     | Leaf _ | Value _ | Index _ ->
