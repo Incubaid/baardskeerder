@@ -23,18 +23,14 @@ open Unix
 open Entry
 open Tree
 open Flog
-open Flog_serialization (* TODO Move these tests into separate module ? *)
 
 let test_uintN wf rf l n () =
-  let l' = l + 10 in
-  let s = String.create l' in
   let m = 0x40000000 - 1 in
   let r = min n m in
 
   let rec loop = function
     | -1 -> ()
     | i ->
-        let o = Random.int (l' - l) in
         let v = Random.int r in
 
         let v = if l < 8
@@ -44,17 +40,27 @@ let test_uintN wf rf l n () =
             else (v lsl 32) + v
         in
 
-        wf v s o;
-        OUnit.assert_equal ~printer:string_of_int v (rf s o);
+        let b = Buffer.create l in
+        wf (fun x -> x) b v;
+
+        let s = Buffer.contents b in
+        let l' = String.length s in
+        OUnit.assert_equal ~printer:string_of_int l l';
+
+        let s' = String.create (l' + 10) in
+        let o = Random.int 10 in
+        String.blit s 0 s' o l';
+
+        OUnit.assert_equal ~printer:string_of_int v (fst (rf s' o));
         loop (pred i)
   in
   loop 1000
 
 let base_serialization =
   "base_serialization" >::: [
-    "uint8" >:: test_uintN write_uint8 read_uint8 1 0xFF;
-    "uint32" >:: test_uintN write_uint32 read_uint32 4 0xFFFFFFFF;
-    "uint64" >:: test_uintN write_uint64 read_uint64 8 max_int;
+    "uint8" >:: test_uintN Binary.write_uint8 Binary.read_uint8 1 0xFF;
+    "uint32" >:: test_uintN Binary.write_uint32 Binary.read_uint32 4 0xFFFFFFFF;
+    "uint64" >:: test_uintN Binary.write_uint64 Binary.read_uint64 8 max_int;
   ]
 
 (* TODO Functions are hidden now... Move into parent module?

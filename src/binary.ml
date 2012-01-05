@@ -31,7 +31,8 @@ let (>>=) (f: 'a reader) (g: 'a -> 'b reader): 'b reader = fun b o ->
 let return (a: 'a): 'a reader = fun _ o ->
   (a, o)
 
-let run_writer ?buffer_size:(bs=64) (w: 'a writer) (a: 'a): (string * int) =
+let run_writer ?buffer_size:(bs=64): ('a writer) -> 'a -> (string * int) =
+  fun w -> fun a ->
     let b = Buffer.create bs in
     let () = w b a in
     (Buffer.contents b, Buffer.length b)
@@ -136,6 +137,18 @@ and read_literal: string -> unit reader =
 
       ((), o + l)
 
+let size_string s = size_uint32 + String.length s
+and write_string: ('a -> string) -> 'a writer =
+  fun f -> fun b a ->
+    let s = f a in
+    write_uint32_to_buffer b (String.length s);
+    Buffer.add_string b s
+and read_string: string reader =
+  fun s o ->
+    let l, o' = read_uint32 s o in
+    let s' = String.sub s o' l in
+    (s', o' + l)
+
 let size_crc32 = 4
 and write_crc32: int -> int option -> 'a writer =
   fun s l -> fun b _ ->
@@ -166,3 +179,27 @@ and calc_crc32: int -> int option -> int reader =
     let crc32 = Int32.to_int (Crc32c.calculate_crc32c i s l') in
 
     (crc32, o)
+
+let write_list8: ('a writer) -> ('b -> 'a list) -> ('b writer) =
+  fun w -> fun f -> fun b a ->
+    let os = f a
+    and b' = Buffer.create 255
+    and c = ref 0 in
+
+    List.iter
+      (fun e -> w b' e; incr c) os;
+
+    assert ((!c) <= 0xFF);
+
+    const write_uint8 (!c) b ();
+    Buffer.add_buffer b b'
+and read_list8: ('a reader) -> ('a list reader) =
+  fun r -> fun s o ->
+    let c = Char.code (String.get s o) in
+    let rec loop acc o' = function
+      | 0 -> (List.rev acc, o')
+      | n ->
+          let (v, o'') = r s o' in
+          loop (v :: acc) o'' (pred n)
+    in
+    loop [] (succ o) c

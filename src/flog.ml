@@ -23,8 +23,6 @@ open Entry
 open Pos
 open Posix
 
-open Flog_serialization
-
 type blocksize = int
 type count = int
 (* TODO *)
@@ -43,7 +41,16 @@ module OffsetEntryCache = Entrycache.Make(
 let (>>) = Binary.(>>)
 let (>>=) = Binary.(>>=)
 let ($) a b = a b
+let id = fun x -> x
 
+let chr0 = '\000'
+let chr1 = '\001'
+let chr2 = '\002'
+let chr3 = '\003'
+let chr4 = '\004'
+
+
+(* Metadata handling *)
 type metadata = {
   md_blocksize: blocksize;
   md_spindle: spindle;
@@ -89,6 +96,19 @@ and metadata_reader =
                               md_d=md_d;
                             }
 
+let serialize_metadata md =
+  let b, l = Binary.run_writer ~buffer_size:md.md_blocksize
+    metadata_writer md in
+
+  assert (l <= md.md_blocksize);
+
+  let s = String.make md.md_blocksize chr0 in
+  String.blit b 0 s 0 l;
+
+  (s, md.md_blocksize)
+and deserialize_metadata s = fst $ metadata_reader s 0
+
+
 type t = {
   fd_in: file_descr;
   fd_append: file_descr;
@@ -107,30 +127,9 @@ type t = {
   cache: OffsetEntryCache.t;
 }
 
-let chr0 = '\000'
-let chr1 = '\001'
-let chr2 = '\002'
-let chr3 = '\003'
-let chr4 = '\004'
-
-let value_tag = chr1
-and leaf_tag = chr2
-and index_tag = chr3
-let commit_tag = chr4
-
-let size_crc32 = size_uint32
-and write_crc32 c s o =
-  let c' = c + 0x80000000 in
-  write_uint32 c' s o
-and read_crc32 s o =
-  let c = read_uint32 s o in
-  c - 0x80000000
-
 let lseek_set f o =
   let o' = lseek f o SEEK_SET in
   if o' <> o then failwith "Flog.seek_set: seek failed" else ()
-
-let crc32 s o l = Int32.to_int (Crc32c.calculate_crc32c s o l)
 
 let safe_write f s o l =
   let rec helper o = function
@@ -141,18 +140,6 @@ let safe_write f s o l =
   in
   helper o l
 
-let serialize_metadata md =
-  let b, l = Binary.run_writer ~buffer_size:md.md_blocksize
-    metadata_writer md in
-
-  assert (l <= md.md_blocksize);
-
-  let s = String.make md.md_blocksize chr0 in
-  String.blit b 0 s 0 l;
-
-  (s, md.md_blocksize)
-
-and deserialize_metadata s = fst $ metadata_reader s 0
 
 let init ?(d=2) (f: string) (_:Time.t) =
   let fd = openfile f [O_WRONLY; O_EXCL; O_CREAT] 0o644 in
@@ -182,36 +169,152 @@ let init ?(d=2) (f: string) (_:Time.t) =
 
   close fd
 
-let calculate_size_commit (_:int) = size_uint32 + size_uint8 + size_uint64 + size_crc32
+(* Entry handling helpers *)
+let reader_envelope: ('a Binary.reader) -> ('a Binary.reader) =
+  fun r -> fun s o ->
+    let l, _ = Binary.read_uint32 s o in
+    if l <> String.length s - Binary.size_uint32
+    then failwith "Flog.reader_envelope: size mismatch"
+    else ();
 
-let serialize_commit o = 
-  let l = calculate_size_commit o in
+    let crc32, _ = Binary.read_crc32 s (String.length s - Binary.size_crc32) in
+    let crc32', _ = Binary.calc_crc32 0 (Some (String.length s - Binary.size_crc32)) s 0 in
+    if crc32 <> crc32'
+    then failwith "Flog.reader_envelope: CRC32 mismatch"
+    else ();
 
-  let s = String.create l in
-  
-  write_uint32 (l - 4) s 0;
-  write_char8 commit_tag s size_uint32;
-  write_uint64 o s (size_uint32 + size_uint8);
+    r s Binary.size_uint32
+and calculate_size_envelope: ('a -> int) -> 'a -> int =
+  fun c -> fun a ->
+    c a + Binary.size_uint32 + Binary.size_crc32
 
-  let crc = crc32 s 0 (size_uint32 + size_uint8 + size_uint64) in
-  write_crc32 crc s (size_uint32 + size_uint8 + size_uint64);
-  s
+let serialize_helper: 'a. ('a Binary.writer) -> 'a -> string =
+  fun w -> fun o ->
+    let s, l = Binary.run_writer w o in
+    let b = Buffer.create (l + Binary.size_uint32 + Binary.size_crc32) in
+    Binary.const Binary.write_uint32 (l + Binary.size_crc32) b ();
+    Buffer.add_string b s;
+    Binary.write_crc32 0 None b ();
+    Buffer.contents b
+and deserialize_helper: ('a Binary.reader) -> string -> int -> 'a =
+  fun r ->
+    let r' = reader_envelope r in
+    fun s o ->
+      fst $ r' s o
 
-and deserialize_commit s o =
-  let p = outer0 (Offset (read_uint64 s o))
-  and i = Time.zero 
+(* Entry handling *)
+let value_tag = chr1
+and leaf_tag = chr2
+and index_tag = chr3
+and commit_tag = chr4
+
+let calculate_size_commit =
+  calculate_size_envelope (fun (_:int) -> Binary.size_char8 + Binary.size_uint64)
+and commit_writer =
+  Binary.const Binary.write_char8 commit_tag >>
+  Binary.write_uint64 id
+and commit_reader =
+  Binary.read_char8 >>= fun t ->
+  assert (t = commit_tag);
+  Binary.read_uint64 >>= fun o ->
+  let p = outer0 (Offset o)
+  and i = Time.zero
   and a = []
-  and prev = outer0 (Offset (-2))
-  in
+  and prev = outer0 (Offset (-2)) in
   let c = Commit.make_commit p prev i a in
-  Commit c
+  Binary.return $ Commit c
+
+let serialize_commit = serialize_helper commit_writer
+and deserialize_commit = deserialize_helper commit_reader
+
+
+let calculate_size_value =
+  calculate_size_envelope
+    (fun s -> Binary.size_uint8 + Binary.size_uint8 + Binary.size_string s)
+and value_writer =
+  Binary.const Binary.write_char8 value_tag >>
+  Binary.const Binary.write_uint8 0 >>
+  Binary.write_string id
+and value_reader =
+  Binary.read_char8 >>= fun t ->
+  assert (t = value_tag);
+  Binary.read_uint8 >>= fun o ->
+  assert (o = 0);
+  Binary.read_string >>= fun s ->
+  Binary.return $ Value s
+
+let serialize_value = serialize_helper value_writer
+and deserialize_value = deserialize_helper value_reader
+
+
+let pos_remap h = function
+  | Outer _ as o -> o
+  | Inner p -> Hashtbl.find h p
+
+let leaf_writer h =
+  Binary.const Binary.write_char8 leaf_tag >>
+  Binary.const Binary.write_uint8 0 >>
+
+  let item_writer =
+    Binary.write_string fst >>
+    Binary.write_uint64 (fun (_, p) -> from_outer0 (pos_remap h p))
+  in
+
+  Binary.write_list8 item_writer id
+and leaf_reader =
+  let item_reader =
+    Binary.read_string >>= fun k ->
+    Binary.read_uint64 >>= fun p ->
+    Binary.return $ (k, outer0 (Offset p))
+  in
+
+  Binary.read_char8 >>= fun t ->
+  assert (t = leaf_tag);
+  Binary.read_uint8 >>= fun o ->
+  assert (o = 0);
+  Binary.read_list8 item_reader >>= fun kps ->
+  Binary.return $ Leaf kps
+
+let serialize_leaf h = serialize_helper (leaf_writer h)
+and deserialize_leaf = deserialize_helper leaf_reader
+
+
+let index_writer h =
+  let item_writer =
+    Binary.write_string fst >>
+    Binary.write_uint64 (fun (_, p) -> from_outer0 (pos_remap h p))
+  in
+
+  Binary.const Binary.write_char8 index_tag >>
+  Binary.const Binary.write_uint8 0 >>
+
+  Binary.write_uint64 (fun (p0, _) -> from_outer0 (pos_remap h p0)) >>
+
+  Binary.write_list8 item_writer snd >>
+  Binary.write_crc32 0 None
+and index_reader =
+  let item_reader =
+    Binary.read_string >>= fun k ->
+    Binary.read_uint64 >>= fun p ->
+    Binary.return $ (k, outer0 (Offset p))
+  in
+
+  Binary.read_char8 >>= fun t ->
+  assert (t = index_tag);
+  Binary.read_uint8 >>= fun o ->
+  assert (o = 0);
+  Binary.read_uint64 >>= fun p0 ->
+  Binary.read_list8 item_reader >>= fun kps ->
+
+  Binary.return $ Index (outer0 (Offset p0), kps)
+
+let serialize_index h = serialize_helper (index_writer h)
+and deserialize_index = deserialize_helper index_reader
 
 
 let marker = 0x0baadeed
-let marker' =
-  let s = String.create 4 in
-  write_uint32 marker s 0;
-  s
+let marker' = fst $ Binary.run_writer ~buffer_size:4
+  (Binary.const Binary.write_uint32 marker) ()
 
 let find_commit f o =
   let s = String.create 5 in
@@ -219,13 +322,13 @@ let find_commit f o =
   let rec loop a o next_time=
     try
       pread_into_exactly f s 4 o;
-      assert (read_uint32 s 0 = marker);
+      assert (fst $ Binary.read_uint32 s 0 = marker);
 
       pread_into_exactly f s 5 (o + 4);
 
-      let s' = read_uint32 s 0 in
+      let s' = fst $ Binary.read_uint32 s 0 in
       let o' = o + 8 + s' in
-      match read_char8 s 4 with
+      match fst $ Binary.read_char8 s 4 with
         | i when i = leaf_tag -> loop a o' next_time
         | i when i = index_tag -> loop a o' next_time
         | i when i = value_tag -> loop a o' next_time
@@ -319,158 +422,7 @@ let dump ?(out=Pervasives.stdout) (_:t) =
   assert (out=out);
   failwith "todo"
 
-let int8_placeholder = '0'
-let int32_placeholder = "0123"
-let int64_placeholder = "01234567"
 
-let pos_remap h = function
-  | Outer _ as o -> o
-  | Inner p -> Hashtbl.find h p
-
-
-let serialize_leaf h l =
-  let b = Buffer.create 256 in
-
-  let s32 = String.create 4
-  and s64 = String.create 8 in
-
-  Buffer.add_string b int32_placeholder;
-  Buffer.add_char b leaf_tag;
-  Buffer.add_char b chr0;
-
-  Buffer.add_char b int8_placeholder;
-
-  let c = ref 0 in
-  List.iter (fun (k, pos) ->
-    write_uint32 (String.length k) s32 0;
-    Buffer.add_string b s32;
-    Buffer.add_string b k;
-    let p = pos_remap h pos in
-    write_uint64 (from_outer0 p) s64 0;
-    Buffer.add_string b s64;
-    incr c;
-  ) l;
-
-  Buffer.add_string b int32_placeholder;
-
-  let s = Buffer.contents b in
-  let sl = String.length s in
-
-  write_uint32 (sl - 4) s 0;
-  write_uint8 (!c) s 6;
-
-  let crc = crc32 s 0 (sl - 4) in
-  write_crc32 crc s (sl - 4);
-
-  s
-
-let deserialize_leaf s o =
-  let options = read_uint8 s o in
-  assert (options = 0);
-
-  let count = read_uint8 s (o + 1) in
-
-  let rec loop acc o = function
-    | 0 -> List.rev acc
-    | n ->
-        let kl = read_uint32 s o in
-        let k = String.sub s (o + 4) kl in
-        let p = read_uint64 s (o + 4 + kl) in
-	let pos = outer0 (Offset p) in
-        loop ((k, pos) :: acc) (o + 4 + kl + 8) (pred n)
-  in
-
-  Leaf (loop [] (o + 2) count)
-
-let serialize_index h (p0, kps) =
-  let b = Buffer.create 256 in
-
-  let s32 = String.create 4
-  and s64 = String.create 8 in
-
-  Buffer.add_string b int32_placeholder;
-  Buffer.add_char b index_tag;
-  Buffer.add_char b chr0;
-
-  Buffer.add_string b int64_placeholder;
-
-  Buffer.add_char b int8_placeholder;
-
-  let c = ref 0 in
-  List.iter(fun (k, (pos:Pos.pos)) ->
-    write_uint32 (String.length k) s32 0;
-    Buffer.add_string b s32;
-    Buffer.add_string b k;
-    let p = pos_remap h pos in
-    write_uint64 (from_outer0 p) s64 0;
-    Buffer.add_string b s64;
-    incr c;
-  ) kps;
-
-  Buffer.add_string b int32_placeholder;
-
-  let s = Buffer.contents b in
-  let sl = String.length s in
-
-  write_uint32 (sl - 4) s 0;
-  let p = pos_remap h p0 in
-  write_uint64 (from_outer0 p) s 6;
-  write_uint8 (!c) s 14;
-
-  let crc = crc32 s 0 (sl - 4) in
-  write_crc32 crc s (sl - 4);
-
-  s
-
-let deserialize_index s o =
-  let options = read_uint8 s o in
-  assert (options = 0);
-
-  let p0 = read_uint64 s (o + 1) in
-  let pos0 = outer0 (Offset p0) in
-  let count = read_uint8 s (o + 9) in
-
-  let rec loop acc o = function
-    | 0 -> List.rev acc
-    | n ->
-        let kl = read_uint32 s o in
-        let k = String.sub s (o + 4) kl in
-        let p = read_uint64 s (o + 4 + kl) in
-	let pos = outer0 (Offset p) in
-        loop ((k, pos) :: acc) (o + 4 + kl + 8) (pred n)
-  in
-
-  Index (pos0, loop [] (o + 10) count)
-
-
-let calculate_size_value v = size_uint32 + size_uint8 + size_uint8 + String.length v + size_crc32
-
-
-let serialize_value v = 
-  let l = calculate_size_value v in
-  let s = String.create l in
-  let sl = String.length v in
-  
-  write_uint32 (l - 4) s 0;
-  write_char8 value_tag s size_uint32;
-  write_uint8 0 s (size_uint32 + size_uint8);
-  String.blit v 0 s (size_uint32 + size_uint8 + size_uint8) sl;
-  
-  let crc = crc32 s 0 (l - 4) in
-  write_crc32 crc s (size_uint32 + size_uint8 + size_uint8 + sl);
-  s
-
-
-and deserialize_value s o =
-  let options = read_uint8 s o in
-  assert (options = 0);
-
-  let sl = String.length s in
-  Value (String.sub s (o + 1) (sl - o - 5))
-
-
-
-  
 let serialize_entry h e = 
   match e with
     | NIL -> failwith "serialize NIL?"
@@ -539,29 +491,29 @@ let read t w =
       let s = String.create 9 in
       pread_into_exactly t.fd_in s 9 pos;
       
-      let m = read_uint32 s 0
-      and l = read_uint32 s 4 in
+      let m = fst $ Binary.read_uint32 s 0
+      and l = fst $ Binary.read_uint32 s 4 in
       assert (m = marker);
       
-      let c = read_char8 s 8 in
+      let c = fst $ Binary.read_char8 s 8 in
       
       (* Special-case values to get-around a useless allocation + substring *)
       if c = value_tag
       then
-	let s' = String.create (l - 2 - 4) in
-	pread_into_exactly t.fd_in s' (l - 2 - 4)
-	  (pos + 4 + 4 + 1 + 1);
+        let s' = String.create (l - 2 - 4 - 4) in
+        pread_into_exactly t.fd_in s' (l - 2 - 4 - 4)
+          (pos + 4 + 4 + 1 + 1 + 4);
 	Value s'
       else
-	let s' = String.create (l - 1) in
-	pread_into_exactly t.fd_in s' (l - 1) (pos + 4 + 4 + 1);
-	
-	match c with
-	  | i when i = value_tag -> failwith "Flog.read: value"
-	  | i when i = leaf_tag -> deserialize_leaf s' 0
-	  | i when i = index_tag -> deserialize_index s' 0
-	  | i when i = commit_tag -> deserialize_commit s' 0
-	  | _ -> failwith "Flog.read: unknown node type"
+        let s' = String.create (l + 4) in
+        pread_into_exactly t.fd_in s' (l + 4) (pos + 4);
+
+        match c with
+          | i when i = value_tag -> failwith "Flog.read: value"
+          | i when i = leaf_tag -> deserialize_leaf s' 0
+          | i when i = index_tag -> deserialize_index s' 0
+          | i when i = commit_tag -> deserialize_commit s' 0
+          | _ -> failwith "Flog.read: unknown node type"
     end
 
 let sync t =
