@@ -154,15 +154,15 @@ let init ?(d=2) (f: string) (_:Time.t) =
 
   lseek_set fd 0;
   ftruncate fd (2 * b);
-  safe_write fd metadata1 0 b1;
+  pwrite_exactly fd metadata1 b1 0;
   flush (out_channel_of_descr fd);
   Posix.fsync fd;
-  safe_write fd metadata2 0 b2;
+  pwrite_exactly fd metadata2 b2 b1;
   flush (out_channel_of_descr fd);
   Posix.fdatasync fd;
 
   (* If a database is `init`-ialised, we'll open it soon, most likely *)
-  posix_fadvise fd 0 (2 * b) POSIX_FADV_WILLNEED;
+  posix_fadvise fd 0 (b1 + b2) POSIX_FADV_WILLNEED;
 
   close fd
 
@@ -538,8 +538,8 @@ let sync t =
 
   (* Write to disk *)
   let s, bs = serialize_metadata m' in
-  lseek_set t.fd_random (if i = 0 then 0 else m.md_blocksize);
-  safe_write t.fd_random s 0 bs;
+  let o = if i = 0 then 0 else m.md_blocksize in
+  pwrite_exactly t.fd_random s bs o;
 
   (* Sync again *)
   flush (out_channel_of_descr t.fd_random);
