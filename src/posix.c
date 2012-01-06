@@ -75,6 +75,37 @@ void _bs_posix_pread_into_exactly(value fd, value buf, value count,
         CAMLreturn0;
 }
 
+void _bs_posix_pwrite_exactly(value fd, value buf, value count,
+        value offset) {
+
+        CAMLparam4(fd, buf, count, offset);
+
+        int c_fd = 0;
+        size_t c_count = 0;
+        off_t c_offset = 0;
+
+        size_t written = 0;
+
+        ssize_t r = 0;
+
+        c_fd = Int_val(fd);
+        c_count = Long_val(count);
+        c_offset = Long_val(offset);
+
+        while(written < c_count) {
+                r = pwrite(c_fd, &Byte(buf, written), c_count - written,
+                        c_offset + written);
+
+                if(r < 0) {
+                        uerror("pwrite", Nothing);
+                }
+
+                written += r;
+        }
+
+        CAMLreturn0;
+}
+
 void _bs_posix_fsync(value fd) {
         int ret = 0;
 
