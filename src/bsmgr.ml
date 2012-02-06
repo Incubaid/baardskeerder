@@ -50,6 +50,8 @@ type command =
   | Punch
   | Info
   | Test
+  | ListTest
+  | OnlyTest
   | Hudson
 
 let logs = Hashtbl.create 3
@@ -65,7 +67,9 @@ let () =
   let punch () = command:= Punch in
   let info () = command:= Info in
   let test () = command:= Test in
+  let list_test() = command:=ListTest in
   let hudson () = command := Hudson in
+  let only_test () = command := OnlyTest in
   let n  = ref 1_000_000 in
   let m  = ref 100 in
   let vs = ref 2_000 in
@@ -74,6 +78,7 @@ let () =
   let d = ref 4 in
   let log_name = ref "Flog" in
   let mb = ref 1 in
+  let test_refs = ref [] in
   let () = 
     Arg.parse [
       ("--value-size",Set_int vs, Printf.sprintf "size of the values in bytes (%i)" !vs);
@@ -89,6 +94,8 @@ let () =
       ("--punch", Unit punch, "compact the log file through hole punching");
       ("--file2" , Set_string fn2, Printf.sprintf "name of the compacted log file (%s)" !fn2);
       ("--info", Unit info, Printf.sprintf "returns information about the file (%s)" !fn);
+      ("--list-test", Unit list_test, Printf.sprintf "lists tests");
+      ("--only-test", Tuple[Unit only_test; Arg.String (fun str -> test_refs := str :: ! test_refs)], "runs some tests");
       ("--test", Unit test, Printf.sprintf "runs testsuite");
       ("--hudson", Unit hudson, Printf.sprintf "runs testsuite with output suitable for hudson");
     ]
@@ -179,6 +186,21 @@ let () =
   in
   match !command with
     | Test -> let _ = OUnit.run_test_tt_main Test.suite in ()
+    | ListTest -> 
+      List.iter
+        (fun pth -> print_endline (OUnit.string_of_path pth))
+        (OUnit.test_case_paths Test.suite)
+    | OnlyTest ->
+      let nsuite = 
+        match OUnit.test_filter ~skip:true !test_refs Test.suite with 
+          | Some test ->
+            test
+          | None ->
+            failwith ("Filtering test "^
+                         (String.concat ", " !test_refs)^
+                         " lead to no test")
+      in
+      let _ = OUnit.run_test_tt nsuite in ()
     | Hudson ->
       Hudson_xml.run_test Test.suite
     | Dump ->
