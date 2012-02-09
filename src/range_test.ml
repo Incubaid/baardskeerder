@@ -75,6 +75,52 @@ let range_bounded_overflow_right log =
   OUnit.assert_equal ~printer ["d";"e";"f";"g"] r
 
 
+(* Reverse range tests *)
+let reverse_range_all log =
+  let r = MDB.reverse_range log None true None true None in
+  OUnit.assert_equal ~printer ["g";"f";"e";"d";"c";"b";"a"] r;;
+
+let reverse_range_some log =
+    let r = MDB.reverse_range log None true None true (Some 5) in
+  OUnit.assert_equal ~printer ["g";"f";"e";"d";"c"] r
+
+let reverse_range_first log =
+  let r = MDB.reverse_range log (Some "f") true None true None in
+  OUnit.assert_equal ~printer ["f";"e";"d";"c";"b";"a"] r
+
+let reverse_range_first_exc log =
+  let r = MDB.reverse_range log (Some "f") false None true None in
+  OUnit.assert_equal ~printer ["e";"d"; "c";"b";"a"] r
+
+let reverse_range_last log =
+  let r = MDB.reverse_range log None true (Some "d") true None in
+  OUnit.assert_equal ~printer ["g";"f";"e";"d"] r
+
+let reverse_range_last_exc log =
+  let r = MDB.reverse_range log None true (Some "d") false None in
+  OUnit.assert_equal ~printer ["g";"f";"e";] r
+
+let reverse_range_bounded_linc log =
+  let r = MDB.reverse_range log (Some "f") true (Some "c") false None in
+  OUnit.assert_equal ~printer ["f";"e";"d"] r
+
+let reverse_range_bounded_finc log =
+  let r = MDB.reverse_range log (Some "f") false (Some "b") true None in
+  OUnit.assert_equal ~printer ["e";"d";"c";"b"] r
+
+let reverse_range_bounded_linc_finc log =
+  let r = MDB.reverse_range log (Some "f") true (Some "b") true None in
+  OUnit.assert_equal ~printer ["f";"e";"d";"c";"b"] r
+
+let reverse_range_bounded_overflow_left log =
+  let r = MDB.reverse_range log (Some "z") true (Some "c") false None in
+  OUnit.assert_equal ~printer ["g";"f";"e";"d"] r
+
+let reverse_range_bounded_overflow_right log =
+  let r = MDB.reverse_range log (Some "f") false (Some "0") false None in
+  OUnit.assert_equal ~printer ["e";"d";"c";"b";"a"] r
+
+
 let wrap t = OUnit.bracket setup t teardown
 
 let suite = "Range" >::: [
@@ -89,4 +135,16 @@ let suite = "Range" >::: [
   "range_bounded_linc_finc" >:: wrap range_bounded_linc_finc;
   "range_bounded_overflow_left" >:: wrap range_bounded_overflow_left;
   "range_bounded_overflow_right" >:: wrap range_bounded_overflow_right;
+
+  "reverse_range_all" >:: wrap reverse_range_all;
+  "reverse_range_some" >:: wrap reverse_range_some;
+  "reverse_range_first" >:: wrap reverse_range_first;
+  "reverse_range_first_exc" >:: wrap reverse_range_first_exc;
+  "reverse_range_last" >:: wrap reverse_range_last;
+  "reverse_range_last_exc" >:: wrap reverse_range_last_exc;
+  "reverse_range_bounded_linc" >:: wrap reverse_range_bounded_linc;
+  "reverse_range_bounded_finc" >:: wrap reverse_range_bounded_finc;
+  "reverse_range_bounded_linc_finc" >:: wrap reverse_range_bounded_linc_finc;
+  "reverse_range_bounded_overflow_left" >:: wrap reverse_range_bounded_overflow_left;
+  "reverse_range_bounded_overflow_right" >:: wrap reverse_range_bounded_overflow_right;
 ]

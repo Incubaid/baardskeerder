@@ -589,6 +589,91 @@ module DB = functor (L:LOG ) -> struct
     let _ = _range t first finc last linc max f in
     List.rev !acc
 
+
+  let _reverse_range t
+      (first: k option) finc
+      (last: k option) linc
+      (max: int option) f =
+
+    let lp = L.last t in
+    let e = L.read t lp in
+
+    match e with
+      | NIL  -> 0
+      | Commit c ->
+        begin
+          let check_count count = match max with
+            | None -> true
+            | Some m -> count < m
+          in
+          let check_key k =
+            let check_upper = match first with
+              | None -> true
+              | Some f -> if finc then k <= f else k < f
+            and check_lower = match last with
+              | None -> true
+              | Some f -> if linc then k >= f else k > f
+            in
+
+            check_upper && check_lower
+          in
+          let left_of_range k =
+            match last with
+              | None -> false
+              | Some f -> if linc then k < f else k <= f
+          in
+
+          let rec walk count pos =
+            match L.read t pos with
+              | NIL -> count (* Not expected? *)
+              | Value _ -> count
+              | Leaf leaf -> walk_leaf count leaf
+              | Index index -> walk_index count index
+              | Commit c -> walk count (Commit.get_pos c) (* Not expected? *)
+          and walk_leaf count leaf =
+            let rec loop count = function
+              | [] -> count
+              | (k, p) :: kps ->
+                  if check_count count && check_key k
+                  then
+                    let () = f k p in
+                    loop (count + 1) kps
+                  else
+                    loop count kps
+            in
+            loop count (List.rev leaf)
+          and walk_index count (p, kps) =
+            let rec loop count = function
+              | [] -> walk count p
+              | (k, p') :: kps when left_of_range k ->
+                  if check_count count
+                  then
+                    walk count p'
+                  else
+                    count
+              | (k, p') :: kps ->
+                  if check_count count && check_key k
+                  then
+                    let count' = walk count p' in
+                    loop count' kps
+                  else
+                    count
+            in
+            loop count (List.rev kps)
+          in
+          walk 0 (Commit.get_pos c)
+        end
+      | Index _ | Leaf _ | Value _ -> failwith "not expected entry type"
+
+  let reverse_range (t:L.t)
+      (first:k option) (finc:bool)
+      (last:k option) (linc:bool)
+      (max:int option) =
+    let acc = ref [] in
+    let f k _ = acc := k :: !acc in
+    let _ = _reverse_range t first finc last linc max f in
+    List.rev (!acc)
+
   let confirm (t:L.t) (s:Slab.t) k v =
     let set_needed =
       try
