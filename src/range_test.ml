@@ -54,6 +54,27 @@ let range_last_exc log =
   let r = MDB.range log None true (Some "d") false None in
   OUnit.assert_equal ~printer ["a";"b";"c";] r
 
+let range_bounded_linc log =
+  let r = MDB.range log (Some "c") true (Some "f") false None in
+  OUnit.assert_equal ~printer ["c";"d";"e"] r
+
+let range_bounded_finc log =
+  let r = MDB.range log (Some "b") false (Some "f") true None in
+  OUnit.assert_equal ~printer ["c";"d";"e";"f"] r
+
+let range_bounded_linc_finc log =
+  let r = MDB.range log (Some "b") true (Some "f") true None in
+  OUnit.assert_equal ~printer ["b";"c";"d";"e";"f"] r
+
+let range_bounded_overflow_left log =
+  let r = MDB.range log (Some "0") true (Some "f") false None in
+  OUnit.assert_equal ~printer ["a";"b";"c";"d";"e"] r
+
+let range_bounded_overflow_right log =
+  let r = MDB.range log (Some "c") false (Some "z") false None in
+  OUnit.assert_equal ~printer ["d";"e";"f";"g"] r
+
+
 let wrap t = OUnit.bracket setup t teardown
 
 let suite = "Range" >::: [
@@ -63,4 +84,9 @@ let suite = "Range" >::: [
   "range_first_exc" >:: wrap range_first_exc;
   "range_last" >:: wrap range_last;
   "range_last_exc" >:: wrap range_last_exc;
+  "range_bounded_linc" >:: wrap range_bounded_linc;
+  "range_bounded_finc" >:: wrap range_bounded_finc;
+  "range_bounded_linc_finc" >:: wrap range_bounded_linc_finc;
+  "range_bounded_overflow_left" >:: wrap range_bounded_overflow_left;
+  "range_bounded_overflow_right" >:: wrap range_bounded_overflow_right;
 ]
