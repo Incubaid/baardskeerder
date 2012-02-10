@@ -603,21 +603,14 @@ module DB = functor (L:LOG ) -> struct
       | NIL  -> is
       | Commit c ->
         begin
-          let check_key k =
-            let check_upper = match first with
-              | None -> true
-              | Some f -> if finc then k <= f else k < f
-            and check_lower = match last with
-              | None -> true
-              | Some f -> if linc then k >= f else k > f
-            in
-
-            check_upper && check_lower
-          in
           let left_of_range k =
             match last with
               | None -> false
               | Some f -> if linc then k < f else k <= f
+          and right_of_range k =
+            match first with
+              | None -> false
+              | Some f -> if finc then k > f else k >= f
           in
 
           let rec walk s pos: (bool * 'a) =
@@ -632,17 +625,15 @@ module DB = functor (L:LOG ) -> struct
               | [] -> (true, s')
               | (k, _) :: _ when left_of_range k ->
                   (false, s')
+              | (k, _) :: kps when right_of_range k ->
+                  loop s' kps
               | (k, p) :: kps ->
-                  if check_key k
+                  let (cont, s'') = f s' k p in
+                  if cont
                   then
-                    let (cont, s'') = f s' k p in
-                    if cont
-                    then
-                      loop s'' kps
-                    else
-                      (false, s'')
+                    loop s'' kps
                   else
-                    loop s' kps
+                    (false, s'')
             in
             loop s (List.rev leaf)
           and walk_index s (p, kps) =
@@ -652,6 +643,8 @@ module DB = functor (L:LOG ) -> struct
                   (* Need to check one index entry left of the lowest 'valid'
                    * entry, since it might point to some more valid keys *)
                   walk s' p'
+              | (k, p') :: kps when right_of_range k ->
+                  loop s' kps
               | (k, p') :: kps ->
                   let (cont, s'') = walk s' p' in
                   if cont
