@@ -590,22 +590,18 @@ module DB = functor (L:LOG ) -> struct
     List.rev !acc
 
 
-  let _reverse_range t
+  let _reverse_range_while t
       (first: k option) finc
       (last: k option) linc
-      (max: int option) f =
+      f =
 
     let lp = L.last t in
     let e = L.read t lp in
 
     match e with
-      | NIL  -> 0
+      | NIL  -> ()
       | Commit c ->
         begin
-          let check_count count = match max with
-            | None -> true
-            | Some m -> count < m
-          in
           let check_key k =
             let check_upper = match first with
               | None -> true
@@ -623,60 +619,71 @@ module DB = functor (L:LOG ) -> struct
               | Some f -> if linc then k < f else k <= f
           in
 
-          let rec walk count pos =
+          let rec walk pos =
             match L.read t pos with
-              | NIL -> failwith "Tree._reverse_range: unexpected entry NIL"
-              | Value _ -> failwith "Tree._reverse_range: unexpected entry Value"
-              | Leaf leaf -> walk_leaf count leaf
-              | Index index -> walk_index count index
-              | Commit c -> failwith "Tree._reverse_range: unexpected entry Commit"
-          and walk_leaf count leaf =
-            let rec loop count = function
-              | [] -> count
+              | NIL -> failwith "Tree._reverse_range_while: unexpected entry NIL"
+              | Value _ -> failwith "Tree._reverse_range_while: unexpected entry Value"
+              | Leaf leaf -> walk_leaf leaf
+              | Index index -> walk_index index
+              | Commit c -> failwith "Tree._reverse_range_while: unexpected entry Commit"
+          and walk_leaf leaf =
+            let rec loop = function
+              | [] -> true
               | (k, _) :: _ when left_of_range k ->
-                  count
+                  false
               | (k, p) :: kps ->
-                  if check_count count && check_key k
+                  if check_key k
                   then
-                    let () = f k p in
-                    loop (count + 1) kps
+                    let cont = f k p in
+                    if cont
+                    then
+                      loop kps
+                    else
+                      false
                   else
-                    loop count kps
+                    loop kps
             in
-            loop count (List.rev leaf)
-          and walk_index count (p, kps) =
-            let rec loop count = function
-              | [] -> walk count p
+            loop (List.rev leaf)
+          and walk_index (p, kps) =
+            let rec loop = function
+              | [] -> walk p
               | (k, p') :: kps when left_of_range k ->
                   (* Need to check one index entry left of the lowest 'valid'
                    * entry, since it might point to some more valid keys *)
-                  if check_count count
-                  then
-                    walk count p'
-                  else
-                    count
+                  walk p'
               | (k, p') :: kps ->
-                  if check_count count
+                  let cont = walk p' in
+                  if cont
                   then
-                    let count' = walk count p' in
-                    loop count' kps
+                    loop kps
                   else
-                    count
+                    false
             in
-            loop count (List.rev kps)
+            loop (List.rev kps)
           in
-          walk 0 (Commit.get_pos c)
+
+          let _ = walk (Commit.get_pos c) in
+          ()
         end
       | Index _ | Leaf _ | Value _ ->
-        failwith "Tree._reverse_range: unexpected entry type"
+        failwith "Tree._reverse_range_while: unexpected entry type"
 
   let reverse_range (t:L.t)
       (first:k option) (finc:bool)
       (last:k option) (linc:bool)
       (max:int option) =
-    let acc = ref [] in
-    let f k _ = acc := k :: !acc in
-    let _ = _reverse_range t first finc last linc max f in
+    let acc = ref []
+    and count = ref 0 in
+
+    let f k _ = begin
+      acc := k :: !acc;
+      incr count;
+      match max with
+        | None -> true
+        | Some c -> !count < c
+    end in
+
+    let _ = _reverse_range_while t first finc last linc f in
     List.rev (!acc)
 
   let confirm (t:L.t) (s:Slab.t) k v =
