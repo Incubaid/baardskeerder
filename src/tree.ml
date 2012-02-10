@@ -633,6 +633,8 @@ module DB = functor (L:LOG ) -> struct
           and walk_leaf count leaf =
             let rec loop count = function
               | [] -> count
+              | (k, _) :: _ when left_of_range k ->
+                  count
               | (k, p) :: kps ->
                   if check_count count && check_key k
                   then
@@ -646,13 +648,15 @@ module DB = functor (L:LOG ) -> struct
             let rec loop count = function
               | [] -> walk count p
               | (k, p') :: kps when left_of_range k ->
+                  (* Need to check one index entry left of the lowest 'valid'
+                   * entry, since it might point to some more valid keys *)
                   if check_count count
                   then
                     walk count p'
                   else
                     count
               | (k, p') :: kps ->
-                  if check_count count && check_key k
+                  if check_count count
                   then
                     let count' = walk count p' in
                     loop count' kps
