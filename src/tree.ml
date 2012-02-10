@@ -625,11 +625,11 @@ module DB = functor (L:LOG ) -> struct
 
           let rec walk count pos =
             match L.read t pos with
-              | NIL -> count (* Not expected? *)
-              | Value _ -> count
+              | NIL -> failwith "Tree._reverse_range: unexpected entry NIL"
+              | Value _ -> failwith "Tree._reverse_range: unexpected entry Value"
               | Leaf leaf -> walk_leaf count leaf
               | Index index -> walk_index count index
-              | Commit c -> walk count (Commit.get_pos c) (* Not expected? *)
+              | Commit c -> failwith "Tree._reverse_range: unexpected entry Commit"
           and walk_leaf count leaf =
             let rec loop count = function
               | [] -> count
@@ -667,7 +667,8 @@ module DB = functor (L:LOG ) -> struct
           in
           walk 0 (Commit.get_pos c)
         end
-      | Index _ | Leaf _ | Value _ -> failwith "not expected entry type"
+      | Index _ | Leaf _ | Value _ ->
+        failwith "Tree._reverse_range: unexpected entry type"
 
   let reverse_range (t:L.t)
       (first:k option) (finc:bool)
