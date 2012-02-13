@@ -450,6 +450,30 @@ let qc_insert_lookup log = fun kvs ->
   in
   r
 
+let qc_insert_delete log = fun kvs ->
+  List.iter (fun (k, v) -> MDB.set log k v) kvs;
+  let _ = List.fold_right
+    (fun (k, _) ks -> if List.mem k ks then ks else (MDB.delete log k; k :: ks))
+    kvs []
+  in
+  MDB.range log None true None true None = []
+
+let qc_replace log = fun (k, vs) ->
+  List.iter (fun v -> MDB.set log k v) vs;
+  match vs with
+    | [] -> begin
+        try
+          let v = MDB.get log k in
+          false
+        with exc -> begin
+          match exc with
+            | Base.NOT_FOUND _ -> true
+            | _ -> false
+        end
+      end
+    | _ ->
+        MDB.get log k = List.nth vs (List.length vs - 1)
+
 let qc_key_value_list =
   let ak = arbitrary_string
   and sk = show_string
@@ -462,21 +486,24 @@ let qc_key_value_list =
 
   testable_fun akvl skvl testable_bool
 
-let qc_setup () = Mlog.make "mlog"
-and qc_teardown _ = ()
-and bracket' s t a = OUnit.bracket s a t
+let qc_key_value_list_tuple =
+  testable_fun
+    (arbitrary_pair arbitrary_string (arbitrary_list arbitrary_string))
+    (show_pair show_string (show_list show_string))
+    testable_bool
 
-let qc_wrap r t = bracket' qc_setup qc_teardown (fun l ->
-  match (quickCheck r) (t l) with
+let qc_wrap r t () =
+  match (quickCheck r) (fun a -> t (Mlog.make "mlog") a) with
     | Success -> ()
     | Failure n ->
         assert_failure (Printf.sprintf "QuickCheck failed after %d tests" n)
     | Exhausted n ->
         skip_if true (Printf.sprintf "QuickCheck exhausted after %d runs" n)
-)
 
 let qc_suite = "QuickCheck" >::: [
-  "insert_lookup" >:: qc_wrap qc_key_value_list qc_insert_lookup
+  "insert_lookup" >:: qc_wrap qc_key_value_list qc_insert_lookup;
+  "insert_delete" >:: qc_wrap qc_key_value_list qc_insert_delete;
+  "replace" >:: qc_wrap qc_key_value_list_tuple qc_replace;
 ]
 
 
