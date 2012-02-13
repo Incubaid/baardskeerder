@@ -18,6 +18,8 @@
  *)
 
 open OUnit
+open QuickCheck
+
 open Tree
 open Base
 open Index
@@ -429,5 +431,56 @@ let template =
   ]
 
 let make_suite wrap = (List.map (fun (n,t) -> n >:: wrap t) template)
-let suite = "Tree" >::: make_suite mem_wrap
+let unit_suite = "Unit" >::: make_suite mem_wrap
 
+
+(* QuickCheck property tests *)
+
+let qc_insert_lookup log = fun kvs ->
+  List.iter (fun (k, v) -> MDB.set log k v) kvs;
+  let (r, _) = List.fold_right
+    (fun (k, v) (a, ks) ->
+      if List.mem k ks
+      then
+        (a, ks)
+      else
+        (a && (MDB.get log k == v), k :: ks)
+    )
+    kvs (true, [])
+  in
+  r
+
+let qc_key_value_list =
+  let ak = arbitrary_string
+  and sk = show_string
+  and av = arbitrary_string
+  and sv = show_string in
+  let akv = arbitrary_pair ak av
+  and skv = show_pair sk sv in
+  let akvl = arbitrary_list akv
+  and skvl = show_list skv in
+
+  testable_fun akvl skvl testable_bool
+
+let qc_setup () = Mlog.make "mlog"
+and qc_teardown _ = ()
+and bracket' s t a = OUnit.bracket s a t
+
+let qc_wrap r t = bracket' qc_setup qc_teardown (fun l ->
+  match (quickCheck r) (t l) with
+    | Success -> ()
+    | Failure n ->
+        assert_failure (Printf.sprintf "QuickCheck failed after %d tests" n)
+    | Exhausted n ->
+        skip_if true (Printf.sprintf "QuickCheck exhausted after %d runs" n)
+)
+
+let qc_suite = "QuickCheck" >::: [
+  "insert_lookup" >:: qc_wrap qc_key_value_list qc_insert_lookup
+]
+
+
+let suite = "Tree" >::: [
+  unit_suite;
+  qc_suite;
+]
