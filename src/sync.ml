@@ -31,7 +31,7 @@ module Sync (L:LOG) = struct
         | Commit c -> c
         | _ -> failwith "not a commit node"
     in
-    let no_prev = Pos.outer0 (Pos.Offset 0) in
+    let no_prev = Pos.Outer (Pos.Spindle 0, Pos.Offset 0) in
     let rec build ps p =
       let c = read_commit p in
       let tc = Commit.get_time c in

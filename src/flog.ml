@@ -199,6 +199,19 @@ and deserialize_helper: ('a Binary.reader) -> string -> int -> 'a =
     fun s o ->
       fst $ r' s o
 
+
+let write_pos =
+  fun f -> fun b a ->
+    match f a with
+      | Inner _ -> failwith "Flog.write_pos: Inner"
+      | Outer (Spindle s, Offset o) ->
+          Binary.write_uint8 (fun () -> s) b ();
+          Binary.write_uint64 (fun () -> o) b ()
+and read_pos =
+  Binary.read_uint8 >>= fun s ->
+  Binary.read_uint64 >>= fun o ->
+  Binary.return $ Outer (Spindle s, Offset o)
+
 (* Entry handling *)
 let value_tag = chr1
 and leaf_tag = chr2
@@ -208,23 +221,15 @@ and commit_tag = chr4
 let calculate_size_commit =
   calculate_size_envelope (fun (_:int) -> Binary.size_char8 + Binary.size_uint64)
 and commit_writer =
-  let extract = function
-    | Inner _ -> failwith "Flog.commit_writer.extract: Inner"
-    | Outer (Spindle s, Offset o) -> (s, o)
-  in
-
   Binary.const Binary.write_char8 commit_tag >>
-  Binary.write_uint8 (dot fst extract) >>
-  Binary.write_uint64 (dot snd extract)
+  write_pos id
 and commit_reader =
   Binary.read_char8 >>= fun t ->
   assert (t = commit_tag);
-  Binary.read_uint8 >>= fun s ->
-  Binary.read_uint64 >>= fun o ->
-  let p = Outer (Spindle s, Offset o)
-  and i = Time.zero
+  read_pos >>= fun p ->
+  let i = Time.zero
   and a = []
-  and prev = outer0 (Offset (-2)) in
+  and prev = Outer (Spindle 0, Offset (-2)) in
   let c = Commit.make_commit p prev i a in
   Binary.return $ Commit c
 
@@ -261,15 +266,15 @@ let leaf_writer h =
 
   let item_writer =
     Binary.write_string fst >>
-    Binary.write_uint64 (fun (_, p) -> from_outer0 (pos_remap h p))
+    write_pos (fun (_, p) -> pos_remap h p)
   in
 
   Binary.write_list8 item_writer id
 and leaf_reader =
   let item_reader =
     Binary.read_string >>= fun k ->
-    Binary.read_uint64 >>= fun p ->
-    Binary.return $ (k, outer0 (Offset p))
+    read_pos >>= fun p ->
+    Binary.return (k, p)
   in
 
   Binary.read_char8 >>= fun t ->
@@ -286,31 +291,31 @@ and deserialize_leaf = deserialize_helper leaf_reader
 let index_writer h =
   let item_writer =
     Binary.write_string fst >>
-    Binary.write_uint64 (fun (_, p) -> from_outer0 (pos_remap h p))
+    write_pos (dot (pos_remap h) snd)
   in
 
   Binary.const Binary.write_char8 index_tag >>
   Binary.const Binary.write_uint8 0 >>
 
-  Binary.write_uint64 (fun (p0, _) -> from_outer0 (pos_remap h p0)) >>
+  write_pos (dot (pos_remap h) fst) >>
 
   Binary.write_list8 item_writer snd >>
   Binary.write_crc32 0 None
 and index_reader =
   let item_reader =
     Binary.read_string >>= fun k ->
-    Binary.read_uint64 >>= fun p ->
-    Binary.return $ (k, outer0 (Offset p))
+    read_pos >>= fun p ->
+    Binary.return (k, p)
   in
 
   Binary.read_char8 >>= fun t ->
   assert (t = index_tag);
   Binary.read_uint8 >>= fun o ->
   assert (o = 0);
-  Binary.read_uint64 >>= fun p0 ->
+  read_pos >>= fun p0 ->
   Binary.read_list8 item_reader >>= fun kps ->
 
-  Binary.return $ Index (outer0 (Offset p0), kps)
+  Binary.return $ Index (p0, kps)
 
 let serialize_index h = serialize_helper (index_writer h)
 and deserialize_index = deserialize_helper index_reader
@@ -451,7 +456,9 @@ let write t slab =
       let size = String.length s + String.length marker' in
       let () = Buffer.add_string b marker' in
       let () = Buffer.add_string b s in
-      let () = Hashtbl.replace h i (outer0 (Offset !start)) in
+      (* TODO Not multi-spindle compatible! *)
+      let pos = Outer (Spindle 0, Offset !start) in
+      let () = Hashtbl.replace h i pos in
       let () = start := !start + size in
       ()
     end
@@ -468,8 +475,15 @@ let write t slab =
   else
     ();
 
+  (* TODO Not multi-spindle compatible! *)
+  let co = match cp with
+    | Inner _ -> failwith "Flog.write: Inner"
+    | Outer (Spindle 0, Offset o) -> Offset o
+    | Outer (Spindle _, Offset _) -> failwith "Flog.write: Invalid spindle"
+  in
+
   safe_write t.fd_append s 0 l;
-  t.commit_offset <- Offset (from_outer0 cp);
+  t.commit_offset <- co;
   t.offset <- Offset (let Offset o = t.offset in o + l);
   t.space_left <- t.space_left - l
 
@@ -478,11 +492,8 @@ let write t slab =
      Slab.iter (fun (p, e) -> OffsetEntryCache.add t.cache p e) slab.es
   *)
 
-let last t = outer0 (t.commit_offset)
-
-let unwrap = function
-  | Outer _ as o -> o
-  | Inner _ -> failwith "Inner?"
+(* TODO Not multi-spindle compatible! *)
+let last t = Outer (Spindle 0, t.commit_offset)
 
 
 let read t pos =
@@ -492,8 +503,13 @@ let read t pos =
   | Some e -> e
   | None ->
     begin
-      let pos' = from_outer0 pos in
-      let s = String.create 9 in
+      (* TODO Not multi-spindle compatible! *)
+      let pos' = match pos with
+        | Inner _ -> failwith "Flog.read: Inner"
+        | Outer (Spindle 0, Offset o) -> o
+        | Outer (Spindle _ , Offset _) -> failwith "Flog.read: Invalid spindle"
+
+      and s = String.create 9 in
       pread_into_exactly t.fd_in s 9 pos';
       
       let m = fst $ Binary.read_uint32 s 0
@@ -648,7 +664,8 @@ let rec compact' =
   let h'' = (let Offset o = h' in o) in
   let os' = OffsetSet.remove h' os in
 
-  let e = read l (Pos.outer0 h') in
+  (* TODO This is not multi-spindle compatible! *)
+  let e = read l (Outer (Spindle 0, h')) in
 
   let do_punch =
     if mb = 0 then do_punch_always
@@ -702,10 +719,16 @@ let compact ?min_blocks:(mb=0) ?progress_cb:(pc=None) t =
   let b' = b * 2
   and o = t.commit_offset in
 
-  match (read t (Pos.outer0 o)) with
+  (* TODO This is not multi-spindle compatible! *)
+  match (read t (Outer (Spindle 0, o))) with
     | Commit c ->
       let r = Commit.get_pos c in
-      let p = from_outer0 (unwrap r) in
+      (* TODO This is not multi-spindle compatible! *)
+      let p = match r with
+        | Inner _ -> failwith "Flog.compact: Inner"
+        | Outer (Spindle 0, Offset o) -> o
+        | Outer (Spindle _, Offset _) -> failwith "Flog.compact: Invalid spindle"
+      in
       compact' t pc mb b' { cs_offset=o; cs_entries=OffsetSet.singleton $ Offset p; }
     | NIL ->
         failwith "Flog.compact: read NIL iso commit entry"

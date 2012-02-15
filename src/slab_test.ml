@@ -26,7 +26,7 @@ open Pos
 let es = 
   let p = Inner 25 in
   let t0 = Time.make 1 2 false in
-  let prev = outer0 (Offset (-1)) in
+  let prev = Outer (Spindle 0, Offset (-1)) in
   [| 
   Value "xxxxx";
   Leaf ["key_00000000", Inner 0];
