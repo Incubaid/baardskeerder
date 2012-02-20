@@ -1,4 +1,5 @@
 posix_stubs.o
+uuid_stubs.o
 bsd_crc32c.o
 arakoon_crc32c.o
 cpudetect.o

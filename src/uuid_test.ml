@@ -1,7 +1,7 @@
 (*
  * This file is part of Baardskeerder.
  *
- * Copyright (C) 2011 Incubaid BVBA
+ * Copyright (C) 2012 Incubaid BVBA
  *
  * Baardskeerder is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -18,25 +18,29 @@
  *)
 
 open OUnit
-open Log
-open Tree
-open Entry
-open Base
-open Index
+open Uuid
 
-let suite = "Baardskeerder" >::: [
-  "utils" >:::
-    [ Uuid_test.suite;
-    ];
-  "correctness" >::: 
-    [ Index_test.suite;
-      Indexz_test.suite;
-      Tree_test.suite;
-      Flog_test.suite;
-      Slab_test.suite;
-      Dbx_test.suite;
-      Range_test.suite;
-      Rewrite_test.suite;
-      Flog0_test.suite;
-    ]
+let test_uuid_generate () =
+  let _ = uuid_generate () in
+  ()
+
+let test_uuid_unparse_upper () =
+  let u = uuid_generate () in
+  let s = uuid_unparse_upper u in
+  assert_equal (String.length s) 36
+
+let test_not_equal () =
+  let u1 = uuid_generate ()
+  and u2 = uuid_generate () in
+
+  let s1 = uuid_unparse_upper u1
+  and s2 = uuid_unparse_upper u2 in
+
+  assert_bool (Printf.sprintf "%s != %s" s1 s2) (s1 != s2)
+
+
+let suite = "UUID" >::: [
+  "uuid_generate" >:: test_uuid_generate;
+  "uuid_unparse_upper" >:: test_uuid_unparse_upper;
+  "not_equal" >:: test_not_equal;
 ]

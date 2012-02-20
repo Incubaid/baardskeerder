@@ -1,7 +1,7 @@
 (*
  * This file is part of Baardskeerder.
  *
- * Copyright (C) 2011 Incubaid BVBA
+ * Copyright (C) 2012 Incubaid BVBA
  *
  * Baardskeerder is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -17,26 +17,7 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-open OUnit
-open Log
-open Tree
-open Entry
-open Base
-open Index
-
-let suite = "Baardskeerder" >::: [
-  "utils" >:::
-    [ Uuid_test.suite;
-    ];
-  "correctness" >::: 
-    [ Index_test.suite;
-      Indexz_test.suite;
-      Tree_test.suite;
-      Flog_test.suite;
-      Slab_test.suite;
-      Dbx_test.suite;
-      Range_test.suite;
-      Rewrite_test.suite;
-      Flog0_test.suite;
-    ]
-]
+external uuid_generate: unit -> string
+    = "_bs_uuid_generate"
+external uuid_unparse_upper: string -> string
+    = "_bs_uuid_unparse_upper"

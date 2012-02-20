@@ -38,6 +38,16 @@ let _ = dispatch & function
       flag ["c"; "use_libbaardskeerder"; "ocamlmklib"] & 
         S[ A"-lbaardskeerder_c";];
 
+      (* Note: the -Wl,--no-as-needed is required to let compilation/linking
+       * succeed on Ubuntu 11.10, binutils 2.21.53.20110810
+       * More info at
+       * http://stackoverflow.com/questions/8301367/order-of-linked-libraries-in-ocamlbuild
+       * We might want to remove this once ocamlbuild is fixed, see
+       * http://caml.inria.fr/mantis/view.php?id=5441
+       *)
+      flag ["link"; "use_libbaardskeerder";] &
+        S[ A"-cclib"; A"-Wl,--no-as-needed"; A"-cclib"; A"-luuid";];
+
       dep ["link"; "ocaml"; "link_libbaardskeerder"] 
         ["libbaardskeerder_c.a"];
         
