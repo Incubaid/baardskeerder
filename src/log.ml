@@ -30,7 +30,6 @@ module type LOG = sig
   val sync  : t -> unit
   val make  : string -> t
   val close : t -> unit
-  val clear: t -> unit
   val get_d: t -> int
   val now: t -> Time.t
   val dump: ?out:Pervasives.out_channel -> t -> unit
