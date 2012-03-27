@@ -28,6 +28,9 @@ open Entry
 
 module MDB = DB(Mlog)
 
+let (>>=) = Mlog.bind
+and return = Mlog.return
+
 
 type 'a q = {
   log:'a; 
@@ -463,7 +466,7 @@ let qc_replace log = fun (k, vs) ->
   match vs with
     | [] -> begin
         try
-          let v = MDB.get log k in
+          MDB.get log k >>= fun _ ->
           false
         with exc -> begin
           match exc with

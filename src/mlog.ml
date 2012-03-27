@@ -30,6 +30,11 @@ type t = { spindles: s array;
            mutable now: Time.t;
          }
 
+type 'a m = 'a
+let bind a f = f a
+let return v = v
+let run a = a
+
 let _d = ref 2 
 
 let init ?(d=2) _ _ = _d := d

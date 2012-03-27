@@ -21,6 +21,11 @@ open Base
 open Entry
 open Unix
 
+type 'a m = 'a
+let bind a f = f a
+let return v = v
+let run a = a
+
 let _really_write fd string = 
   let l = String.length string in
   let rec loop start = function
