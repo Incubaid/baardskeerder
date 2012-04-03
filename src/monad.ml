@@ -18,6 +18,31 @@ module Monad(M:MONAD) = struct
     in
     loop
 
+  let iteri_array f a =
+    let l = Array.length a in
+
+    let rec loop = function
+      | 0 -> return ()
+      | n ->
+          let i = l - n in
+          f i (Array.get a i) >>= fun () ->
+          loop (n - 1)
+    in
+    loop l
+
+  let iter_array f = iteri_array (fun _ v -> f v)
+
+  let init_array n f =
+    let rec loop acc = function
+      | c when c = n -> return acc
+      | c ->
+          f c >>= fun v ->
+          loop (v :: acc) (c + 1)
+    in
+    loop [] 0 >>= fun l ->
+    let l' = List.rev l in
+    return (Array.of_list l')
+
   let fold_left f acc0 =
     let rec loop acc = function
       | [] -> return acc
