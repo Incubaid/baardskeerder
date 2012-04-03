@@ -27,15 +27,19 @@ let kps = ["xxxyyyzzz-123", out 0 1100;
            "xxxyyyzzz-238", out 0 1500;
            "xxxyyyzzz-239", out 0 1600;
            "xxxyyyzzz-238", out 0 1700;]
+
+open Flog0
+module MF = Flog0(Store.Sync)
+
 let pu_leaf () = 
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
-  let _ = Flog0.deflate_leaf b h kps in
+  let _ = MF.deflate_leaf b h kps in
   let bs = Buffer.contents b in
   let () = Printf.printf "\n%S\n" bs in
   let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
-  let input = Flog0.make_input bs 5 in (* only leaf part *)
-  let leaf' = Flog0.inflate_leaf input in
+  let input = MF.make_input bs 5 in (* only leaf part *)
+  let leaf' = MF.inflate_leaf input in
   let leaf = kps in
   let () = OUnit.assert_equal ~printer:Leaf.leaf2s leaf leaf' in
   ()
@@ -45,12 +49,12 @@ let pu_index () =
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
   let i0 = out 0 0, kps in
-  let _ = Flog0.deflate_index b h i0 in
+  let _ = MF.deflate_index b h i0 in
   let bs = Buffer.contents b in
   let () = Printf.printf "\n%S\n" bs in
   let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
-  let input = Flog0.make_input bs 5 in (* only index part *)
-  let i1 = Flog0.inflate_index input in
+  let input = MF.make_input bs 5 in (* only index part *)
+  let i1 = MF.inflate_index input in
   let () = OUnit.assert_equal ~printer:Index.index2s i0 i1 in
   ()
 
@@ -65,12 +69,12 @@ let pu_commit() =
   let prev = Outer (Spindle 0, Offset 0) in
   let c0 = Commit.make_commit p prev now actions in
   let () = Printf.printf "com=%s\n" (Commit.commit2s c0) in
-  let _ = Flog0.deflate_commit b h c0 in
+  let _ = MF.deflate_commit b h c0 in
   let bs = Buffer.contents b in
   let () = Printf.printf "\n%S\n" bs in
   let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
-  let input = Flog0.make_input bs 5 in (* only commit part *) 
-  let c1 = Flog0.inflate_commit input in
+  let input = MF.make_input bs 5 in (* only commit part *) 
+  let c1 = MF.inflate_commit input in
   let () = OUnit.assert_equal ~printer:Commit.commit2s c0 c1 in
   ()
 let suite = 

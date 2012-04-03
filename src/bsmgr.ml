@@ -56,7 +56,7 @@ type command =
   | Hudson
 
 let logs = Hashtbl.create 3
-let () = Hashtbl.add logs "Flog0" (module Flog0: LOG)
+let () = Hashtbl.add logs "Flog0" (module (Flog0.Flog0(Store.Sync)): LOG)
 let () = Hashtbl.add logs "Flog"  (module Flog : LOG) 
 
 let () = 
