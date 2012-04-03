@@ -48,6 +48,7 @@ type command =
   | Bench
   | Dump
   | DumpStream
+  | Rewrite 
   | Punch
   | Info
   | Test
@@ -64,6 +65,7 @@ let () =
 
   let dump () = command := Dump in
   let dump_stream () = command := DumpStream in
+  let rewrite () = command := Rewrite in
   let punch () = command:= Punch in
   let info () = command:= Info in
   let test () = command:= Test in
@@ -90,6 +92,7 @@ let () =
         "minimal number of consecutive blocks to punch (%i)" !mb);
       ("--dump", Unit dump, Printf.sprintf "doesn't run a benchmark, but dumps file's contents");
       ("--dump-stream", Unit dump_stream, Printf.sprintf "dumps the stream of updates");
+      ("--rewrite", Unit rewrite, "rewrite the log into another file");
       ("--punch", Unit punch, "compact the log file through hole punching");
       ("--file2" , Set_string fn2, Printf.sprintf "name of the compacted log file (%s)" !fn2);
       ("--info", Unit info, Printf.sprintf "returns information about the file (%s)" !fn);
@@ -238,6 +241,17 @@ let () =
 
           MyLog.close log
         )
+      end
+    | Rewrite -> 
+      begin
+	let module MyRewrite = Rewrite.Rewrite(MyLog)(MyLog) in
+	let l0 = MyLog.make !fn in
+        let now0 = MyLog.now l0 in
+	let () = MyLog.init !fn2 now0 in
+	let l1 = MyLog.make !fn2 in
+	let () = MyRewrite.rewrite l0 (MyLog.last l0) l1 in
+	MyLog.close l0;
+	MyLog.close l1
       end
     | Punch ->
       begin
