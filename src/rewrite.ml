@@ -23,11 +23,22 @@ open Entry
 open Base
 open Dbx
 
-module Rewrite (L0:LOG) (L1:LOG) = struct
+module Rewrite
+  (S0:functor(ST0:Store.STORE) -> LOG with type 'a m = 'a ST0.m)
+  (S1:functor(ST1:Store.STORE) -> LOG with type 'a m = 'a ST1.m) =
+  functor (IO:Store.STORE) ->
+  struct
 
   type update = { mutable kvs: (k * v) list; mutable w: int} 
 
+  module L0 = S0(IO)
+  module L1 = S1(IO)
+
   module DBX1 = DBX(L1)
+
+  let (>>=) = IO.bind
+  and return = IO.return
+  module M = Monad.Monad(IO)
     
   let max_w = 1024 * 1024
 
@@ -47,50 +58,45 @@ module Rewrite (L0:LOG) (L1:LOG) = struct
       in
       DBX1.with_tx l1 ~inc
 	(fun tx ->
-	  List.iter (fun (k,v) -> DBX1.set tx k v) u.kvs)
+	  M.iter (fun (k,v) -> DBX1.set tx k v) u.kvs)
     in
     let read_value pos = 
-      let e = L0.read l0 pos in
-      match e with
-	| Value v -> v
+      L0.read l0 pos >>= function
+	| Value v -> return v
 	| NIL | Leaf _ | Commit _ | Index _ -> failwith "value!"
     in
     let fat u = update_w u  > max_w in
     let rec walk acc pos =
-      let e0 = L0.read l0 pos in
-      match e0 with
-	| NIL -> acc
-	| Value _ -> acc
+      L0.read l0 pos >>= function
+	| NIL -> return acc
+	| Value _ -> return acc
 	| Leaf leaf -> walk_leaf acc leaf
 	| Index index -> walk_index acc index
 	| Commit c -> let pos = Commit.get_pos c in walk acc pos
     and walk_leaf acc leaf = 
       let rec loop acc = function
-	| [] -> acc
-	| (k,pos)::t -> let v = read_value pos in
+	| [] -> return acc
+	| (k,pos)::t -> read_value pos >>= fun v ->
 			let () = add_kvs acc (k,v) in
 			loop acc t
       in
-      let acc1 = loop acc leaf in
-      let acc2 = 
-	if fat acc1 
-	then 
-	  let () = apply_update acc1 false in
-	  make_update ()
-	else
-	  acc1
-      in
-      acc2
+      loop acc leaf >>= fun acc1 ->
+      if fat acc1 
+        then 
+          apply_update acc1 false >>= fun () ->
+          return (make_update ())
+        else
+          return acc1
     and walk_index acc (p0,kps) = 
       let rec loop acc p = function
 	| [] -> walk acc p
-	| (_,pk) :: t -> let acc' = walk acc p in
+	| (_,pk) :: t -> walk acc p >>= fun acc' ->
 			 loop acc' pk t
       in
       loop acc p0 kps
     in
     let u0 = make_update () in
-    let u = walk u0 root0 in
+    walk u0 root0 >>= fun u ->
     apply_update u true
   
   end

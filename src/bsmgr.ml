@@ -244,14 +244,24 @@ let () =
       end
     | Rewrite -> 
       begin
-	let module MyRewrite = Rewrite.Rewrite(MyLog)(MyLog) in
-	let l0 = MyLog.make !fn in
+        if !log_name <> "flog0"
+        then failwith "Only flog0 is supported"
+        else
+        Store.Sync.run (
+
+        let (>>=) = Store.Sync.bind in
+
+        let module MyLog = Flog0.Flog0(Store.Sync) in
+	let module MyRewrite =
+          Rewrite.Rewrite(Flog0.Flog0)(Flog0.Flog0)(Store.Sync) in
+	MyLog.make !fn >>= fun l0 ->
         let now0 = MyLog.now l0 in
-	let () = MyLog.init !fn2 now0 in
-	let l1 = MyLog.make !fn2 in
-	let () = MyRewrite.rewrite l0 (MyLog.last l0) l1 in
-	MyLog.close l0;
+	MyLog.init !fn2 now0 >>= fun () ->
+	MyLog.make !fn2 >>= fun l1 ->
+	MyRewrite.rewrite l0 (MyLog.last l0) l1 >>= fun () ->
+	MyLog.close l0 >>= fun () ->
 	MyLog.close l1
+        )
       end
     | Punch ->
       begin
