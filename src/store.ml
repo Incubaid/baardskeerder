@@ -46,24 +46,51 @@ module type STORE =
 
 module Memory : STORE =
   struct
-    type t = T of string ref
+    type t = T of Buffer.t ref
     type 'a m = M of 'a
+
+    (* This is a rather ugly hack *)
+    let memory_store = Hashtbl.create 16
 
     let bind (M v) f = f v
     let return v = M v
     let run (M v) = v
 
-    let init (_:string) = return (T (ref ""))
+    let init (n:string) =
+      if Hashtbl.mem memory_store n
+      then
+        return (Hashtbl.find memory_store n)
+      else
+        let v = T (ref (Buffer.create 128)) in
+        Hashtbl.replace memory_store n v;
+        return v
     let close _ = return ()
 
-    let next (T s) = String.length (!s)
+    let next (T b) = Buffer.length (!b)
 
-    let read (T s) o l = return (String.sub !s o l)
-    let write (T s) d p l o = failwith "Not implemented"
-    let append (T s) d p l =
-      let d' = String.sub d p l
-      and o = String.length (!s) in
-      s := ((!s) ^ d');
+    let read (T b) o l = return (Buffer.sub !b o l)
+    let write (T b) d p l o =
+      let s = Buffer.contents !b in
+      let sl = String.length s in
+
+      let s' =
+        if o + l < sl
+        then s
+        else s ^ (String.create (o + l - sl))
+      in
+
+      String.blit d p s' o l;
+
+      let b' = Buffer.create 0 in
+      Buffer.add_string b' s';
+
+      b := b';
+
+      return ()
+
+    let append (T b) d p l =
+      let o = Buffer.length !b in
+      Buffer.add_substring !b d p l;
       return o
 
     let fsync (T _) = return ()
