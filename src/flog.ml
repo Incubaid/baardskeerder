@@ -23,6 +23,11 @@ open Entry
 open Pos
 open Posix
 
+type 'a m = 'a
+let bind a f = f a
+let return v = v
+let run a = a
+
 type blocksize = int
 type count = int
 
@@ -164,7 +169,9 @@ let init ?(d=2) (f: string) (_:Time.t) =
   (* If a database is `init`-ialised, we'll open it soon, most likely *)
   posix_fadvise fd 0 (b1 + b2) POSIX_FADV_WILLNEED;
 
-  close fd
+  close fd;
+
+  return ()
 
 (* Entry handling helpers *)
 let reader_envelope: ('a Binary.reader) -> ('a Binary.reader) =

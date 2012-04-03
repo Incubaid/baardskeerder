@@ -23,17 +23,23 @@ open Slab
 
 module type LOG = sig
   type t
-  val init: ?d:int -> string  -> Time.t -> unit
-  val write : t -> Slab.t -> unit 
+  type 'a m
+
+  val bind : 'a m -> ('a -> 'b m) -> 'b m
+  val return : 'a -> 'a m
+  val run : 'a m -> 'a
+
+  val init: ?d:int -> string  -> Time.t -> unit m
+  val write : t -> Slab.t -> unit m
   val last  : t -> pos
-  val read  : t -> pos -> entry
-  val sync  : t -> unit
-  val make  : string -> t
-  val close : t -> unit
-  val clear: t -> unit
+  val read  : t -> pos -> entry m
+  val sync  : t -> unit m
+  val make  : string -> t m
+  val close : t -> unit m
+  val clear: t -> unit m
   val get_d: t -> int
   val now: t -> Time.t
-  val dump: ?out:Pervasives.out_channel -> t -> unit
+  val dump: ?out:Pervasives.out_channel -> t -> unit m
   val compact: ?min_blocks:int ->
-    ?progress_cb:(offset -> offset -> unit) option -> t -> unit
+    ?progress_cb:(offset -> offset -> unit) option -> t -> unit m
 end

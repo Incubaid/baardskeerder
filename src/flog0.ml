@@ -17,48 +17,23 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+open Store
+
 open Base
 open Entry
 open Unix
 
-let _really_write fd string = 
-  let l = String.length string in
-  let rec loop start = function
-    | 0 -> ()
-    | n -> let bw = Unix.write fd string start n in
-	   if bw = n then ()
-	   else
-	     let start' = start + bw in
-	     let n' = n - bw in
-	     loop start' n' 
-  in loop 0 l
+module Flog0 =
+  functor(S:STORE) ->
+  struct
 
-let _really_read fd n = 
-  let r = String.create n in
-  let rec loop start = function
-    | 0 -> r
-    | n -> let br = Unix.read fd r start n in
-	   if br = 0 then raise End_of_file
-	   else
-	     if br = n 
-	     then r
-	     else
-	       let start' = start + br in
-	       let n' = n - br in
-	       loop start' n' 
-  in
-  loop 0 n
+type 'a m = 'a S.m
+let bind = S.bind
+let return = S.return
+let run = S.run
 
-let _seek fd pos = let _ = Unix.lseek fd pos Unix.SEEK_SET in ()
-    
-let _seek_read fd pos n = 
-  _seek fd pos;
-  _really_read fd n
- 
-let _seek_write fd pos s = 
-  let () = _seek fd pos in
-  let () = _really_write fd s in
-  ()
+let (>>=) = bind
+module M = Monad.Monad(S)
 
 let vint_to b n = 
   let add c = Buffer.add_char b c in
@@ -213,25 +188,20 @@ let _write_metadata fd m =
   let block = String.create _METADATA_SIZE in
   
   let () = Buffer.blit b 0 block 0 (Buffer.length b) in
-  _seek fd 0;
-  _really_write fd block
+
+  S.write fd block 0 _METADATA_SIZE 0
 
 let _read_metadata fd = 
-  _seek fd 0;
-  let m = _really_read fd _METADATA_SIZE in
+  S.read fd 0 _METADATA_SIZE >>= fun m ->
   let input = make_input m 0 in
   let s = input_vint input in
   let o = input_vint input in
   let commit = (Spindle s, Offset o) in
   let td = input_vint input in
   let t0 = input_time input in
-  {commit; td;t0}
+  return {commit; td;t0}
 
-type s = { fd: file_descr;
-           mutable next: int;
-         }
-
-type t = { spindles : s array;
+type t = { spindles : S.t array;
            start : Time.t;
 	   mutable last: (spindle * offset);
            mutable next_spindle: int;
@@ -245,7 +215,7 @@ let get_d t = t.d
 let t2s t =
   let (Spindle ls, Offset lo) = t.last in
   let sp = Array.get t.spindles t.next_spindle in
-  Printf.sprintf "{...;last=(%i,%i); next=(%i,%i);now=%s}" ls lo t.next_spindle sp.next
+  Printf.sprintf "{...;last=(%i,%i); next=(%i,%i);now=%s}" ls lo t.next_spindle (S.next sp)
     (Time.time2s t.now)
 
 let last t = let s, o = t.last in Outer (s, o)
@@ -255,7 +225,7 @@ let now t = t.now
 
 let close t = 
   let meta = {commit = t.last; td = t.d; t0 = t.start} in
-  Array.iter (fun s -> _write_metadata s.fd meta; Unix.close s.fd) t.spindles
+  M.iter_array (fun s -> _write_metadata s meta >>= fun () -> S.close s) t.spindles
 
 let clear t = 
   let commit = (Spindle 0, Offset 0) in
@@ -264,10 +234,12 @@ let clear t =
               t0 = Time.zero;
              } 
   in
-  Array.iter (fun s -> _write_metadata s.fd meta) t.spindles;
+  M.iter_array (fun s -> _write_metadata s meta) t.spindles >>= fun () ->
   t.last  <- commit;
   t.next_spindle <- 0;
-  t.now  <- Time.zero
+  t.now  <- Time.zero;
+
+  return ()
 
 
 type tag = 
@@ -350,13 +322,12 @@ let inflate_entry es =
 
 let dump ?(out=Pervasives.stdout) (t:t) = 
   let d s =
-    _seek s.fd 0 ;
-    let m = _read_metadata s.fd in
+    _read_metadata s >>= fun m ->
     Printf.fprintf out "meta: %s\n%!" (metadata2s m);
     let rec loop pos=
-      let ls = _really_read s.fd 4 in
+      S.read s pos 4 >>= fun ls ->
       let l = size_from ls 0 in
-      let es = _really_read s.fd l in
+      S.read s (pos + 4) l >>= fun es ->
       let e = inflate_entry es in
       let () = Printf.fprintf out "%4i : %s\n%!" pos (Entry.entry2s e)  in
       let pos' = pos + 4 + String.length es in
@@ -364,10 +335,10 @@ let dump ?(out=Pervasives.stdout) (t:t) =
     in
     try
       loop _METADATA_SIZE
-    with End_of_file -> ()
+    with End_of_file -> return ()
   in
 
-  Array.iteri
+  M.iteri_array
     (fun i s ->
       Printf.fprintf out "Spindle %02i\n" i;
       Printf.fprintf out "----------\n";
@@ -465,7 +436,7 @@ let write log slab =
   let l = Array.length log.spindles in
   let sid = ref log.next_spindle in
   let buffers = Array.init l (fun _ -> Buffer.create 1024) in
-  let starts = Array.init l (fun i -> ref ((Array.get log.spindles i).next)) in
+  let starts = Array.init l (fun i -> ref (S.next (Array.get log.spindles i))) in
 
   let do_one i e = 
     let sid' = !sid in
@@ -480,27 +451,28 @@ let write log slab =
   in
   let () = Slab.iteri slab do_one  in
 
-  Array.iteri
+  M.iteri_array
     (fun i b ->
       let ss = Buffer.contents b
       and s = Array.get log.spindles i
       and n = !(Array.get starts i) in
 
-      let () = _seek_write s.fd s.next ss in
+      S.append s ss 0 (String.length ss) >>= fun _ ->
 
-      assert (n = s.next + String.length ss);
+      assert (n = S.next s);
 
-      s.next <- s.next + String.length ss)
-    buffers;
+      return ())
+    buffers >>= fun () ->
 
   let cp = Hashtbl.find h (sl -1) in
   log.last <- cp;
   log.next_spindle <- !sid;
   log.now <- Slab.time slab;
-  ()
+  return ()
 
 
-let sync t = Array.iter (fun sp -> Posix.fsync sp.fd) t.spindles
+let sync t =
+  M.iter_array S.fsync t.spindles
 
 let compact ?(min_blocks=1) ?(progress_cb=None) (_:t) =
   ignore min_blocks;
@@ -508,76 +480,74 @@ let compact ?(min_blocks=1) ?(progress_cb=None) (_:t) =
   failwith "todo"
 
 let _read_entry_s fd pos = 
-  let ls = _seek_read fd pos 4 in
+  S.read fd pos 4 >>= fun ls ->
   let l = size_from ls 0 in
-  let es = _really_read fd l in
-  es 
+  S.read fd (pos + 4) l
 
 let read t pos = 
   match pos with
     | Outer (Spindle s, Offset o) ->
-      if ((s = 0) && (o = 0)) then NIL
+      if ((s = 0) && (o = 0)) then return NIL
       else
 	begin
           let sp = Array.get t.spindles s in
-	  let es = _read_entry_s sp.fd o in
-	  inflate_entry es
+	  _read_entry_s sp o >>= fun es ->
+	  return (inflate_entry es)
 	end
     | Inner _ -> failwith "cannot read inner"
 
 
 let init ?(d=4) fn t0 = 
-  List.iter
+  M.iter
     (fun fn ->
-      let fd = openfile fn [O_CREAT;O_WRONLY;] 0o640 in
-      let stat = fstat fd in
-      let len = stat.st_size in
-      if len = 0 then
+      S.init fn >>= fun s ->
+      if S.next s = 0 then
         let commit = (Spindle 0, Offset 0) in
-        let () = _write_metadata fd {commit;td = d; t0} in
-        let () = Unix.close fd in
-        ()
+        _write_metadata s {commit;td = d; t0} >>= fun () ->
+        S.close s
       else
-        let () = Unix.close fd in
+        S.close s >>= fun () ->
         let s = Printf.sprintf "%s already exists" fn in
         failwith s)
     (List.map (fun d -> Printf.sprintf "%s.%d" fn d) [0; 1; 2])
 
 
 let make filename = 
-  let spindles = Array.init 3
+  M.init_array 3
     (fun i ->
-      let sfd = openfile (Printf.sprintf "%s.%d" filename i) [O_RDWR] 0o640 in
-      let stat = fstat sfd in
-      let len = stat.st_size in
+      S.init (Printf.sprintf "%s.%d" filename i) >>= fun s ->
 
-      assert (len > 0);
+      assert (S.next s > 0);
 
-      { fd=sfd;
-        next=len;
-      }
-    ) in
+      return s
+
+    ) >>= fun spindles ->
 
   let sp0 = Array.get spindles 0 in
-  let m = _read_metadata sp0.fd in
+  _read_metadata sp0 >>= fun m ->
   let last = m.commit in
   let d = m.td in
 
-  let (now:Time.t) =
-    if last = (Spindle 0, Offset 0)
-    then 
-      m.t0
-    else
+  begin
+  if last = (Spindle 0, Offset 0)
+  then
+    return m.t0
+  else
+    begin
       let (Spindle s, Offset o) = last in
       let sp = Array.get spindles s in
-      let s = _read_entry_s sp.fd o in
+      _read_entry_s sp o >>= fun s ->
       let input = make_input s 0 in
       let e = input_entry input in
       match e with
-        | Commit c -> Commit.get_time c
+        | Commit c -> return (Commit.get_time c)
         | NIL | Value _ | Index _ | Leaf _ -> 
-          let msg = Printf.sprintf "%s should have been a commit" (entry2s e) in failwith msg
-  in
+            let msg = Printf.sprintf "%s should have been a commit" (entry2s e) in
+            failwith msg
+    end
+  end
+  >>= fun now ->
+
   let flog0 = { spindles=spindles;
                 last=last;
                 next_spindle=0;
@@ -586,7 +556,6 @@ let make filename =
                 start = m.t0;
               }
   in
-  flog0
+  return flog0
 
-
-
+end (* module / functor *)

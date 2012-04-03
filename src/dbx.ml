@@ -26,6 +26,9 @@ open Commit
 
 module DBX(L:LOG) = struct
 
+  let (>>=) = L.bind
+  and return = L.return
+
   type tx = { log: L.t; slab: Slab.t; 
               mutable actions: action list}
 
@@ -35,10 +38,10 @@ module DBX(L:LOG) = struct
 
   let set tx k v = 
     let vpos = Inner (Slab.length tx.slab) in
-    let _ = DBL._set tx.log tx.slab k v in 
+    DBL._set tx.log tx.slab k v >>= fun _ ->
     let a = Set (k, vpos) in
     let () = tx.actions <- a :: tx.actions in
-    ()
+    return ()
 
   let delete tx k = 
     let _ = DBL._delete tx.log tx.slab k in 
@@ -52,7 +55,7 @@ module DBX(L:LOG) = struct
     let fut = inc now in
     let slab = Slab.make fut in
     let tx = {log;slab;actions = []} in
-    let () = f tx in
+    f tx >>= fun () ->
     let root = Slab.length tx.slab -1 in
     let last = L.last log in
     let commit = make_commit (Inner root) last fut (List.rev tx.actions) in

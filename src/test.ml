@@ -35,5 +35,6 @@ let suite =
       Range_test.suite;
       Rewrite_test.suite;
       Flog0_test.suite;
+      Mlog_lwt_test.suite;
     ]
 

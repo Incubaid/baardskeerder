@@ -29,16 +29,19 @@ open Slab
 
 module DB = functor (L:LOG ) -> struct
 
+  let (>>=) = L.bind
+  and return = L.return
+
   let _get (t:L.t) (slab:Slab.t) (k:k) = 
     let _read pos = match pos with
       | Outer _ -> L.read t pos 
-      | Inner _ -> Slab.read slab pos
+      | Inner _ -> return (Slab.read slab pos)
     in
     let rec descend pos = 
-      let e = _read pos in
+      _read pos >>= fun e ->
       match e with
 	| NIL -> raise (NOT_FOUND k)
-	| Value v -> v
+	| Value v -> return v
 	| Leaf l -> descend_leaf l
 	| Index i -> descend_index i
 	| Commit _ -> let msg = Printf.sprintf "descend reached a second commit %s" (Pos.pos2s pos) in
@@ -62,7 +65,7 @@ module DB = functor (L:LOG ) -> struct
       if Slab.is_empty slab 
       then
 	let pos = L.last t in
-	let e = L.read t pos in
+	L.read t pos >>= fun e ->
 	match e with 
 	  | Commit c -> descend (Commit.get_pos c)
 	  | NIL -> raise (NOT_FOUND k)
@@ -79,15 +82,16 @@ module DB = functor (L:LOG ) -> struct
     let slab = Slab.make fut in
     _get t slab k 
 
-  let rec _set_descend (t:L.t) slab (k:k) pos trail = 
-    let e = match pos with
-      | Inner _ -> Slab.read slab pos
-      | Outer _ -> L.read t pos  
-    in
-    match e with
-      | NIL     -> []
+  let rec _set_descend (t:L.t) slab (k:k) pos trail =
+    begin
+      match pos with
+        | Inner _ -> return (Slab.read slab pos)
+        | Outer _ -> L.read t pos  
+    end
+    >>= function
+      | NIL     -> return []
       | Value _ -> failwith "value ?"
-      | Leaf l  -> descend_leaf k trail l
+      | Leaf l  -> return (descend_leaf k trail l)
       | Index i -> descend_index t slab k trail i
       | Commit _-> failwith "commit ?"
   and descend_leaf k trail leaf =
@@ -103,9 +107,9 @@ module DB = functor (L:LOG ) -> struct
     if Slab.is_empty slab
     then	
       let pos = L.last t in
-      let e = L.read t pos in
+      L.read t pos >>= fun e ->
       match e with
-	| NIL -> []
+	| NIL -> return []
 	| Commit c -> let pos = Commit.get_pos c in _set_descend t slab k pos [] 
 	| Index _ | Value _ | Leaf _ -> 
 	  let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
@@ -159,16 +163,16 @@ module DB = functor (L:LOG ) -> struct
 	  set_rest slab start' rest
       | Leaf_down _ :: _ -> failwith "rest of trail cannot contain Leaf_down _ "
     in
-    let trail = _set_descend_root t slab k in
+    _set_descend_root t slab k >>= fun trail ->
     let next = Slab.next slab in 
-    set_start slab next trail
+    return (set_start slab next trail)
 
 	
   let set (t:L.t) k v =
     let now = L.now t in
     let fut = Time.next_major now in
     let slab = Slab.make fut in
-    let (rp':pos) = _set t slab k v in
+    _set t slab k v >>= fun (rp':pos) ->
     let action = Commit.Set (k,Inner 0) in (* a little knowledge is a dangerous thing *)
     let last = L.last t in
     let commit = Commit.make_commit rp' last fut [action] in (* UGLY *)
@@ -177,7 +181,7 @@ module DB = functor (L:LOG ) -> struct
 
 
   let rec _delete_rest slab start (lr : k option) trail = match trail with
-    | [] -> start
+    | [] -> return start
     | Index_down z :: rest -> 
       begin	  
 	let _step slab lr z rest = 
@@ -200,14 +204,13 @@ module DB = functor (L:LOG ) -> struct
   let _delete (t:L.t) slab k = 
     let d = L.get_d t in
     let _read pos = match pos with 
-      | Inner _ -> Slab.read slab pos
+      | Inner _ -> return (Slab.read slab pos)
       | Outer _ -> L.read t pos  
     in
     let rec descend pos trail = 
-      let e = _read pos in
-      match e with
+      _read pos >>= function
 	| NIL -> failwith "corrupt"
-	| Value _ -> trail
+	| Value _ -> return trail
 	| Leaf l -> descend_leaf trail l
 	| Index i -> descend_index trail i
 	| Commit _ -> let msg = Printf.sprintf "descend reached a second commit %s" (Pos.pos2s pos) in
@@ -228,7 +231,7 @@ module DB = functor (L:LOG ) -> struct
       | [] -> failwith "corrupt" 
       | [Leaf_down z ]-> 
 	let leaf', _ = Leafz.delete z in
-	Slab.add_leaf slab leaf'
+	return (Slab.add_leaf slab leaf')
       | Leaf_down z :: rest ->
 	if Leafz.min d z 
 	then leaf_underflow slab z rest
@@ -239,25 +242,24 @@ module DB = functor (L:LOG ) -> struct
 	  _delete_rest slab start lr rest
       | Index_down _ :: _ -> failwith "trail cannot start with Index_down _"
 
-    and leaf_underflow slab leafz rest = 
+    and leaf_underflow slab leafz rest : Pos.pos L.m = 
       match rest with 
 	| [] -> 
 	  let leaf',_ = Leafz.delete leafz in
 	  let (rp:pos) = Slab.add_leaf slab leaf' in 
-	  rp
+	  return rp
 	| Index_down z :: rest -> 
 	  begin
 	    let read_leaf pos = 
-	      let e = _read pos in
-	      match e with
-		| Leaf l -> l
+	      _read pos >>= function
+		| Leaf l -> return l
 		| Index _ | Value _ | Commit _ | NIL -> failwith "should be leaf"
 	    in
 	    let nb = Indexz.neighbours z in
 	    match nb with
 	      | Indexz.NR pos     -> 
 		begin
-		  let right = read_leaf pos in
+		  read_leaf pos >>= fun right ->
 		  if leaf_min d right
 		  then 
 		    begin
@@ -281,7 +283,7 @@ module DB = functor (L:LOG ) -> struct
 		end
 	      | Indexz.NL pos ->
 		begin
-		  let left = read_leaf pos in
+		  read_leaf pos >>= fun left ->
 		  if leaf_min d left 
 		  then
 		    begin
@@ -290,8 +292,8 @@ module DB = functor (L:LOG ) -> struct
 		      let (hpos:pos) = Slab.add_leaf slab h in
 		      let z' = Indexz.suppress Indexz.L hpos sep_c z in
 		      let index' = Indexz.close z' in
-		      let (rp:pos) = xxx_merged slab hpos sep_c index' rest in
-		      rp
+		      xxx_merged slab hpos sep_c index' rest >>= fun (rp:_) ->
+		      return rp
 		    end
 		  else (* borrow from left *)
 		    begin
@@ -304,8 +306,8 @@ module DB = functor (L:LOG ) -> struct
 		end
 	      | Indexz.N2 (p0,p1) -> 
 		begin
-		  let left = read_leaf p0 in
-		  let right = read_leaf p1 in
+		  read_leaf p0 >>= fun left ->
+		  read_leaf p1 >>= fun right ->
 		  match (leaf_mergeable d left, leaf_mergeable d right) with
 		    | true,_ ->
 		      begin
@@ -370,14 +372,13 @@ module DB = functor (L:LOG ) -> struct
 	  let index' = Indexz.close z3 in	  
 	  let ipos' = Slab.add_index slab index' in
 	  _delete_rest slab ipos' lr' rest
-    and xxx_merged slab (start:pos) sep_c (index:Index.index) rest = 
+    and xxx_merged slab (start:pos) sep_c (index:Index.index) rest : Pos.pos L.m = 
       let read_index pos = 
-	let e = _read pos in
-	match e with
-	  | Index i -> i
+	_read pos >>= function
+	  | Index i -> return i
 	  | Value _ | Leaf _ | Commit _ | NIL -> failwith "should be index"
       in
-      let merge_left left index z rest = 
+      let merge_left left index z rest : Pos.pos L.m = 
 	begin
 	  let sep = Indexz.separator Indexz.L z in
 	  let index1 = index_merge left sep index in
@@ -388,7 +389,7 @@ module DB = functor (L:LOG ) -> struct
 	  xxx_merged slab ipos1 lr' index2 rest
 	end
       in
-      let merge_right right index z lr rest = 
+      let merge_right right index z lr rest : Pos.pos L.m = 
 	begin
 	  match lr with 
 	    | None ->
@@ -409,15 +410,15 @@ module DB = functor (L:LOG ) -> struct
 	end
       in
       match index, rest with
-	| (_,[]) , []  -> (start:pos)
-	| index , [] -> Slab.add_index slab index 
+	| (_,[]) , []  -> return (start:pos)
+	| index , [] -> return (Slab.add_index slab index)
 	| index , Index_down z :: rest when index_below_min d index -> 
 	  begin
 	    let nb = Indexz.neighbours z in
 	    match nb with
 	      | Indexz.NL pos ->  
 		begin
-		  let left = read_index pos in
+		  read_index pos >>= fun left ->
 		  if index_mergeable d left 
 		  then merge_left left index z rest
 		  else (* borrow from left *)
@@ -430,7 +431,7 @@ module DB = functor (L:LOG ) -> struct
 		  
 	      | Indexz.NR pos ->  
 		begin
-		  let right = read_index pos in
+		  read_index pos >>= fun right ->
 		  if index_mergeable d right 
 		  then merge_right right index z sep_c rest
 		  else
@@ -446,8 +447,8 @@ module DB = functor (L:LOG ) -> struct
 		end
 		
 	      | Indexz.N2 (pl,pr) -> 
-		let left = read_index pl in
-		let right = read_index pr in
+		read_index pl >>= fun left ->
+		read_index pr >>= fun right ->
 		match (index_mergeable d left,index_mergeable d right) with
 		  | true,_ -> merge_left left index z rest
 		  | _, true -> merge_right right index z sep_c rest
@@ -467,9 +468,9 @@ module DB = functor (L:LOG ) -> struct
     let descend_root () = 
       if Slab.is_empty slab then
 	let lp = L.last t in
-	let e = L.read t lp in
+	L.read t lp >>= fun e ->
 	match e with
-	  | NIL -> []
+	  | NIL -> return []
 	  | Commit c -> let pos = Commit.get_pos c in descend pos []
 	  | Index _ | Leaf _ | Value _  -> 
 	    let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in
@@ -477,17 +478,17 @@ module DB = functor (L:LOG ) -> struct
       else
 	descend (Slab.last slab) []
     in
-    let trail = descend_root () in
+    descend_root () >>= fun trail ->
     let start = Slab.next slab in
-    let (rp':pos) = delete_start slab start trail in
-    rp'
+    delete_start slab start trail >>= fun (rp':pos) ->
+    return rp'
 
 
   let delete (t:L.t) k =
     let now = L.now t in
     let fut = Time.next_major now in
     let slab = Slab.make fut in
-    let (rp':pos) = _delete t slab k in
+    _delete t slab k >>= fun (rp':pos) ->
     let action = Commit.Delete k in
     let last = L.last t in
     let commit = Commit.make_commit rp' last fut [action] in
@@ -501,9 +502,8 @@ module DB = functor (L:LOG ) -> struct
       (max: int option) f = 
 
     let lp = L.last t in
-    let e = L.read t lp in
-    match e with 
-      | NIL  -> 0
+    L.read t lp >>= function
+      | NIL  -> return 0
       | Commit c -> 
 	begin
           let pos = Commit.get_pos c in
@@ -526,11 +526,10 @@ module DB = functor (L:LOG ) -> struct
 		| Some m -> count < m
 	  in
 	  let rec walk count pos = 
-	    let e = L.read t pos in
-	    match e with
-	      | NIL     -> count
-	      | Value _ -> count
-	      | Leaf leaf -> walk_leaf count leaf
+	    L.read t pos >>= function
+	      | NIL     -> return count
+	      | Value _ -> return count
+	      | Leaf leaf -> return (walk_leaf count leaf)
 	      | Index index -> walk_index count index
 	      | Commit c -> let pos = Commit.get_pos c in walk count pos
 	  and walk_leaf count leaf = 
@@ -559,22 +558,22 @@ module DB = functor (L:LOG ) -> struct
 	      | (k,pk) :: t when ti_left k -> 
 		begin
 		  if t_max count 
-		  then let count' = walk count p in
+		  then walk count p >>= fun count' ->
 		       if ti_right k 
 		       then loop count' pk t
-		       else count'
-		  else count
+		       else return count'
+		  else return count
 		end
 	      | (k,pk) :: t -> 
 		begin
 		  if ti_right k 
 		  then 
-		    let count' = walk count p in
+		    walk count p >>= fun count' ->
 		    if ti_right k && t_max count' 
 		    then loop count' pk t 
-		    else count'
+		    else return count'
 		  else
-		    count
+		    return count
 		end
 	    in
 	    loop count p kps
@@ -597,10 +596,8 @@ module DB = functor (L:LOG ) -> struct
       (is: 'a) =
 
     let lp = L.last t in
-    let e = L.read t lp in
-
-    match e with
-      | NIL  -> is
+    L.read t lp >>= function
+      | NIL  -> return is
       | Commit c ->
         begin
           let left_of_range k =
@@ -613,11 +610,11 @@ module DB = functor (L:LOG ) -> struct
               | Some f -> if finc then k > f else k >= f
           in
 
-          let rec walk s pos: (bool * 'a) =
-            match L.read t pos with
+          let rec walk s pos: (bool * 'a) L.m =
+            L.read t pos >>= function
               | NIL -> failwith "Tree._fold_reverse_range_while: unexpected entry NIL"
               | Value _ -> failwith "Tree._fold_reverse_range_while: unexpected entry Value"
-              | Leaf leaf -> walk_leaf s leaf
+              | Leaf leaf -> return (walk_leaf s leaf)
               | Index index -> walk_index s index
               | Commit c -> failwith "Tree._fold_reverse_range_while: unexpected entry Commit"
           and walk_leaf s leaf =
@@ -646,18 +643,18 @@ module DB = functor (L:LOG ) -> struct
               | (k, p') :: kps when right_of_range k ->
                   loop s' kps
               | (k, p') :: kps ->
-                  let (cont, s'') = walk s' p' in
+                  walk s' p' >>= fun (cont, s'') ->
                   if cont
                   then
                     loop s'' kps
                   else
-                    (false, s'')
+                    return (false, s'')
             in
             loop s (List.rev kps)
           in
 
-          let (_, r) = walk is (Commit.get_pos c) in
-          r
+          walk is (Commit.get_pos c) >>= fun (_, r) ->
+          return r
         end
       | Index _ | Leaf _ | Value _ ->
         failwith "Tree._fold_reverse_range_while: unexpected entry type"
@@ -678,34 +675,35 @@ module DB = functor (L:LOG ) -> struct
       (cont, (count', k :: acc))
     end in
 
-    let (_, res) = _fold_reverse_range_while t first finc last linc f (0, []) in
-    List.rev res
+    _fold_reverse_range_while t first finc last linc f (0, []) >>= fun (_, res) ->
+    return (List.rev res)
 
 
   let confirm (t:L.t) (s:Slab.t) k v =
-    let set_needed =
+    let set_needed () =
       try
-	let vc = _get t s k  in
-	vc <> v
-      with NOT_FOUND _ -> true
+	_get t s k >>= fun vc ->
+	return (vc <> v)
+      with NOT_FOUND _ -> return true
     in
-    if set_needed
-    then let _  = _set t s k v in ()
-    else ()
+    set_needed () >>= fun sn ->
+    if sn
+    then _set t s k v >>= fun _ -> return ()
+    else return ()
 
   let depth (t:L.t) (slab:Slab.t )= 
-    let rec _depth_descend t slab pos c = 
-      let e = match pos with
-        | Inner _ -> Slab.read slab pos
+    let rec _depth_descend t slab pos c = begin
+      match pos with
+        | Inner _ -> return (Slab.read slab pos)
         | Outer _ -> L.read t pos
-      in
-      match e with
-        | NIL -> c
-        | Value _ -> c
+      end
+      >>= function
+        | NIL -> return c
+        | Value _ -> return c
         | Leaf l -> 
           begin
             match l with
-              | [] -> c
+              | [] -> return c
               | (_,p) :: _ -> _depth_descend t slab p (c+1)
           end
         | Index (p0,_) -> _depth_descend t slab p0 (c+1)
@@ -715,9 +713,9 @@ module DB = functor (L:LOG ) -> struct
       if Slab.is_empty slab
       then
         let pos = L.last t in
-        let e = L.read t pos in
+        L.read t pos >>= fun e ->
         match e with
-          | NIL -> 0
+          | NIL -> return 0
           | Commit c -> let pos = Commit.get_pos c in _depth_descend t slab pos 1
           | Index _ | Value _ | Leaf _ -> 
             let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s

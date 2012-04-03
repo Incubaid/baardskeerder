@@ -17,7 +17,7 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-module MyLog = Flog0
+module MyLog = Flog0.Flog0(Store.Sync)
 module MyDBX = Dbx.DBX(MyLog)
 module MyDB = Tree.DB(MyLog)
 
@@ -26,17 +26,19 @@ type tx = MyDBX.tx
 
 include Base
 
-let init fn = MyLog.init ~d:6 fn Time.zero
-let make fn = MyLog.make fn 
+let run = Store.Sync.run
 
-let close log = MyLog.close log
+let init fn = run (MyLog.init ~d:6 fn Time.zero)
+let make fn = run (MyLog.make fn)
 
-let with_tx log f = MyDBX.with_tx log f
+let close log = run (MyLog.close log)
+
+let with_tx log f = run (MyDBX.with_tx log (fun v -> MyLog.return (f v)))
 
 
-let get_latest t k = MyDB.get t k
+let get_latest t k = run (MyDB.get t k)
 
-let get tx k = MyDBX.get tx k
-let set tx k v = MyDBX.set tx k v
+let get tx k = run (MyDBX.get tx k)
+let set tx k v = run (MyDBX.set tx k v)
 let delete tx k = MyDBX.delete tx k
 

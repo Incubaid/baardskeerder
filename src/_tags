@@ -1,5 +1,7 @@
 true: annot
 true: debug
+true: package(lwt)
+true: package(lwt.unix)
 <**/*.ml>: warn_error_A
 <**/*_test.ml>: -warn_error_A, warn_A
 <flog*.ml>: warn_error_A
