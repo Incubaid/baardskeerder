@@ -109,7 +109,7 @@ module Sync : STORE =
     let run (M v) = v
 
     let init name =
-      let fd = openfile name [O_RDWR] 0o640 in
+      let fd = openfile name [O_RDWR; O_CREAT] 0o640 in
       let stat = fstat fd in
       let len = stat.st_size in
 
@@ -155,4 +155,81 @@ module Sync : STORE =
     let fsync (T (fd, _)) =
       Posix.fsync fd;
       return ()
+  end
+
+module Lwt_ = Lwt
+
+open Lwt_unix
+
+module Lwt : STORE with type 'a m = 'a Lwt.t =
+  struct
+    type t = T of Lwt_unix.file_descr * int ref
+
+    type 'a m = 'a Lwt_.t
+    let bind = Lwt_.bind
+    let return = Lwt_.return
+    let run = Lwt_main.run
+
+    let (>>=) = bind
+
+    let init name =
+      Lwt_unix.openfile name [Lwt_unix.O_RDWR; Lwt_unix.O_CREAT;] 0o640 >>= fun fd ->
+      Lwt_unix.fstat fd >>= fun stat ->
+      let len = stat.st_size in
+
+      Lwt_unix.lseek fd len Lwt_unix.SEEK_SET >>= fun i ->
+      assert (i = len);
+
+      return (T (fd, ref len))
+
+    let close (T (fd, _)) =
+      Lwt_unix.close fd
+
+    let next (T (_, o)) = !o
+
+    let read (T (fd, _)) o l =
+      Lwt_unix.lseek fd o Lwt_unix.SEEK_SET >>= fun i ->
+      assert (i = o);
+
+      let s = String.create l in
+
+      let rec loop o' = function
+        | 0 -> return ()
+        | c ->
+            Lwt_unix.read fd s o' c >>= fun c' ->
+            if c' = 0
+            then
+              raise End_of_file
+            else
+              loop (o' + c') (c - c')
+      in
+      loop 0 l >>= fun () ->
+
+      return s
+
+    let write (T (fd, _)) d p l o =
+      Lwt_unix.lseek fd o Lwt_unix.SEEK_SET >>= fun i ->
+      assert (i = o);
+
+      let rec loop p' = function
+        | 0 -> return ()
+        | c ->
+            Lwt_unix.write fd d p' c >>= fun c' ->
+            if c' = 0
+            then
+              raise End_of_file
+            else
+              loop (p' + c') (c - c')
+      in
+      loop p l
+
+    let append (T (fd, o) as t) d p l =
+      let o' = !o in
+
+      write t d p l o' >>= fun () ->
+      o := o' + l;
+      return o'
+
+    let fsync (T (fd, _)) =
+      Lwt_unix.fsync fd
   end
