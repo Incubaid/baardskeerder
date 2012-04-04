@@ -188,15 +188,12 @@ module Lwt : STORE with type 'a m = 'a Lwt.t =
     let next (T (_, o)) = !o
 
     let read (T (fd, _)) o l =
-      Lwt_unix.lseek fd o Lwt_unix.SEEK_SET >>= fun i ->
-      assert (i = o);
-
       let s = String.create l in
 
       let rec loop o' = function
         | 0 -> return ()
         | c ->
-            Lwt_unix.read fd s o' c >>= fun c' ->
+            Lwt_unix_ext.pread fd s o' c (o + o') >>= fun c' ->
             if c' = 0
             then
               raise End_of_file
