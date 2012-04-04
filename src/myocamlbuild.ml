@@ -21,6 +21,12 @@ open Ocamlbuild_pack
 open Ocamlbuild_plugin
 open Command
 
+let ocamlfind_query pkg =
+  let cmd = Printf.sprintf "ocamlfind query %s" (Filename.quote pkg) in
+  Ocamlbuild_pack.My_unix.run_and_open cmd (fun ic ->
+    Log.dprintf 5 "Getting Ocaml directory from command %s" cmd;
+    input_line ic)
+
 let _ = dispatch & function
   | After_rules ->
       flag ["ocaml"; "byte"; "link"] (S[A"-custom"]);
@@ -42,6 +48,7 @@ let _ = dispatch & function
         ["libbaardskeerder_c.a"];
         
       flag ["compile"; "c"]
-        (S[A"-ccopt"; A"-I.."; A"-ccopt"; A"-msse4.2"]);
+        (S[A"-ccopt"; A"-I.."; A"-ccopt"; A"-msse4.2";
+           A"-I";A(ocamlfind_query "lwt")]);
 
   | _ -> ()

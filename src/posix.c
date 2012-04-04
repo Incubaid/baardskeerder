@@ -318,3 +318,70 @@ CAMLprim value _bs_posix_ioctl_fiemap(value fd) {
 
         CAMLreturn(ret);
 }
+
+
+/* Lwt bindings */
+#include <lwt_unix.h>
+
+/* TODO
+ * Check int type sizes. The current code does what Lwt does upstream
+ * (in 2.3.2), but it feels like int and long, signed and unsigned are mixed
+ * and matched all around, whilst POSIX defines size_t and off_t.
+ */
+
+CAMLprim value lwt_unix_ext_pread(value val_fd, value val_buf, value val_ofs, value val_len, value val_offset)
+{
+  int ret;
+  ret = pread(Int_val(val_fd), &Byte(String_val(val_buf), Long_val(val_ofs)), Long_val(val_len), Long_val(val_offset));
+  if (ret == -1) uerror("pread", Nothing);
+  /* Lwt uses Val_int here, but I'm pretty sure this must be Val_long,
+   * similar to lwt_unix_ext_pread_result */
+  return Val_long(ret);
+}
+
+struct job_pread {
+  struct lwt_unix_job job;
+  int fd;
+  char *buffer;
+  int length;
+  int offset;
+  int result;
+  int error_code;
+};
+
+#define Job_pread_val(v) *(struct job_pread**)Data_custom_val(v)
+
+static void worker_pread(struct job_pread *job)
+{
+  job->result = pread(job->fd, job->buffer, job->length, job->offset);
+  job->error_code = errno;
+}
+
+CAMLprim value lwt_unix_ext_pread_job(value val_fd, value val_length, value val_offset)
+{
+  struct job_pread *job = lwt_unix_new(struct job_pread);
+  long length = Long_val(val_length);
+  job->job.worker = (lwt_unix_job_worker)worker_pread;
+  job->fd = Int_val(val_fd);
+  job->buffer = (char*)lwt_unix_malloc(length);
+  job->length = length;
+  job->offset = Long_val(val_offset);
+  return lwt_unix_alloc_job(&(job->job));
+}
+
+CAMLprim value lwt_unix_ext_pread_result(value val_job, value val_string, value val_offset)
+{
+  struct job_pread *job = Job_pread_val(val_job);
+  int result = job->result;
+  if (result < 0) unix_error(job->error_code, "read", Nothing);
+  memcpy(String_val(val_string) + Long_val(val_offset), job->buffer, result);
+  return Val_long(result);
+}
+
+CAMLprim value lwt_unix_ext_pread_free(value val_job)
+{
+  struct job_pread *job = Job_pread_val(val_job);
+  free(job->buffer);
+  lwt_unix_free_job(&job->job);
+  return Val_unit;
+}
