@@ -323,19 +323,11 @@ CAMLprim value _bs_posix_ioctl_fiemap(value fd) {
 /* Lwt bindings */
 #include <lwt_unix.h>
 
-/* TODO
- * Check int type sizes. The current code does what Lwt does upstream
- * (in 2.3.2), but it feels like int and long, signed and unsigned are mixed
- * and matched all around, whilst POSIX defines size_t and off_t.
- */
-
 CAMLprim value lwt_unix_ext_pread(value val_fd, value val_buf, value val_ofs, value val_len, value val_offset)
 {
   int ret;
   ret = pread(Int_val(val_fd), &Byte(String_val(val_buf), Long_val(val_ofs)), Long_val(val_len), Long_val(val_offset));
   if (ret == -1) uerror("pread", Nothing);
-  /* Lwt uses Val_int here, but I'm pretty sure this must be Val_long,
-   * similar to lwt_unix_ext_pread_result */
   return Val_long(ret);
 }
 
@@ -343,9 +335,9 @@ struct job_pread {
   struct lwt_unix_job job;
   int fd;
   char *buffer;
-  int length;
-  int offset;
-  int result;
+  long length;
+  long offset;
+  long result;
   int error_code;
 };
 
