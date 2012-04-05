@@ -373,7 +373,7 @@ CAMLprim value lwt_unix_ext_pread_result(value val_job, value val_string, value 
 {
   struct job_pread *job = Job_pread_val(val_job);
   int result = job->result;
-  if (result < 0) unix_error(job->error_code, "read", Nothing);
+  if (result < 0) unix_error(job->error_code, "pread", Nothing);
   memcpy(String_val(val_string) + Long_val(val_offset), job->buffer, result);
   return Val_long(result);
 }
