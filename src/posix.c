@@ -377,3 +377,59 @@ CAMLprim value lwt_unix_ext_pread_free(value val_job)
   lwt_unix_free_job(&job->job);
   return Val_unit;
 }
+
+
+CAMLprim value lwt_unix_ext_pwrite(value val_fd, value val_buf, value val_ofs, value val_len, value val_offset)
+{
+  int ret;
+  ret = pwrite(Int_val(val_fd), &Byte(String_val(val_buf), Long_val(val_ofs)), Long_val(val_len), Long_val(val_offset));
+  if (ret == -1) uerror("pwrite", Nothing);
+  return Val_long(ret);
+}
+
+struct job_pwrite {
+  struct lwt_unix_job job;
+  int fd;
+  char *buffer;
+  long length;
+  long offset;
+  long result;
+  int error_code;
+};
+
+#define Job_pwrite_val(v) *(struct job_pwrite**)Data_custom_val(v)
+
+static void worker_pwrite(struct job_pwrite *job)
+{
+  job->result = pwrite(job->fd, job->buffer, job->length, job->offset);
+  job->error_code = errno;
+}
+
+CAMLprim value lwt_unix_ext_pwrite_job(value val_fd, value val_string, value val_ofs, value val_length, value val_offset)
+{
+  struct job_pwrite *job = lwt_unix_new(struct job_pwrite);
+  long length = Long_val(val_length);
+  job->job.worker = (lwt_unix_job_worker)worker_pwrite;
+  job->fd = Int_val(val_fd);
+  job->buffer = (char*)lwt_unix_malloc(length);
+  memcpy(job->buffer, String_val(val_string) + Long_val(val_ofs), length);
+  job->length = length;
+  job->offset = Long_val(val_offset);
+  return lwt_unix_alloc_job(&(job->job));
+}
+
+CAMLprim value lwt_unix_ext_pwrite_result(value val_job)
+{
+  struct job_pwrite *job = Job_pwrite_val(val_job);
+  int result = job->result;
+  if (result < 0) unix_error(job->error_code, "pwrite", Nothing);
+  return Val_long(result);
+}
+
+CAMLprim value lwt_unix_ext_pwrite_free(value val_job)
+{
+  struct job_pwrite *job = Job_pwrite_val(val_job);
+  free(job->buffer);
+  lwt_unix_free_job(&job->job);
+  return Val_unit;
+}

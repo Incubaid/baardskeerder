@@ -43,3 +43,28 @@ let pread ch buf pos len offset =
       | false ->
           wrap_syscall Lwt_unix.Read ch
             (fun () -> stub_pread (Lwt_unix.unix_file_descr ch) buf pos len offset)
+
+
+external stub_pwrite : Unix.file_descr -> string -> int -> int -> int -> int =
+  "lwt_unix_ext_pwrite"
+external pwrite_job : Unix.file_descr -> string -> int -> int -> int -> [ `unix_pwrite ] job =
+  "lwt_unix_ext_pwrite_job"
+external pwrite_result : [ `unix_pwrite ] job -> int =
+  "lwt_unix_ext_pwrite_result"
+external pwrite_free : [ `unix_pwrite ] job -> unit =
+  "lwt_unix_ext_pwrite_free" "noalloc"
+
+let pwrite ch buf pos len offset =
+  if pos < 0 || len < 0 || pos > String.length buf - len then
+    invalid_arg "Lwt_unix_ext.pwrite"
+  else
+    Lwt_unix.blocking ch >>= function
+      | true ->
+          Lwt_unix.wait_write ch >>= fun () ->
+          Lwt_unix.execute_job
+            (pwrite_job (Lwt_unix.unix_file_descr ch) buf pos len offset)
+            pwrite_result
+            pwrite_free
+      | false ->
+          wrap_syscall Lwt_unix.Write ch
+            (fun () -> stub_pwrite (Lwt_unix.unix_file_descr ch) buf pos len offset)
