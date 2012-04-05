@@ -205,20 +205,13 @@ module Lwt : STORE with type 'a m = 'a Lwt.t =
       return s
 
     let write (T (fd, _)) d p l o =
-      Lwt_unix.lseek fd o Lwt_unix.SEEK_SET >>= fun i ->
-      assert (i = o);
-
-      let rec loop p' = function
+      let rec loop p' o' = function
         | 0 -> return ()
         | c ->
-            Lwt_unix.write fd d p' c >>= fun c' ->
-            if c' = 0
-            then
-              raise End_of_file
-            else
-              loop (p' + c') (c - c')
+            Lwt_unix_ext.pwrite fd d p' c o' >>= fun c' ->
+            loop (p' + c') (o' + c') (c - c')
       in
-      loop p l
+      loop p o l
 
     let append (T (fd, o) as t) d p l =
       let o' = !o in
