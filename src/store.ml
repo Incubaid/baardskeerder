@@ -117,8 +117,6 @@ module Sync : STORE =
       let stat = fstat fd in
       let len = stat.st_size in
 
-      assert (len > 0);
-
       let _ = lseek fd len Unix.SEEK_SET in
 
       return (T (fd, ref len))
