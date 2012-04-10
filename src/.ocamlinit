@@ -6,10 +6,12 @@
 # load "leafz.cmo";;
 # load "index.cmo";;
 # load "indexz.cmo";;
+# load "time.cmo";;
+# load "commit.cmo";;
 # load "entry.cmo";;
 # load "slab.cmo";;
 # load "log.cmo";;
 # load "mlog.cmo";;
 # load "tree.cmo";;
 # load "dbx.cmo";;
-# load "dot.cmo";;
+(* # load "dot.cmo";; *)
