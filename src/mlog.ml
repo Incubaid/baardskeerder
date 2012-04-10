@@ -71,11 +71,12 @@ let write (t:t) (slab:Slab.t) =
   let externalize_leaf  l = List.map (function (k,p) -> (k,externalize_pos p)) l in
   let externalize_index (p0, l) = (externalize_pos p0, externalize_leaf l) in
   let externalize_commit c = 
-    let p = externalize_pos (Commit.get_pos c) in
+    let pos = externalize_pos (Commit.get_pos c) in
     let actions = externalize_actions (Commit.get_actions c) in
     let time = Commit.get_time c in
-    let prev = externalize_pos (Commit.get_previous c) in
-    Commit.make_commit p prev time actions
+    let previous = externalize_pos (Commit.get_previous c) in
+    let lookup = externalize_pos (Commit.get_lookup c) in
+    Commit.make_commit ~pos ~previous ~lookup time actions
   in
   let externalize = function
     | NIL -> NIL

@@ -145,11 +145,12 @@ and commit_writer =
 and commit_reader =
   Binary.read_char8 >>= fun t ->
   assert (t = commit_tag);
-  read_pos >>= fun p ->
+  read_pos >>= fun pos ->
   let i = Time.zero
   and a = []
-  and prev = Outer (Spindle 0, Offset (-2)) in
-  let c = Commit.make_commit p prev i a in
+  and previous = Outer (Spindle 0, Offset (-2)) in
+  let lookup = pos in
+  let c = Commit.make_commit ~pos ~previous ~lookup i a in
   Binary.return $ Commit c
 
 

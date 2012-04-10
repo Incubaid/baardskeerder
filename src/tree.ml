@@ -67,7 +67,7 @@ module DB = functor (L:LOG ) -> struct
 	let pos = L.last t in
 	L.read t pos >>= fun e ->
 	match e with 
-	  | Commit c -> descend (Commit.get_pos c)
+	  | Commit c -> descend (Commit.get_lookup c)
 	  | NIL -> raise (NOT_FOUND k)
 	  | Index _ | Leaf _ | Value _ -> failwith "descend_root does not start at appropriate level"
       else
@@ -110,7 +110,7 @@ module DB = functor (L:LOG ) -> struct
       L.read t pos >>= fun e ->
       match e with
 	| NIL -> return []
-	| Commit c -> let pos = Commit.get_pos c in _set_descend t slab k pos [] 
+	| Commit c -> let lookup = Commit.get_lookup c in _set_descend t slab k lookup [] 
 	| Index _ | Value _ | Leaf _ -> 
 	  let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
     else
@@ -172,10 +172,11 @@ module DB = functor (L:LOG ) -> struct
     let now = L.now t in
     let fut = Time.next_major now in
     let slab = Slab.make fut in
-    _set t slab k v >>= fun (rp':pos) ->
+    _set t slab k v >>= fun (pos:pos) ->
     let action = Commit.Set (k,Inner 0) in (* a little knowledge is a dangerous thing *)
-    let last = L.last t in
-    let commit = Commit.make_commit rp' last fut [action] in (* UGLY *)
+    let previous = L.last t in
+    let lookup = pos in
+    let commit = Commit.make_commit ~pos ~previous ~lookup fut [action] in (* UGLY *)
     let _ = Slab.add_commit slab commit in
     L.write t slab
 
@@ -471,7 +472,7 @@ module DB = functor (L:LOG ) -> struct
 	L.read t lp >>= fun e ->
 	match e with
 	  | NIL -> return []
-	  | Commit c -> let pos = Commit.get_pos c in descend pos []
+	  | Commit c -> let lookup = Commit.get_lookup c in descend lookup []
 	  | Index _ | Leaf _ | Value _  -> 
 	    let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in
 	    failwith s
@@ -488,10 +489,11 @@ module DB = functor (L:LOG ) -> struct
     let now = L.now t in
     let fut = Time.next_major now in
     let slab = Slab.make fut in
-    _delete t slab k >>= fun (rp':pos) ->
+    _delete t slab k >>= fun (pos:pos) ->
     let action = Commit.Delete k in
-    let last = L.last t in
-    let commit = Commit.make_commit rp' last fut [action] in
+    let previous = L.last t in
+    let lookup = pos in
+    let commit = Commit.make_commit ~pos ~previous ~lookup fut [action] in
     let _ = Slab.add_commit slab commit in
     L.write t slab
 
@@ -506,8 +508,8 @@ module DB = functor (L:LOG ) -> struct
       | NIL  -> return 0
       | Commit c -> 
 	begin
-          let pos = Commit.get_pos c in
-	  let root = pos in
+          let lookup = Commit.get_lookup c in
+	  let root = lookup in
 	  let t_left k = match first with
 	    | None -> true
 	    | Some k_f -> if finc then k_f <= k else k_f < k 
@@ -531,7 +533,7 @@ module DB = functor (L:LOG ) -> struct
 	      | Value _ -> return count
 	      | Leaf leaf -> return (walk_leaf count leaf)
 	      | Index index -> walk_index count index
-	      | Commit c -> let pos = Commit.get_pos c in walk count pos
+	      | Commit c -> let lookup = Commit.get_lookup c in walk count lookup
 	  and walk_leaf count leaf = 
 	    let rec loop count = function
 	      | [] -> count
@@ -716,7 +718,7 @@ module DB = functor (L:LOG ) -> struct
         L.read t pos >>= fun e ->
         match e with
           | NIL -> return 0
-          | Commit c -> let pos = Commit.get_pos c in _depth_descend t slab pos 1
+          | Commit c -> let lookup = Commit.get_lookup c in _depth_descend t slab lookup 1
           | Index _ | Value _ | Leaf _ -> 
             let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in failwith s
       else
