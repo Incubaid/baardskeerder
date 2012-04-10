@@ -1,7 +1,7 @@
 description = "Baardskeerder: an append-only B-tree-ish local database"
 version = "%x.x.x"
 exists_if = "baardskeerder.cma,baardskeerder.cmxa"
-requires = "unix"
+requires = "unix, lwt.unix"
 archive(byte) = "baardskeerder.cma"
 archive(native) = "baardskeerder.cmxa"
 linkopts = "-cclib -lbaardskeerder_c"
