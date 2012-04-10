@@ -42,6 +42,8 @@ module type STORE =
     val append : t -> string -> string_offset -> length -> store_offset m
 
     val fsync : t -> unit m
+
+    val with_fd : t -> (Unix.file_descr -> 'a) -> 'a m
   end
 
 module Memory : STORE =
@@ -94,6 +96,8 @@ module Memory : STORE =
       return o
 
     let fsync (T _) = return ()
+
+    let with_fd _ _ = failwith "Store.Memory.with_fd"
   end
 
 module Sync : STORE =
@@ -155,6 +159,9 @@ module Sync : STORE =
     let fsync (T (fd, _)) =
       Posix.fsync fd;
       return ()
+
+    let with_fd (T (fd, _)) f =
+      return (f fd)
   end
 
 module Lwt_ = Lwt
@@ -222,4 +229,7 @@ module Lwt : STORE with type 'a m = 'a Lwt.t =
 
     let fsync (T (fd, _)) =
       Lwt_unix.fsync fd
+
+    let with_fd (T (fd, _)) f =
+      Lwt_preemptive.detach f (Lwt_unix.unix_file_descr fd)
   end

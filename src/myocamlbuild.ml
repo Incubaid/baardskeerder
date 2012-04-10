@@ -51,4 +51,7 @@ let _ = dispatch & function
         (S[A"-ccopt"; A"-I.."; A"-ccopt"; A"-msse4.2";
            A"-I";A(ocamlfind_query "lwt")]);
 
+      flag ["ocaml";"compile";] (S[A"-thread"]);
+      flag ["ocaml";"link";] (S[A"-thread"]);
+
   | _ -> ()
