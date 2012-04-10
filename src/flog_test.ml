@@ -26,11 +26,15 @@ open Flog
 
 open Monad
 
-module M = Monad(Flog)
+module MyFlog = Flog(Store.Sync)
 
-let (>>=) = Flog.bind
-and return = Flog.return
-and run = Flog.run
+open MyFlog
+
+module M = Monad(Store.Sync)
+
+let (>>=) = Store.Sync.bind
+and return = Store.Sync.return
+and run = Store.Sync.run
 
 let test_uintN wf rf l n () =
   let m = 0x40000000 - 1 in
@@ -163,7 +167,7 @@ let test_database_make fn = run (
 )
 
 
-module FDB = DB(Flog)
+module FDB = DB(MyFlog)
 
 let with_database f =
   let f' fn =
@@ -226,7 +230,7 @@ let test_database_reopen fn db =
   FDB.set db k1 v1 >>= fun () ->
   FDB.set db k2 v2 >>= fun () ->
 
-  Flog.close db >>= fun () ->
+  MyFlog.close db >>= fun () ->
 
   make fn >>= fun db' ->
   let my_get k = FDB.get db'  k in
@@ -245,8 +249,8 @@ let test_database_sync fn db =
   FDB.set db k v >>= fun () ->
 
   (* Set both metadata field *)
-  Flog.sync db >>= fun () ->
-  Flog.sync db >>=  fun () ->
+  MyFlog.sync db >>= fun () ->
+  MyFlog.sync db >>=  fun () ->
   let my_get k = FDB.get db k in
 
   my_get k >>= fun v' ->
@@ -298,7 +302,7 @@ let test_compaction_basic fn db =
 
   M.iter (fun (k, v) -> FDB.set db k v) kps >>= fun () ->
 
-  Flog.compact ~min_blocks:1 db >>= fun () ->
+  MyFlog.compact ~min_blocks:1 db >>= fun () ->
 
   close db >>= fun () ->
 
@@ -329,7 +333,7 @@ let test_compaction_lengthy fn db =
   loop 1000 >>= fun () ->
 
   let do_compact () =
-    Flog.compact ~min_blocks:1 db
+    MyFlog.compact ~min_blocks:1 db
   in
 
   do_compact () >>= fun () ->
@@ -386,7 +390,7 @@ let test_compaction_all_states m c fn db =
     function
       | 0 -> return ()
       | n ->
-          Flog.compact ~min_blocks:m db >>= fun () ->
+          MyFlog.compact ~min_blocks:m db >>= fun () ->
           let key = Printf.sprintf "key_%d" n in
           FDB.delete db key >>= fun () ->
           check_deleted n t >>= fun () ->

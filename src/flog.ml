@@ -17,16 +17,8 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-open Unix
-
 open Entry
 open Pos
-open Posix
-
-type 'a m = 'a
-let bind a f = f a
-let return v = v
-let run a = a
 
 type blocksize = int
 type count = int
@@ -39,18 +31,6 @@ module OffsetEntryCache = Entrycache.Make(
     let create _ = (Outer (Spindle 0, Offset 0), NIL)
   end)
 
-let (>>) = Binary.(>>)
-let (>>=) = Binary.(>>=)
-let ($) a b = a b
-let id = fun x -> x
-let dot f g = fun x -> f $ g x
-
-let chr0 = '\000'
-let chr1 = '\001'
-let chr2 = '\002'
-let chr3 = '\003'
-let chr4 = '\004'
-
 
 (* Metadata handling *)
 type metadata = {
@@ -60,6 +40,46 @@ type metadata = {
   md_count: count;
   md_d : int;
 }
+
+let pos_remap h = function
+  | Outer _ as o -> o
+  | Inner p -> Hashtbl.find h p
+
+
+let chr0 = '\000'
+let chr1 = '\001'
+let chr2 = '\002'
+let chr3 = '\003'
+let chr4 = '\004'
+
+let ($) a b = a b
+let id = fun x -> x
+let dot f g = fun x -> f $ g x
+
+module SerDes = struct
+
+let (>>) = Binary.(>>)
+let (>>=) = Binary.(>>=)
+
+(* Entry handling helpers *)
+let reader_envelope: ('a Binary.reader) -> ('a Binary.reader) =
+  fun r -> fun s o ->
+    let l, _ = Binary.read_uint32 s o in
+    if l <> String.length s - Binary.size_uint32
+    then failwith "Flog.reader_envelope: size mismatch"
+    else ();
+
+    let crc32, _ = Binary.read_crc32 s (String.length s - Binary.size_crc32) in
+    let crc32', _ = Binary.calc_crc32 0 (Some (String.length s - Binary.size_crc32)) s 0 in
+    if crc32 <> crc32'
+    then failwith "Flog.reader_envelope: CRC32 mismatch"
+    else ();
+
+    r s Binary.size_uint32
+and calculate_size_envelope: ('a -> int) -> 'a -> int =
+  fun c -> fun a ->
+    c a + Binary.size_uint32 + Binary.size_crc32
+
 
 let metadata_prefix = "BaArDsKeErDeR"
 let metadata_suffix = "bAaRdSkEeRdEr"
@@ -98,114 +118,6 @@ and metadata_reader =
                               md_d=md_d;
                             }
 
-let serialize_metadata md =
-  let b, l = Binary.run_writer ~buffer_size:md.md_blocksize
-    metadata_writer md in
-
-  assert (l <= md.md_blocksize);
-
-  let s = String.make md.md_blocksize chr0 in
-  String.blit b 0 s 0 l;
-
-  (s, md.md_blocksize)
-and deserialize_metadata s = fst $ metadata_reader s 0
-
-
-type t = {
-  fd_in: file_descr;
-  fd_append: file_descr;
-  fd_random: file_descr;
-  d : int;
-  mutable offset: offset;
-  mutable commit_offset: offset;
-  mutable closed: bool;
-
-  mutable last_metadata: int;
-  mutable metadata: metadata * metadata;
-
-  mutable space_left: int;
-
-  mutable now: Time.t;
-  cache: OffsetEntryCache.t;
-}
-
-let lseek_set f o =
-  let o' = lseek f o SEEK_SET in
-  if o' <> o then failwith "Flog.seek_set: seek failed" else ()
-
-let safe_write f s o l =
-  let rec helper o = function
-    | 0 -> ()
-    | l ->
-        let c = Unix.single_write f s o l in
-        helper (o + c) (l - c)
-  in
-  helper o l
-
-
-let init ?(d=2) (f: string) (_:Time.t) =
-  let fd = openfile f [O_WRONLY; O_EXCL; O_CREAT] 0o644 in
-
-  set_close_on_exec fd;
-  lockf fd F_TLOCK 0;
-
-  let b = Posix.fstat_blksize fd in
-
-  let metadata1, b1 = serialize_metadata
-      { md_blocksize=b; md_spindle=Spindle 0; md_offset=Offset 0; md_count=0; md_d = d }
-  and metadata2, b2 = serialize_metadata
-      { md_blocksize=b; md_spindle=Spindle 0; md_offset=Offset 0; md_count=1; md_d = d } 
-  in
-
-  lseek_set fd 0;
-  ftruncate fd (2 * b);
-  pwrite_exactly fd metadata1 b1 0;
-  flush (out_channel_of_descr fd);
-  Posix.fsync fd;
-  pwrite_exactly fd metadata2 b2 b1;
-  flush (out_channel_of_descr fd);
-  Posix.fdatasync fd;
-
-  (* If a database is `init`-ialised, we'll open it soon, most likely *)
-  posix_fadvise fd 0 (b1 + b2) POSIX_FADV_WILLNEED;
-
-  close fd;
-
-  return ()
-
-(* Entry handling helpers *)
-let reader_envelope: ('a Binary.reader) -> ('a Binary.reader) =
-  fun r -> fun s o ->
-    let l, _ = Binary.read_uint32 s o in
-    if l <> String.length s - Binary.size_uint32
-    then failwith "Flog.reader_envelope: size mismatch"
-    else ();
-
-    let crc32, _ = Binary.read_crc32 s (String.length s - Binary.size_crc32) in
-    let crc32', _ = Binary.calc_crc32 0 (Some (String.length s - Binary.size_crc32)) s 0 in
-    if crc32 <> crc32'
-    then failwith "Flog.reader_envelope: CRC32 mismatch"
-    else ();
-
-    r s Binary.size_uint32
-and calculate_size_envelope: ('a -> int) -> 'a -> int =
-  fun c -> fun a ->
-    c a + Binary.size_uint32 + Binary.size_crc32
-
-let serialize_helper: 'a. ('a Binary.writer) -> 'a -> string =
-  fun w -> fun o ->
-    let s, l = Binary.run_writer w o in
-    let b = Buffer.create (l + Binary.size_uint32 + Binary.size_crc32) in
-    Binary.const Binary.write_uint32 (l + Binary.size_crc32) b ();
-    Buffer.add_string b s;
-    Binary.write_crc32 0 None b ();
-    Buffer.contents b
-and deserialize_helper: ('a Binary.reader) -> string -> int -> 'a =
-  fun r ->
-    let r' = reader_envelope r in
-    fun s o ->
-      fst $ r' s o
-
 
 let write_pos =
   fun f -> fun b a ->
@@ -240,9 +152,6 @@ and commit_reader =
   let c = Commit.make_commit p prev i a in
   Binary.return $ Commit c
 
-let serialize_commit = serialize_helper commit_writer
-and deserialize_commit = deserialize_helper commit_reader
-
 
 let calculate_size_value =
   calculate_size_envelope
@@ -259,13 +168,6 @@ and value_reader =
   Binary.read_string >>= fun s ->
   Binary.return $ Value s
 
-let serialize_value = serialize_helper value_writer
-and deserialize_value = deserialize_helper value_reader
-
-
-let pos_remap h = function
-  | Outer _ as o -> o
-  | Inner p -> Hashtbl.find h p
 
 let leaf_writer h =
   Binary.const Binary.write_char8 leaf_tag >>
@@ -290,9 +192,6 @@ and leaf_reader =
   assert (o = 0);
   Binary.read_list8 item_reader >>= fun kps ->
   Binary.return $ Leaf kps
-
-let serialize_leaf h = serialize_helper (leaf_writer h)
-and deserialize_leaf = deserialize_helper leaf_reader
 
 
 let index_writer h =
@@ -324,8 +223,112 @@ and index_reader =
 
   Binary.return $ Index (p0, kps)
 
-let serialize_index h = serialize_helper (index_writer h)
-and deserialize_index = deserialize_helper index_reader
+end
+
+
+let serialize_metadata md =
+  let b, l = Binary.run_writer ~buffer_size:md.md_blocksize
+    SerDes.metadata_writer md in
+
+  assert (l <= md.md_blocksize);
+
+  let s = String.make md.md_blocksize chr0 in
+  String.blit b 0 s 0 l;
+
+  (s, md.md_blocksize)
+and deserialize_metadata s = fst $ SerDes.metadata_reader s 0
+
+
+module Flog =
+  functor(S:Store.STORE) ->
+  struct
+
+  type 'a m = 'a S.m
+  let bind = S.bind
+  and (>>=) = S.bind
+  and return = S.return
+  and run = S.run
+
+type t = {
+  fd: S.t;
+  d : int;
+  mutable offset: offset;
+  mutable commit_offset: offset;
+  mutable closed: bool;
+
+  mutable last_metadata: int;
+  mutable metadata: metadata * metadata;
+
+  mutable space_left: int;
+
+  mutable now: Time.t;
+  cache: OffsetEntryCache.t;
+}
+
+let lseek_set f o =
+  let o' = Unix.lseek f o Unix.SEEK_SET in
+  if o' <> o then failwith "Flog.seek_set: seek failed" else ()
+
+(* TODO Use time argument! *)
+let init ?(d=2) (f: string) (_:Time.t) =
+  S.init f >>= fun fd ->
+
+  S.with_fd fd Unix.set_close_on_exec >>= fun () ->
+  S.with_fd fd (fun fd -> Unix.lockf fd Unix.F_TLOCK 0) >>= fun () ->
+
+  S.with_fd fd Posix.fstat_blksize >>= fun b ->
+
+  let metadata1, b1 = serialize_metadata
+      { md_blocksize=b; md_spindle=Spindle 0; md_offset=Offset 0; md_count=0; md_d = d }
+  and metadata2, b2 = serialize_metadata
+      { md_blocksize=b; md_spindle=Spindle 0; md_offset=Offset 0; md_count=1; md_d = d } 
+  in
+
+  S.with_fd fd
+    (fun fd ->
+      lseek_set fd 0;
+      Unix.ftruncate fd (2 * b)
+    ) >>= fun () ->
+
+  S.write fd metadata1 0 b1 0 >>= fun () ->
+  S.fsync fd >>= fun () ->
+  S.write fd metadata2 0 b2 b1 >>= fun () ->
+  S.with_fd fd Posix.fdatasync >>= fun () ->
+
+  (* If a database is `init`-ialised, we'll open it soon, most likely *)
+  S.with_fd fd (fun fd -> Posix.posix_fadvise fd 0 (b1 + b2) Posix.POSIX_FADV_WILLNEED)
+  >>= fun () ->
+
+  S.close fd
+
+
+
+let serialize_helper: 'a. ('a Binary.writer) -> 'a -> string =
+  fun w -> fun o ->
+    let s, l = Binary.run_writer w o in
+    let b = Buffer.create (l + Binary.size_uint32 + Binary.size_crc32) in
+    Binary.const Binary.write_uint32 (l + Binary.size_crc32) b ();
+    Buffer.add_string b s;
+    Binary.write_crc32 0 None b ();
+    Buffer.contents b
+and deserialize_helper: ('a Binary.reader) -> string -> int -> 'a =
+  fun r ->
+    let r' = SerDes.reader_envelope r in
+    fun s o ->
+      fst $ r' s o
+
+
+let serialize_commit = serialize_helper SerDes.commit_writer
+and deserialize_commit = deserialize_helper SerDes.commit_reader
+
+let serialize_value = serialize_helper SerDes.value_writer
+and deserialize_value = deserialize_helper SerDes.value_reader
+
+let serialize_leaf h = serialize_helper (SerDes.leaf_writer h)
+and deserialize_leaf = deserialize_helper SerDes.leaf_reader
+
+let serialize_index h = serialize_helper (SerDes.index_writer h)
+and deserialize_index = deserialize_helper SerDes.index_reader
 
 
 let marker = 0x0baadeed
@@ -333,28 +336,26 @@ let marker' = fst $ Binary.run_writer ~buffer_size:4
   (Binary.const Binary.write_uint32 marker) ()
 
 let find_commit f o =
-  let s = String.create 5 in
-
   let rec loop a o next_time=
     try
-      pread_into_exactly f s 4 o;
+      S.read f o 4 >>= fun s ->
       assert (fst $ Binary.read_uint32 s 0 = marker);
 
-      pread_into_exactly f s 5 (o + 4);
+      S.read f (o + 4) 5 >>= fun s ->
 
       let s' = fst $ Binary.read_uint32 s 0 in
       let o' = o + 8 + s' in
       match fst $ Binary.read_char8 s 4 with
-        | i when i = leaf_tag -> loop a o' next_time
-        | i when i = index_tag -> loop a o' next_time
-        | i when i = value_tag -> loop a o' next_time
-        | i when i = commit_tag -> loop o o' next_time
+        | i when i = SerDes.leaf_tag -> loop a o' next_time
+        | i when i = SerDes.index_tag -> loop a o' next_time
+        | i when i = SerDes.value_tag -> loop a o' next_time
+        | i when i = SerDes.commit_tag -> loop o o' next_time
         | c -> failwith
                 (Printf.sprintf "Flog.find_root: unknown entry type: %d"
                   (Char.code c))
 
     with End_of_file ->
-      a, next_time
+      return (a, next_time)
   in
 
   loop 0 o (Time.zero)
@@ -364,50 +365,61 @@ let extend_file =
   and extent = 1024 * 1024 * 512 (* 512 MB *) in
 
   fun fd (Offset offset) ->
-    Posix.fallocate fd ks offset extent;
-    extent
+    S.with_fd fd
+      (fun fd ->
+        Posix.fallocate fd ks offset extent;
+        extent)
 
-let make (f: string): t =
+let make (f: string): t S.m =
   let from_some = function
     | Some x -> x
     | _ -> invalid_arg "Flog.make.from_some"
   in
 
-  let fd_random = openfile f [O_WRONLY;] 0o644 in
-  set_close_on_exec fd_random;
+  S.init f >>= fun fd ->
+  S.with_fd fd
+    (fun fd ->
+      Unix.set_close_on_exec fd;
+      let cur = Unix.lseek fd 0 Unix.SEEK_CUR in
+      lseek_set fd 0;
+      Unix.lockf fd Unix.F_TLOCK 0;
 
-  lseek_set fd_random 0;
-  lockf fd_random F_TLOCK 0;
+      let tbs = Posix.fstat_blksize fd in
+      Posix.posix_fadvise fd 0 (2 * tbs) Posix.POSIX_FADV_WILLNEED;
+
+      lseek_set fd cur;
+
+      tbs
+    )
+  >>= fun tbs ->
 
   (* TODO Make safe -> close handles! *)
   (* TODO Read metadata *)
-  let fd_in = openfile f [O_RDONLY] 0o644 in
-  set_close_on_exec fd_in;
 
-  let tbs = Posix.fstat_blksize fd_in in
 
-  posix_fadvise fd_in 0 (2 * tbs) POSIX_FADV_WILLNEED;
-
-  let mds = String.create tbs in
-  pread_into_exactly fd_in mds tbs 0;
+  S.read fd 0 tbs >>= fun mds ->
   let md1 = from_some (deserialize_metadata mds) in
   let bs = md1.md_blocksize in
-  let mds = String.create bs in
-  pread_into_exactly fd_in mds bs bs;
+  S.read fd bs bs >>= fun mds ->
   let md2 = from_some (deserialize_metadata mds) in
 
-  posix_fadvise fd_in 0 (max tbs (2 * bs)) POSIX_FADV_DONTNEED;
+  S.with_fd fd
+    (fun fd -> Posix.posix_fadvise fd 0 (max tbs (2 * bs)) Posix.POSIX_FADV_DONTNEED)
+  >>= fun () ->
 
   (* TODO Use 'best' metadata instead of checking it's value *)
   assert (md1.md_blocksize = md2.md_blocksize);
   assert (md1.md_spindle = md2.md_spindle);
 
-  let fd_append = openfile f [O_APPEND; O_WRONLY] 0o644 in
-  set_close_on_exec fd_append;
+  S.with_fd fd
+    (fun fd ->
+      let curr = Unix.lseek fd 0 Unix.SEEK_CUR in
+      let offset = Unix.lseek fd 0 Unix.SEEK_END in
+      lseek_set fd curr;
+      offset
+    ) >>= fun offset ->
 
-  let offset = lseek fd_append 0 SEEK_END in
-
-  let extent = extend_file fd_append (Offset offset) in
+  extend_file fd (Offset offset) >>= fun extent ->
 
   let (Offset s) =
     if md1.md_count > md2.md_count
@@ -415,14 +427,14 @@ let make (f: string): t =
     else md2.md_offset
   in
   let s = if s = 0 then (2 * bs) else s in
-  let last,now = find_commit fd_in s in
+  find_commit fd s >>= fun (last, now) ->
 
   (* TODO Choose correct last_metadata *)
   (* TODO Write 'best' metadata into both blocks *)
 
   let cache = OffsetEntryCache.create 32 in
 
-  { fd_in=fd_in; fd_append=fd_append; fd_random=fd_random;
+  return { fd=fd;
     offset=Offset offset; commit_offset=Offset last;
     closed=false;
     last_metadata=0; metadata=(md1, md2); space_left=extent;
@@ -475,12 +487,14 @@ let write t slab =
   (* as before *)
   let s = Buffer.contents b in
   let l = String.length s in
-  if t.space_left < l
+  (if t.space_left < l
   then
-    let e = extend_file t.fd_append t.offset in
-    t.space_left <- e
+    extend_file t.fd t.offset >>= fun e ->
+    t.space_left <- e;
+    return ()
   else
-    ();
+    return ())
+  >>= fun () ->
 
   (* TODO Not multi-spindle compatible! *)
   let co = match cp with
@@ -489,25 +503,27 @@ let write t slab =
     | Outer (Spindle _, Offset _) -> failwith "Flog.write: Invalid spindle"
   in
 
-  safe_write t.fd_append s 0 l;
+  S.append t.fd s 0 l >>= fun _ ->
   t.commit_offset <- co;
   t.offset <- Offset (let Offset o = t.offset in o + l);
-  t.space_left <- t.space_left - l
+  t.space_left <- t.space_left - l;
 
   (* TODO We might want to List.rev slab.es, if slabs get > cache.s big *)
   (* 
      Slab.iter (fun (p, e) -> OffsetEntryCache.add t.cache p e) slab.es
   *)
 
+  return ()
+
 (* TODO Not multi-spindle compatible! *)
 let last t = Outer (Spindle 0, t.commit_offset)
 
 
 let read t pos =
-  if pos = Outer (Spindle 0, Offset 0) then NIL
+  if pos = Outer (Spindle 0, Offset 0) then return NIL
   else
   match OffsetEntryCache.get t.cache pos with
-  | Some e -> e
+  | Some e -> return e
   | None ->
     begin
       (* TODO Not multi-spindle compatible! *)
@@ -515,9 +531,9 @@ let read t pos =
         | Inner _ -> failwith "Flog.read: Inner"
         | Outer (Spindle 0, Offset o) -> o
         | Outer (Spindle _ , Offset _) -> failwith "Flog.read: Invalid spindle"
+      in
 
-      and s = String.create 9 in
-      pread_into_exactly t.fd_in s 9 pos';
+      S.read t.fd pos' 9 >>= fun s ->
       
       let m = fst $ Binary.read_uint32 s 0
       and l = fst $ Binary.read_uint32 s 4 in
@@ -526,22 +542,19 @@ let read t pos =
       let c = fst $ Binary.read_char8 s 8 in
       
       (* Special-case values to get-around a useless allocation + substring *)
-      if c = value_tag
+      if c = SerDes.value_tag
       then
-        let s' = String.create (l - 2 - 4 - 4) in
-        pread_into_exactly t.fd_in s' (l - 2 - 4 - 4)
-          (pos' + 4 + 4 + 1 + 1 + 4);
-	Value s'
+          S.read t.fd (pos' + 4 + 4 + 1 + 1 + 4) (l - 2 - 4 - 4) >>= fun s' ->
+          return (Value s')
       else
-        let s' = String.create (l + 4) in
-        pread_into_exactly t.fd_in s' (l + 4) (pos' + 4);
+          S.read t.fd (pos' + 4) (l + 4) >>= fun s' ->
 
-        match c with
-          | i when i = value_tag -> failwith "Flog.read: value"
-          | i when i = leaf_tag -> deserialize_leaf s' 0
-          | i when i = index_tag -> deserialize_index s' 0
-          | i when i = commit_tag -> deserialize_commit s' 0
-          | _ -> failwith "Flog.read: unknown node type"
+          return $ match c with
+            | i when i = SerDes.value_tag -> failwith "Flog.read: value"
+            | i when i = SerDes.leaf_tag -> deserialize_leaf s' 0
+            | i when i = SerDes.index_tag -> deserialize_index s' 0
+            | i when i = SerDes.commit_tag -> deserialize_commit s' 0
+            | _ -> failwith "Flog.read: unknown node type"
     end
 
 let sync t =
@@ -549,8 +562,7 @@ let sync t =
   let c = t.commit_offset in
 
   (* Sync file *)
-  flush (out_channel_of_descr t.fd_append);
-  Posix.fsync t.fd_append;
+  S.fsync t.fd >>= fun () ->
 
   (* Figure out which metadata to overwrite *)
   let i = (t.last_metadata + 1) mod 2 in
@@ -562,11 +574,10 @@ let sync t =
   (* Write to disk *)
   let s, bs = serialize_metadata m' in
   let o = if i = 0 then 0 else m.md_blocksize in
-  pwrite_exactly t.fd_random s bs o;
+  S.write t.fd s 0 bs o >>= fun () ->
 
   (* Sync again *)
-  flush (out_channel_of_descr t.fd_random);
-  Posix.fdatasync t.fd_random;
+  S.with_fd t.fd Posix.fdatasync >>= fun () ->
 
   (* Update in-memory representation *)
   let md' =
@@ -576,22 +587,24 @@ let sync t =
   in
 
   t.metadata <- md';
-  t.last_metadata <- i
+  t.last_metadata <- i;
+
+  return ()
 
 
 let close db =
   if db.closed
-  then ()
+  then return ()
   else begin
-    sync db;
-    Unix.close db.fd_in;
-    ftruncate db.fd_append (let Offset o = db.offset in o);
-    Unix.close db.fd_append;
-    Unix.close db.fd_random;
-    db.closed <- true
+    S.fsync db.fd >>= fun () ->
+    S.with_fd db.fd (fun fd -> Unix.ftruncate fd (let Offset o = db.offset in o))
+    >>= fun () ->
+    S.close db.fd >>= fun () ->
+    db.closed <- true;
+    return ()
   end
 
-let clear _ = ()
+let clear (_:t) = failwith "Flog.clear: Not implemented"
 
 (* Hole punching compaction *)
 module OffsetOrder = struct
@@ -672,7 +685,7 @@ let rec compact' =
   let os' = OffsetSet.remove h' os in
 
   (* TODO This is not multi-spindle compatible! *)
-  let e = read l (Outer (Spindle 0, h')) in
+  read l (Outer (Spindle 0, h')) >>= fun e ->
 
   let do_punch =
     if mb = 0 then do_punch_always
@@ -707,18 +720,18 @@ let rec compact' =
   in
 
   cb e';
-  do_punch l.fd_random mb e' (n' - e');
+  S.with_fd l.fd (fun fd -> do_punch fd mb e' (n' - e')) >>= fun () ->
 
   if OffsetSet.is_empty os''
   then begin
     cb b;
-    do_punch l.fd_random mb b (h'' - b)
+    S.with_fd l.fd (fun fd -> do_punch fd mb b (h'' - b))
   end
   else compact' l pc mb b { cs_offset=h'; cs_entries=os''; }
 
 
 let compact ?min_blocks:(mb=0) ?progress_cb:(pc=None) t =
-  sync t;
+  S.fsync t.fd >>= fun () ->
 
   let md = (if t.last_metadata = 0 then fst else snd) t.metadata in
   let b = md.md_blocksize in
@@ -727,7 +740,7 @@ let compact ?min_blocks:(mb=0) ?progress_cb:(pc=None) t =
   and o = t.commit_offset in
 
   (* TODO This is not multi-spindle compatible! *)
-  match (read t (Outer (Spindle 0, o))) with
+  read t (Outer (Spindle 0, o)) >>= function
     | Commit c ->
       let r = Commit.get_pos c in
       (* TODO This is not multi-spindle compatible! *)
@@ -741,3 +754,5 @@ let compact ?min_blocks:(mb=0) ?progress_cb:(pc=None) t =
         failwith "Flog.compact: read NIL iso commit entry"
     | Leaf _ | Value _ | Index _ ->
         invalid_arg "Flog.compact: no commit entry at given offset"
+
+end (* module / functor *)
