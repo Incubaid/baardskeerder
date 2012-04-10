@@ -46,17 +46,17 @@ module type STORE =
     val with_fd : t -> (Unix.file_descr -> 'a) -> 'a m
   end
 
-module Memory : STORE =
+module Memory : STORE with type 'a m = 'a =
   struct
     type t = T of Buffer.t ref
-    type 'a m = M of 'a
+    type 'a m = 'a
 
     (* This is a rather ugly hack *)
     let memory_store = Hashtbl.create 16
 
-    let bind (M v) f = f v
-    let return v = M v
-    let run (M v) = v
+    let bind v f = f v
+    let return v = v
+    let run v = v
 
     let init (n:string) =
       if Hashtbl.mem memory_store n
@@ -100,17 +100,17 @@ module Memory : STORE =
     let with_fd _ _ = failwith "Store.Memory.with_fd"
   end
 
-module Sync : STORE =
+module Sync : STORE with type 'a m = 'a =
   struct
     open Unix
 
     type t = T of file_descr * int ref
 
-    type 'a m = M of 'a
+    type 'a m = 'a
 
-    let bind (M v) f = f v
-    let return v = M v
-    let run (M v) = v
+    let bind v f = f v
+    let return v = v
+    let run v = v
 
     let init name =
       let fd = openfile name [O_RDWR; O_CREAT] 0o640 in
