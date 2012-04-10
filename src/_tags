@@ -14,4 +14,4 @@ true: package(lwt.preemptive)
 <baardskeerder.cma>: use_libbaardskeerder, link_libbaardskeerder
 <hudson_xml.{*}>: package(oUnit)
 
-<lwt_demo.*>: package(unix), package(oUnit), use_libbaardskeerder, link_libbaardskeerder
+<*_demo.*>: package(unix), package(oUnit), use_libbaardskeerder, link_libbaardskeerder
