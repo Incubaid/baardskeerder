@@ -71,11 +71,12 @@ let write (t:t) (slab:Slab.t) =
   let externalize_leaf  l = List.map (function (k,p) -> (k,externalize_pos p)) l in
   let externalize_index (p0, l) = (externalize_pos p0, externalize_leaf l) in
   let externalize_commit c = 
-    let p = externalize_pos (Commit.get_pos c) in
+    let pos = externalize_pos (Commit.get_pos c) in
     let actions = externalize_actions (Commit.get_actions c) in
     let time = Commit.get_time c in
-    let prev = externalize_pos (Commit.get_previous c) in
-    Commit.make_commit p prev time actions
+    let previous = externalize_pos (Commit.get_previous c) in
+    let lookup = externalize_pos (Commit.get_lookup c) in
+    Commit.make_commit ~pos ~previous ~lookup time actions
   in
   let externalize = function
     | NIL -> NIL
@@ -113,6 +114,8 @@ let last t =
   let s = Array.get t.spindles i in
   Outer (Pos.Spindle i, Offset (s.next - 1))
 
+
+            
 let size (_:entry) = 1
 
 let read t = function
@@ -122,6 +125,16 @@ let read t = function
         else Array.get (Array.get t.spindles s).es o
   | Inner _ -> failwith "can't read inner"
 
+
+let lookup (t:t) = 
+  let (p0:pos) = last t in
+  match p0 with
+    | Inner _ -> failwith "can't do inner"
+    | p0 -> bind (read t p0) 
+      (function 
+        | Commit c -> Commit.get_lookup c
+        | e -> failwith "no commit"
+      )
 
 let dump ?out:(o=stdout) (t:t) =
   Printf.fprintf o "Next = %d %d\n" t.current_spindle

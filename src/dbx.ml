@@ -57,12 +57,32 @@ module DBX(L:LOG) = struct
     let tx = {log;slab;actions = []} in
     f tx >>= fun () ->
     let root = Slab.length tx.slab -1 in
-    let last = L.last log in
-    let commit = make_commit (Inner root) last fut (List.rev tx.actions) in
+    let previous = L.last log in
+    let pos = Inner root in
+    let lookup = pos in
+    let commit = make_commit ~pos ~previous ~lookup fut (List.rev tx.actions) in
     let c = Commit commit in
     let _ = Slab.add tx.slab c in
     (* let slab' = slab in *)
     let slab' = Slab.compact tx.slab in 
+    L.write log slab'
+
+  let log_update (log:L.t) ?(diff = true) (f: tx -> unit L.m) =
+    let now = L.now log in
+    let fut = if diff then Time.next_major now else now in
+
+    let slab = Slab.make fut in
+    let tx = {log;slab; actions = []} in
+    
+    (if diff then return (L.last log) else L.lookup log) >>= fun lookup ->
+    f tx >>= fun () ->
+    let root = Slab.length tx.slab -1 in
+    let previous = L.last log in
+    let pos = Inner root in
+    let commit = make_commit ~pos ~previous ~lookup fut (List.rev tx.actions) in
+    let c = Commit commit in
+    let _ = Slab.add tx.slab c in
+    let slab' = Slab.compact tx.slab in
     L.write log slab'
 
 end

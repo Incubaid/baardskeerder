@@ -1,6 +1,7 @@
 *~
 doc/_build
 src/_build
+_build
 
 *.native
 *.byte

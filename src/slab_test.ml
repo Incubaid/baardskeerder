@@ -24,9 +24,10 @@ open Pos
 
 
 let es = 
-  let p = Inner 25 in
+  let pos = Inner 25 in
   let t0 = Time.make 1 2 false in
-  let prev = Outer (Spindle 0, Offset (-1)) in
+  let previous = Outer (Spindle 0, Offset (-1)) in
+  let lookup = pos in
   [| 
   Value "xxxxx";
   Leaf ["key_00000000", Inner 0];
@@ -54,7 +55,7 @@ let es =
   Index (Inner 7, ["key_00000001", Inner 14]);
   Index (Inner 21, ["key_00000005", Inner 22]);
   Index (Inner 23, ["key_00000003", Inner 24]);
-  Commit (Commit.make_commit p prev t0 []) (* should be correct values *);
+  Commit (Commit.make_commit ~pos ~previous ~lookup t0 []) (* should be correct values *);
 	 |]
 
 

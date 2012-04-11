@@ -133,12 +133,12 @@ let compact s =
   let rewrite_leaf kps        = List.map (fun (k,p) -> (k,lookup_pos p)) kps in
   let rewrite_index (p0,kps)  = (lookup_pos p0 , rewrite_leaf kps) in
   let rewrite_commit c  = 
-    let p = lookup_pos (Commit.get_pos c) 
+    let pos = lookup_pos (Commit.get_pos c) 
     and actions =rewrite_actions (Commit.get_actions c) 
     and t = Commit.get_time c 
-    and prev = lookup_pos (Commit.get_previous c) 
-    in
-    Commit.make_commit p prev t actions
+    and previous = lookup_pos (Commit.get_previous c) in
+    let lookup = lookup_pos (Commit.get_lookup c) in
+    Commit.make_commit ~pos ~previous ~lookup t actions
   in
   let esa = s.es in
   let size = s.nes in

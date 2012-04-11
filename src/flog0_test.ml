@@ -61,13 +61,14 @@ let pu_index () =
 let pu_commit() = 
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
-  let p = out 0 0 
+  let pos = out 0 0 
   and actions = [Commit.Set ("set0", Outer (Spindle 0, Offset 0));
                  Commit.Set ("set1", Outer (Spindle 0, Offset 1));
                  Commit.Delete "delete0" ]
   and now = Time.make 1 2 false in
-  let prev = Outer (Spindle 0, Offset 0) in
-  let c0 = Commit.make_commit p prev now actions in
+  let previous = Outer (Spindle 0, Offset 0) in
+  let lookup = pos in
+  let c0 = Commit.make_commit ~pos ~previous ~lookup now actions in
   let () = Printf.printf "com=%s\n" (Commit.commit2s c0) in
   let _ = MF.deflate_commit b h c0 in
   let bs = Buffer.contents b in

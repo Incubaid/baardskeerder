@@ -220,6 +220,8 @@ let t2s t =
 
 let last t = let s, o = t.last in Outer (s, o)
 
+
+
 let now t = t.now
 
 
@@ -278,16 +280,18 @@ let inflate_action input =
 
        
 
-
-
-let inflate_commit input = 
+let inflate_pos input = 
   let s = input_vint input in
   let p = input_vint input in
-  let sprev = input_vint input in
-  let prev = input_vint input in
+  Outer (Spindle s, Offset p)
+
+let inflate_commit input = 
+  let pos = inflate_pos input in
+  let previous = inflate_pos input in
+  let lookup = inflate_pos input in
   let t = input_time input in
   let actions = input_list inflate_action input in    
-  Commit.make_commit (Outer (Spindle s, Offset p)) (Outer (Spindle sprev, Offset prev)) t actions
+  Commit.make_commit ~pos ~previous ~lookup t actions
 
 
 let inflate_value input = input_string input
@@ -409,12 +413,15 @@ let deflate_action b h = function
 let deflate_commit b h c = 
   let mb = Buffer.create 8 in
   tag_to mb COMMIT;
-  let p = Commit.get_pos c in
+  let pos = Commit.get_pos c in
+  let previous = Commit.get_previous c in
+  let lookup = Commit.get_lookup c in
   let t = Commit.get_time c in
-  let prev = Commit.get_previous c in
+  
   let actions = Commit.get_actions c in
-  pos_remap mb h p;
-  pos_remap mb h prev;
+  pos_remap mb h pos;
+  pos_remap mb h previous;
+  pos_remap mb h lookup;
   time_to mb t;
   vint_to mb (List.length actions);
   List.iter (fun a -> deflate_action mb h a) actions;
@@ -495,6 +502,13 @@ let read t pos =
 	  return (inflate_entry es)
 	end
     | Inner _ -> failwith "cannot read inner"
+
+
+let lookup t = 
+  let p = last t in
+  read t p >>= function
+    | Commit c -> let lu = Commit.get_lookup c in return lu
+    | e -> failwith "can only do commits"
 
 
 let init ?(d=4) fn t0 = 

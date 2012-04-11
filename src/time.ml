@@ -19,7 +19,9 @@
 
 type f = int * bool
 
-type t = int * int * bool
+type major = int
+type minor = int
+type t = major * minor * bool
 
 let get_major (t,_,_) = t
 let get_minor (_,f,_) = f
