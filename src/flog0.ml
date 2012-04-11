@@ -220,6 +220,8 @@ let t2s t =
 
 let last t = let s, o = t.last in Outer (s, o)
 
+
+
 let now t = t.now
 
 
@@ -500,6 +502,13 @@ let read t pos =
 	  return (inflate_entry es)
 	end
     | Inner _ -> failwith "cannot read inner"
+
+
+let lookup t = 
+  let p = last t in
+  read t p >>= function
+    | Commit c -> let lu = Commit.get_lookup c in return lu
+    | e -> failwith "can only do commits"
 
 
 let init ?(d=4) fn t0 = 

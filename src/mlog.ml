@@ -114,6 +114,8 @@ let last t =
   let s = Array.get t.spindles i in
   Outer (Pos.Spindle i, Offset (s.next - 1))
 
+
+            
 let size (_:entry) = 1
 
 let read t = function
@@ -123,6 +125,16 @@ let read t = function
         else Array.get (Array.get t.spindles s).es o
   | Inner _ -> failwith "can't read inner"
 
+
+let lookup (t:t) = 
+  let (p0:pos) = last t in
+  match p0 with
+    | Inner _ -> failwith "can't do inner"
+    | p0 -> bind (read t p0) 
+      (function 
+        | Commit c -> Commit.get_lookup c
+        | e -> failwith "no commit"
+      )
 
 let dump ?out:(o=stdout) (t:t) =
   Printf.fprintf o "Next = %d %d\n" t.current_spindle

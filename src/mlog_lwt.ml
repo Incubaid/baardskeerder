@@ -13,6 +13,7 @@ let make = wrap1 Mlog.make
 
 let write = wrap2 Mlog.write
 let last = Mlog.last
+let lookup = wrap1 Mlog.lookup
 let read = wrap2 Mlog.read
 let sync = wrap1 Mlog.sync
 let close = wrap1 Mlog.close

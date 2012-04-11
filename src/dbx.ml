@@ -73,11 +73,12 @@ module DBX(L:LOG) = struct
 
     let slab = Slab.make fut in
     let tx = {log;slab; actions = []} in
+    
+    (if diff then return (L.last log) else L.lookup log) >>= fun lookup ->
     f tx >>= fun () ->
     let root = Slab.length tx.slab -1 in
     let previous = L.last log in
     let pos = Inner root in
-    let lookup = if diff then previous else pos in
     let commit = make_commit ~pos ~previous ~lookup fut (List.rev tx.actions) in
     let c = Commit commit in
     let _ = Slab.add tx.slab c in

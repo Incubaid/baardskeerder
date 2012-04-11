@@ -558,6 +558,13 @@ let read t pos =
             | _ -> failwith "Flog.read: unknown node type"
     end
 
+
+let lookup t = 
+  let p = last t in
+  read t p >>= function
+    | Commit c -> return (Commit.get_lookup c)
+    | _ -> failwith "Flog.lookup: can only do commit"
+
 let sync t =
   (* Retrieve current commit offset *)
   let c = t.commit_offset in

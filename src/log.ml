@@ -32,6 +32,7 @@ module type LOG = sig
   val init: ?d:int -> string  -> Time.t -> unit m
   val write : t -> Slab.t -> unit m
   val last  : t -> pos
+  val lookup: t -> pos m
   val read  : t -> pos -> entry m
   val sync  : t -> unit m
   val make  : string -> t m

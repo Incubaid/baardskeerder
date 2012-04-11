@@ -23,10 +23,13 @@ open Tree
 module MDBX = DBX(Mlog)
 module MDB = DB(Mlog)
 
-let get_after_delete () = 
+let _setup () = 
   let fn = "bla" in
   let () = Mlog.init ~d:2 Time.zero fn in
-  let mlog = Mlog.make fn in
+  Mlog.make fn   
+
+let get_after_delete () = 
+  let mlog = _setup() in
   let () = MDBX.with_tx mlog (fun tx -> MDBX.set tx "a" "A") in
   let test tx = 
     MDBX.delete tx "a";
@@ -37,9 +40,7 @@ let get_after_delete () =
 
 
 let get_after_log_update () =
-  let fn = "bla" in
-  let () = Mlog.init ~d:2 Time.zero fn in
-  let mlog = Mlog.make fn in
+  let mlog = _setup () in
   let k = "a" 
   and v = "A" in
   let () = MDBX.log_update mlog (fun tx -> MDBX.set tx k v) in
@@ -49,6 +50,21 @@ let get_after_log_update () =
   in
   OUnit.assert_raises (Base.NOT_FOUND k) test
 
+let get_after_log_updates() = 
+  let mlog = _setup() in
+  let k = "a"
+  and v = "A" in
+  let () = MDBX.log_update mlog (fun tx-> MDBX.set tx k v) in
+  let () = MDBX.log_update mlog ~diff:false (fun tx -> MDBX.set tx "a" "v1") in
+  let () = MDBX.log_update mlog ~diff:false (fun tx -> MDBX.set tx "a" "v2") in
+  let test () = 
+    let v = MDB.get mlog k in
+    ignore v
+  in
+  Mlog.dump mlog;
+  OUnit.assert_raises (Base.NOT_FOUND k) test
+
 let suite = "DBX" >::: ["get_after_delete" >:: get_after_delete;
-                        "get_after_log_update" >:: get_after_log_update
+                        "get_after_log_update" >:: get_after_log_update;
+                        "get_after_log_updates" >:: get_after_log_updates;
                        ]
