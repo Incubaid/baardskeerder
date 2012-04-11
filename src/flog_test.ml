@@ -30,12 +30,6 @@ module MyFlog = Flog(Store.Sync)
 
 open MyFlog
 
-module M = Monad(Store.Sync)
-
-let (>>=) = Store.Sync.bind
-and return = Store.Sync.return
-and run = Store.Sync.run
-
 let test_uintN wf rf l n () =
   let m = 0x40000000 - 1 in
   let r = min n m in
@@ -154,31 +148,29 @@ let with_tempfile f = fun () ->
     do_unlink ();
     raise e
 
-let test_database_create fn = run (
-  init fn Time.zero >>= fun () ->
+let test_database_create fn =
+  init fn Time.zero;
   let s = Unix.stat fn in
-  return (OUnit.assert_equal (s.st_size = 2 * 4096))
-)
+  OUnit.assert_equal (s.st_size = 2 * 4096)
 
-let test_database_make fn = run (
-  init fn Time.zero >>= fun () ->
-  make fn >>= fun db ->
+let test_database_make fn =
+  let () = init fn Time.zero in
+  let db = make fn in
   close db
-)
 
 
 module FDB = DB(MyFlog)
 
 let with_database f =
   let f' fn =
-    init fn Time.zero >>= fun () ->
-    make fn >>= fun db ->
+    init fn Time.zero;
+    let db = make fn in
 
     try
-      f fn db >>= fun () ->
+      f fn db;
       close db
     with e ->
-      close db >>= fun () ->
+      close db;
       raise e
   in
   with_tempfile f'
@@ -190,10 +182,10 @@ let test_database_set_get _ db =
   let k = "foo"
   and v = "bar" in
 
-  FDB.set db k v >>= fun () ->
-  FDB.get db k >>= fun v' ->
+  FDB.set db k v;
+  let v' = FDB.get db k in
 
-  return (OUnit.assert_equal v v')
+  OUnit.assert_equal v v'
 
 let test_database_multi_action _ db =
   let k1 = "foo"
@@ -202,23 +194,17 @@ let test_database_multi_action _ db =
   and k2 = "bat"
   and v2 = "baz" in
 
-  FDB.set db k1 v1 >>= fun () ->
-  FDB.set db k2 v2 >>= fun () ->
+  FDB.set db k1 v1;
+  FDB.set db k2 v2;
   let my_get k = FDB.get db k in
+  OUnit.assert_equal v1 (my_get k1);
+  OUnit.assert_equal v2 (my_get k2);
 
-  my_get k1 >>= fun v1b ->
-  OUnit.assert_equal v1 v1b;
+  FDB.set db k1 v1';
+  OUnit.assert_equal v1' (my_get k1);
 
-  my_get k2 >>= fun v2b ->
-  OUnit.assert_equal v2 v2b;
-
-  FDB.set db k1 v1' >>= fun () ->
-  my_get k1 >>= fun v1'b ->
-  OUnit.assert_equal v1' v1'b;
-
-  FDB.delete db k2 >>= fun () ->
-  return (OUnit.assert_raises (Base.NOT_FOUND k2) (fun () -> my_get k2))
-
+  FDB.delete db k2;
+  OUnit.assert_raises (Base.NOT_FOUND k2) (fun () -> my_get k2)
 
 
 let test_database_reopen fn db =
@@ -227,15 +213,15 @@ let test_database_reopen fn db =
   and k2 = "bat"
   and v2 = "baz" in
 
-  FDB.set db k1 v1 >>= fun () ->
-  FDB.set db k2 v2 >>= fun () ->
+  FDB.set db k1 v1;
+  FDB.set db k2 v2;
 
-  MyFlog.close db >>= fun () ->
+  MyFlog.close db;
 
-  make fn >>= fun db' ->
+  let db' = make fn in
   let my_get k = FDB.get db'  k in
-  my_get k1 >>= fun v1' ->
-  my_get k2 >>= fun v2' ->
+  let v1' = my_get k1
+  and v2' = my_get k2 in
 
   OUnit.assert_equal v1 v1';
   OUnit.assert_equal v2 v2';
@@ -246,23 +232,18 @@ let test_database_sync fn db =
   let k = "foo"
   and v = "bar" in
 
-  FDB.set db k v >>= fun () ->
+  FDB.set db k v;
 
   (* Set both metadata field *)
-  MyFlog.sync db >>= fun () ->
-  MyFlog.sync db >>=  fun () ->
+  MyFlog.sync db;
+  MyFlog.sync db;
   let my_get k = FDB.get db k in
+  OUnit.assert_equal (my_get k) v;
 
-  my_get k >>= fun v' ->
-  OUnit.assert_equal v' v;
+  close db;
 
-  close db >>= fun () ->
-
-  make fn >>= fun db' ->
-
-  FDB.get db' k >>= fun v' ->
-
-  OUnit.assert_equal v' v;
+  let db' = make fn in
+  OUnit.assert_equal (FDB.get db' k) v;
 
   close db'
 
@@ -300,77 +281,71 @@ let dump_fiemap f =
 let test_compaction_basic fn db =
   let kps = [("foo", "bar"); ("baz", "bat"); ("foo", "bal")] in
 
-  M.iter (fun (k, v) -> FDB.set db k v) kps >>= fun () ->
+  List.iter (fun (k, v) -> FDB.set db k v) kps;
 
-  MyFlog.compact ~min_blocks:1 db >>= fun () ->
+  MyFlog.compact ~min_blocks:1 db;
 
-  close db >>= fun () ->
+  close db;
 
-  make fn >>= fun db' ->
+  let db' = make fn in
   let id x = x in
   let my_get k = FDB.get db' k in
+  OUnit.assert_equal ~printer:id (my_get "foo") "bal";
+  close db';
 
-  my_get "foo" >>= fun v ->
-  OUnit.assert_equal ~printer:id v "bal";
-  close db' >>= fun () ->
-
-  dump_fiemap fn;
-
-  return ()
+  dump_fiemap fn
 
 let test_compaction_lengthy fn db =
   let rec loop = function
-    | 0 -> return ()
+    | 0 -> ()
     | n ->
         let key = Printf.sprintf "key_%d" n
         and value = Printf.sprintf "value_%d" n in
 
-        FDB.set db key value >>= fun () ->
+        FDB.set db key value;
 
         loop (pred n)
   in
 
-  loop 1000 >>= fun () ->
+  loop 1000;
 
   let do_compact () =
     MyFlog.compact ~min_blocks:1 db
   in
 
-  do_compact () >>= fun () ->
+  do_compact ();
 
   let rec loop2 = function
-    | 0 -> return ()
+    | 0 -> ()
     | n ->
         let key = Printf.sprintf "key_%d" n in
-        FDB.delete db key >>= fun () ->
+        FDB.delete db key;
         loop2 (pred n)
   in
 
-  loop2 1000 >>= fun () ->
+  loop2 1000;
 
-  do_compact () >>= fun () ->
+  do_compact ();
 
-  dump_fiemap fn;
-
-  return ()
+  dump_fiemap fn
 
 let test_compaction_all_states m c fn db =
   let rec insert_loop = function
-    | 0 -> return ()
+    | 0 -> ()
     | n ->
         let key = Printf.sprintf "key_%d" n
         and value = Printf.sprintf "value_%d" n in
 
-        FDB.set db key value >>= fun () ->
+        FDB.set db key value;
 
         insert_loop (pred n)
   in
 
-  insert_loop c >>= fun () ->
+  insert_loop c;
 
   let rec test_loop t =
     let rec check_deleted n = function
-      | i when i = (n - 1) -> return ()
+      | i when i = (n - 1) -> ()
       | i ->
           let key = Printf.sprintf "key_%d" i in
           OUnit.assert_raises (Base.NOT_FOUND key) (fun () -> FDB.get db key);
@@ -378,31 +353,28 @@ let test_compaction_all_states m c fn db =
     in
 
     let rec check_existing = function
-      | 0 -> return ()
+      | 0 -> ()
       | i ->
           let key = Printf.sprintf "key_%d" i
           and value = Printf.sprintf "value_%d" i in
-          FDB.get db key >>= fun value' ->
-          OUnit.assert_equal value value';
+          OUnit.assert_equal value (FDB.get db key);
           check_existing (pred i)
     in
 
     function
-      | 0 -> return ()
+      | 0 -> ()
       | n ->
-          MyFlog.compact ~min_blocks:m db >>= fun () ->
+          MyFlog.compact ~min_blocks:m db;
           let key = Printf.sprintf "key_%d" n in
-          FDB.delete db key >>= fun () ->
-          check_deleted n t >>= fun () ->
-          check_existing (pred n) >>= fun () ->
+          FDB.delete db key;
+          check_deleted n t;
+          check_existing (pred n);
           test_loop t (pred n)
   in
 
-  test_loop c c >>= fun () ->
+  test_loop c c;
 
-  dump_fiemap fn;
-
-  return ()
+  dump_fiemap fn
 
 let compaction =
   "compaction" >::: [
