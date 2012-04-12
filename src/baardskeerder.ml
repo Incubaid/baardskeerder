@@ -17,31 +17,7 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-module MyLog = Flog0.Flog0(Store.Sync)
-module MyDBX = Dbx.DBX(MyLog)
-module MyDB = Tree.DB(MyLog)
-
-type t = MyLog.t
-type tx = MyDBX.tx
-
 include Base
-
-let run = Store.Sync.run
-
-let init fn = run (MyLog.init ~d:6 fn Time.zero)
-let make fn = run (MyLog.make fn)
-
-let close log = run (MyLog.close log)
-
-let with_tx log f = run (MyDBX.with_tx log (fun v -> MyLog.return (f v)))
-
-
-let get_latest t k = run (MyDB.get t k)
-
-let get tx k = run (MyDBX.get tx k)
-let set tx k v = run (MyDBX.set tx k v)
-let delete tx k = MyDBX.delete tx k
-
 
 module Logs =
   struct
@@ -55,3 +31,30 @@ module Stores =
     module Sync = Store.Sync
     module Lwt = Store.Lwt
   end
+
+module Baardskeerder
+  (LF: functor(S: Store.STORE) -> Log.LOG with type 'a m = 'a S.m) =
+  functor(S: Store.STORE) ->
+    struct
+      module L = LF(S)
+      module D = Tree.DB(L)
+      module X = Dbx.DBX(L)
+
+      type t = L.t
+      type tx = X.tx
+
+      let init fn = L.init ~d:6 fn Time.zero
+      let make = L.make
+
+      let close = L.close
+
+      let with_tx log f = X.with_tx log (fun v -> L.return (f v))
+
+      let get_latest t k = D.get t k
+      let get tx k = X.get tx k
+      let set tx k v = X.set tx k v
+      let delete tx k = X.delete tx k
+    end
+
+module SB = Baardskeerder(Logs.Flog0)(Stores.Sync)
+include SB

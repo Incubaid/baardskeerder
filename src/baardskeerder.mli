@@ -48,3 +48,22 @@ module Stores :
     module Sync : Store.STORE with type 'a m = 'a
     module Lwt : Store.STORE with type 'a m = 'a Lwt.t
   end
+
+module Baardskeerder :
+  functor (LF: functor(S: Store.STORE) -> Log.LOG with type 'a m = 'a S.m) ->
+  functor (S: Store.STORE) ->
+  sig
+    type t
+    type tx
+
+    val init : string -> unit S.m
+    val make : string -> t S.m
+    val close : t -> unit S.m
+
+    val get_latest : t -> k -> v S.m
+    val with_tx : t -> (tx -> unit) -> unit S.m
+
+    val get : tx -> k -> v S.m
+    val set : tx -> k -> v -> unit S.m
+    val delete : tx -> k -> unit S.m
+  end
