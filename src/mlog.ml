@@ -49,7 +49,7 @@ let close (_:t) = ()
 
 let make_spindles n p = Array.init n (fun _ -> { es=Array.make p NIL; next=0 })
 
-let make2 (_:string) now = { spindles=make_spindles 4 32; current_spindle=0; now }
+let make2 ?(n_spindles = 4) (_:string) now = { spindles=make_spindles n_spindles 32; current_spindle=0; now }
 let make (s:string) = make2 s Time.zero
 
 let write (t:t) (slab:Slab.t) =

@@ -36,5 +36,6 @@ let suite =
       Rewrite_test.suite;
       Flog0_test.suite;
       Mlog_lwt_test.suite;
+      Catchup_test.suite;
     ]
 

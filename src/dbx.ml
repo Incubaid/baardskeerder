@@ -68,13 +68,24 @@ module DBX(L:LOG) = struct
     L.write log slab'
 
   let log_update (log:L.t) ?(diff = true) (f: tx -> unit L.m) =
+    let _find_lookup () = 
+      let pp = L.last log in
+      L.read log pp >>= function 
+        | Commit lc -> 
+          let lu = if diff 
+            then Commit.get_pos lc 
+            else Commit.get_lookup lc
+          in return lu
+        | NIL -> return pp
+        | e -> failwith (Printf.sprintf "log_update: %s is not commit" (entry2s e))
+    in
     let now = L.now log in
     let fut = if diff then Time.next_major now else now in
 
     let slab = Slab.make fut in
     let tx = {log;slab; actions = []} in
     
-    (if diff then return (L.last log) else L.lookup log) >>= fun lookup ->
+    _find_lookup () >>= fun lookup ->
     f tx >>= fun () ->
     let root = Slab.length tx.slab -1 in
     let previous = L.last log in
