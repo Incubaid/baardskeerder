@@ -6,7 +6,7 @@ open Tree
 module MDB = DB(Mlog_lwt)
 
 let with_db fn () =
-  Mlog_lwt.run (
+  Lwt_main.run (
     Mlog_lwt.make "" >>= fun db ->
     fn db
   )

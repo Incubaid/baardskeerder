@@ -29,7 +29,6 @@ module type STORE =
 
     val bind : 'a m -> ('a -> 'b m) -> 'b m
     val return : 'a -> 'a m
-    val run : 'a m -> 'a
 
     val init : string -> t m
     val close : t -> unit m

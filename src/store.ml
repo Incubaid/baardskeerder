@@ -29,7 +29,6 @@ module Memory : STORE with type 'a m = 'a =
 
     let bind v f = f v
     let return v = v
-    let run v = v
 
     let init (n:string) =
       if Hashtbl.mem memory_store n
@@ -83,7 +82,6 @@ module Sync : STORE with type 'a m = 'a =
 
     let bind v f = f v
     let return v = v
-    let run v = v
 
     let init name =
       let fd = openfile name [O_RDWR; O_CREAT] 0o640 in
@@ -146,7 +144,6 @@ module Lwt : STORE with type 'a m = 'a Lwt.t =
     type 'a m = 'a Lwt_.t
     let bind = Lwt_.bind
     let return = Lwt_.return
-    let run = Lwt_main.run
 
     let (>>=) = bind
 

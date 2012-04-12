@@ -3,7 +3,6 @@ type t = Mlog.t
 type 'a m = 'a Lwt.t
 let bind = Lwt.bind
 let return = Lwt.return
-let run = Lwt_main.run
 
 let wrap1 f = fun a -> return (f a)
 let wrap2 f = fun a b -> return (f a b)

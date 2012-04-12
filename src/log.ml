@@ -27,7 +27,6 @@ module type LOG = sig
 
   val bind : 'a m -> ('a -> 'b m) -> 'b m
   val return : 'a -> 'a m
-  val run : 'a m -> 'a
 
   val init: ?d:int -> string  -> Time.t -> unit m
   val write : t -> Slab.t -> unit m

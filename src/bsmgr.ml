@@ -24,9 +24,7 @@ open Log
 open Dbx
 open Sync
 
-let clock n f bind return =
-  let (>>=) = bind in
-
+let clock n f =
   let t0 = Unix.gettimeofday () in
   let step = let q = n / 10 in if q = 0 then 1 else q in
   let cb = 
@@ -38,9 +36,9 @@ let clock n f bind return =
 	Printf.printf "\t%8i (%4.2f)\n%!" i d
       | _ -> ()
   in
-  f () n cb >>= fun () ->
+  let () = f () n cb in
   let t1 = Unix.gettimeofday () in
-  return (t1 -. t0)
+  t1 -. t0
 
 type progress_callback = int -> unit
 
@@ -56,9 +54,12 @@ type command =
   | OnlyTest
   | Hudson
 
-let logs = Hashtbl.create 3
-let () = Hashtbl.add logs "Flog0" (module (Flog0.Flog0(Store.Sync)): LOG)
-let () = Hashtbl.add logs "Flog"  (module (Flog.Flog(Store.Sync)): LOG)
+module type LF = functor(S: Bs_internal.STORE) -> Log.LOG with type 'a m = 'a S.m
+let get_lf = function
+  | "Flog0" -> (module Flog0.Flog0 : LF)
+  | "Flog" -> (module Flog.Flog : LF)
+  | _ -> invalid_arg "get_lf"
+
 
 let () = 
   let command = ref Bench in
@@ -104,14 +105,11 @@ let () =
       (fun _ ->()) 
       "simple baardskeerder benchmark"
   in
-  let module MyLog = (val (Hashtbl.find logs !log_name) : LOG) in
+  let f = get_lf !log_name in
+  let module MyLog = (val f : LF)(Store.Sync) in
   let module MyDB  = DB(MyLog) in  
   let module MyDBX = DBX(MyLog) in
   let module MySync = Sync(MyLog) in
-
-  let (>>=) = MyLog.bind
-  and return = MyLog.return
-  and run = MyLog.run in
 
   let make_key i = Printf.sprintf "key_%08i" i in
 
@@ -124,7 +122,7 @@ let () =
       then MyLog.sync db
       else
 	let key = make_key i in
-	set key v >>= fun () ->
+	let () = set key v in
 	loop (i+1)
     in
     loop 0 
@@ -137,10 +135,10 @@ let () =
     let rec loop i =
       let () = cb i in
       if i = n 
-      then return ()
+      then ()
       else
 	let key = make_key i in
-	get key >>= fun _ ->
+	let _ = get key in
 	loop (i+1)
     in
     loop 0
@@ -154,7 +152,7 @@ let () =
       then MyLog.sync db
       else
 	let key = make_key i in
-	delete key >>= fun () ->
+	let () = delete key in
 	loop (i+1)
     in
     loop 0 
@@ -167,14 +165,16 @@ let () =
 	(* let () = Printf.printf "[\n" in *)
 	let rec loop i = 
 	  let kn = b+ i in
-	  if i = m || kn >= n then return ()
+	  if i = m || kn >= n then ()
 	  else 
 	    let k = make_key kn in
 	    (* let () = Printf.printf "\t%s\n" k in *)
-	    MyDBX.set tx k v >>= fun () ->
+	    let () = MyDBX.set tx k v in
 	    loop (i+1) 
 	in
-	loop 0
+	let () = loop 0 in
+	(* Printf.printf "]\n" *)
+	()
       in
       MyDBX.with_tx db f
     in
@@ -183,7 +183,7 @@ let () =
       if i >= n 
       then MyLog.sync db
       else
-	set_tx i >>= fun () ->
+	let () = set_tx i in
 	loop (i+m)
     in
     loop 0
@@ -209,46 +209,38 @@ let () =
       Hudson_xml.run_test Test.suite
     | Dump ->
       begin
-	run (
-          MyLog.make !fn >>= fun db ->
-      	  MyLog.dump db >>= fun () ->
-	  MyLog.close db
-        )
+        let db = MyLog.make !fn in
+        MyLog.dump db;
+	MyLog.close db
       end
     | DumpStream ->
       begin
-        run (
-          MyLog.make !fn >>= fun log ->
-          let f () t a = Printf.printf "%s\t: %s\n" (Time.time2s t) (Commit.action2s a) in
-          let t0 = Time.zero in
-          MySync.fold_actions t0 f () log >>= fun () ->
-          MyLog.close log
-        )
+        let log = MyLog.make !fn in
+        let f () t a = Printf.printf "%s\t: %s\n" (Time.time2s t) (Commit.action2s a) in
+        let t0 = Time.zero in
+        let () = MySync.fold_actions t0 f () log in
+        MyLog.close log
       end
     | Info ->
       begin
-        run (
-          MyLog.make !fn >>= fun log ->
-          let now = MyLog.now log in
-          let empty = Slab.make now in
-          MyDB.depth log empty >>= fun depth ->
-          let last = MyLog.last log in
-          let now = MyLog.now log in
-          let () = Printf.printf "d:\t%i\n" (MyLog.get_d log) in
-          let () = Printf.printf "depth:\t%i\n" depth in
-          let () = Printf.printf "last:\t%s\n" (Pos.pos2s last) in
-          let () = Printf.printf "now:\t%s\n" (Time.time2s now) in
+        let log = MyLog.make !fn in
+        let now = MyLog.now log in
+        let empty = Slab.make now in
+        let depth = MyDB.depth log empty in
+        let last = MyLog.last log in
+        let now = MyLog.now log in
+        let () = Printf.printf "d:\t%i\n" (MyLog.get_d log) in
+        let () = Printf.printf "depth:\t%i\n" depth in
+        let () = Printf.printf "last:\t%s\n" (Pos.pos2s last) in
+        let () = Printf.printf "now:\t%s\n" (Time.time2s now) in
 
-          MyLog.close log
-        )
+        MyLog.close log
       end
     | Rewrite -> 
       begin
         if !log_name <> "flog0"
         then failwith "Only flog0 is supported"
         else
-        Store.Sync.run (
-
         let (>>=) = Store.Sync.bind in
 
         let module MyLog = Flog0.Flog0(Store.Sync) in
@@ -261,48 +253,44 @@ let () =
 	MyRewrite.rewrite l0 (MyLog.last l0) l1 >>= fun () ->
 	MyLog.close l0 >>= fun () ->
 	MyLog.close l1
-        )
       end
     | Punch ->
       begin
-        run (
-  	  MyLog.make !fn >>= fun l0 ->
-          let cb =
-            let l = ref 0 in
-            fun (Pos.Offset t) (Pos.Offset d) ->
-              if !l = 0 then (l := t) else ();
-              if (!l - d) >= (t / 20)
-              then begin
-                let p = 100. -. ((float_of_int d /. float_of_int t) *. 100.) in
-                Printf.fprintf Pervasives.stderr "Progress: %f%%\n%!" p;
-                l := d
-              end
-              else
-                ()
-          in
+        let l0 = MyLog.make !fn in
+        let cb =
+          let l = ref 0 in
+          fun (Pos.Offset t) (Pos.Offset d) ->
+            if !l = 0 then (l := t) else ();
+            if (!l - d) >= (t / 20)
+            then begin
+              let p = 100. -. ((float_of_int d /. float_of_int t) *. 100.) in
+              Printf.fprintf Pervasives.stderr "Progress: %f%%\n%!" p;
+              l := d
+            end
+            else
+              ()
+        in
 
-	  MyLog.compact ~min_blocks:!mb ~progress_cb:(Some cb) l0 >>= fun () ->
-	  MyLog.close l0
-        )
+        let () = MyLog.compact ~min_blocks:!mb ~progress_cb:(Some cb) l0 in
+	MyLog.close l0
       end
     | Bench ->
       begin
-        run (
-	MyLog.init !fn ~d:!d Time.zero >>= fun () ->
-	MyLog.make !fn >>= fun db ->
+        let () = MyLog.init !fn ~d:!d Time.zero in
+        let db = MyLog.make !fn in
 	let () = Printf.printf "\niterations = %i\nvalue_size = %i\n%!" !n !vs in
 	let () = Printf.printf "starting sets\n" in
-	clock !n (fun () -> set_loop db !vs) (>>=) return >>= fun d ->
+        let d = clock !n (fun () -> set_loop db !vs) in
 	Printf.printf "sets: %fs\n%!" d;
 	let () = Printf.printf "starting gets\n" in
-	clock !n (fun () -> get_loop db) (>>=) return >>= fun d2 ->
-	Printf.printf "gets: %fs\n%!" d2;
+        let d2 = clock !n (fun () -> get_loop db) in
+        Printf.printf "gets: %fs\n%!" d2;
 	let () = Printf.printf "starting deletes\n" in
-	clock !n (fun () -> delete_loop db) (>>=) return >>= fun d3 ->
+        let d3 = clock !n (fun () -> delete_loop db) in
 	Printf.printf "deletes: %fs\n%!" d3;
 	let () = Printf.printf "starting set_tx (tx_size=%i)\n" !m in
-	clock !n (fun () -> set_tx_loop db !vs !m) (>>=) return >>= fun d4 ->
+        let d4 = clock !n (fun () -> set_tx_loop db !vs !m) in
 	Printf.printf "sets_tx: %fs\n%!" d4;
-	MyLog.close db
-        )
+        let () = MyLog.close db in
+        ()
       end;;

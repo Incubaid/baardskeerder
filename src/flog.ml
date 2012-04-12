@@ -248,7 +248,6 @@ module Flog =
   let bind = S.bind
   and (>>=) = S.bind
   and return = S.return
-  and run = S.run
 
 type t = {
   fd: S.t;

@@ -64,5 +64,5 @@ let test_presence () =
 
 
 let suite = "Rewrite" >::: [
-  "presence" >:: fun () -> Store.Memory.run (test_presence ())
+  "presence" >:: fun () -> test_presence ()
 ]

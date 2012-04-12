@@ -30,7 +30,6 @@ module Flog0 =
 type 'a m = 'a S.m
 let bind = S.bind
 let return = S.return
-let run = S.run
 
 let (>>=) = bind
 module M = Monad.Monad(S)
