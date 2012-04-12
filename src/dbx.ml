@@ -44,10 +44,10 @@ module DBX(L:LOG) = struct
     return ()
 
   let delete tx k = 
-    let _ = DBL._delete tx.log tx.slab k in 
+    DBL._delete tx.log tx.slab k >>= fun _ ->
     let a = Delete k in
     let () = tx.actions <- a :: tx.actions in
-    ()
+    return ()
 
 
   let with_tx ?(inc=Time.next_major) log f = 
