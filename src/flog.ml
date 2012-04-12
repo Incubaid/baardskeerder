@@ -241,7 +241,7 @@ and deserialize_metadata s = fst $ SerDes.metadata_reader s 0
 
 
 module Flog =
-  functor(S:Store.STORE) ->
+  functor(S:Bs_internal.STORE) ->
   struct
 
   type 'a m = 'a S.m

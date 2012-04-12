@@ -24,9 +24,9 @@ open Base
 open Dbx
 
 module Rewrite
-  (S0:functor(ST0:Store.STORE) -> LOG with type 'a m = 'a ST0.m)
-  (S1:functor(ST1:Store.STORE) -> LOG with type 'a m = 'a ST1.m) =
-  functor (IO:Store.STORE) ->
+  (S0:functor(ST0:Bs_internal.STORE) -> LOG with type 'a m = 'a ST0.m)
+  (S1:functor(ST1:Bs_internal.STORE) -> LOG with type 'a m = 'a ST1.m) =
+  functor (IO:Bs_internal.STORE) ->
   struct
 
   type update = { mutable kvs: (k * v) list; mutable w: int} 

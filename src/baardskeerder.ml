@@ -33,8 +33,8 @@ module Stores =
   end
 
 module Baardskeerder
-  (LF: functor(S: Store.STORE) -> Log.LOG with type 'a m = 'a S.m) =
-  functor(S: Store.STORE) ->
+  (LF: functor(S: Bs_internal.STORE) -> Log.LOG with type 'a m = 'a S.m) =
+  functor(S: Bs_internal.STORE) ->
     struct
       module L = LF(S)
       module D = Tree.DB(L)

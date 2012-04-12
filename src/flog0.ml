@@ -24,7 +24,7 @@ open Entry
 open Unix
 
 module Flog0 =
-  functor(S:STORE) ->
+  functor(S:Bs_internal.STORE) ->
   struct
 
 type 'a m = 'a S.m

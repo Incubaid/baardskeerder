@@ -38,20 +38,20 @@ val delete: tx -> k -> unit
 
 module Logs :
   sig
-    module Flog : functor(S: Store.STORE) -> Log.LOG with type 'a m = 'a S.m
-    module Flog0 : functor(S: Store.STORE) -> Log.LOG with type 'a m = 'a S.m
+    module Flog : functor(S: Bs_internal.STORE) -> Log.LOG with type 'a m = 'a S.m
+    module Flog0 : functor(S: Bs_internal.STORE) -> Log.LOG with type 'a m = 'a S.m
   end
 
 module Stores :
   sig
-    module Memory : Store.STORE with type 'a m = 'a
-    module Sync : Store.STORE with type 'a m = 'a
-    module Lwt : Store.STORE with type 'a m = 'a Lwt.t
+    module Memory : Bs_internal.STORE with type 'a m = 'a
+    module Sync : Bs_internal.STORE with type 'a m = 'a
+    module Lwt : Bs_internal.STORE with type 'a m = 'a Lwt.t
   end
 
 module Baardskeerder :
-  functor (LF: functor(S: Store.STORE) -> Log.LOG with type 'a m = 'a S.m) ->
-  functor (S: Store.STORE) ->
+  functor (LF: functor(S: Bs_internal.STORE) -> Log.LOG with type 'a m = 'a S.m) ->
+  functor (S: Bs_internal.STORE) ->
   sig
     type t
     type tx

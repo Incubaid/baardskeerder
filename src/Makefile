@@ -1,7 +1,7 @@
 OCAML_FIND ?= ocamlfind
 
 build:
-	ocamlbuild -use-ocamlfind bsmgr.native baardskeerder.cma baardskeerder.cmxa baardskeerder.a
+	ocamlbuild -use-ocamlfind bsmgr.native baardskeerder.cma baardskeerder.cmxa baardskeerder.a bs_internal.cma bs_internal.cmxa
 
 clean:
 	ocamlbuild -use-ocamlfind -clean
@@ -9,6 +9,8 @@ install:
 	$(OCAML_FIND) install baardskeerder META \
 	  _build/baardskeerder.cma \
 	  _build/baardskeerder.cmxa \
+	  _build/bs_internal.cma \
+	  _build/bs_internal.cmxa \
 	  _build/baardskeerder.mli \
 	  _build/baardskeerder.cmi \
 	  _build/libbaardskeerder_c.a \
