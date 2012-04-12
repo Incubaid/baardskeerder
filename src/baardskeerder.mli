@@ -34,3 +34,17 @@ val with_tx : t -> (tx -> unit) -> unit
 val get   : tx -> k -> v
 val set   : tx -> k -> v -> unit
 val delete: tx -> k -> unit
+
+
+module Logs :
+  sig
+    module Flog : functor(S: Store.STORE) -> Log.LOG with type 'a m = 'a S.m
+    module Flog0 : functor(S: Store.STORE) -> Log.LOG with type 'a m = 'a S.m
+  end
+
+module Stores :
+  sig
+    module Memory : Store.STORE with type 'a m = 'a
+    module Sync : Store.STORE with type 'a m = 'a
+    module Lwt : Store.STORE with type 'a m = 'a Lwt.t
+  end

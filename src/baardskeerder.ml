@@ -42,3 +42,16 @@ let get tx k = run (MyDBX.get tx k)
 let set tx k v = run (MyDBX.set tx k v)
 let delete tx k = MyDBX.delete tx k
 
+
+module Logs =
+  struct
+    module Flog = Flog.Flog
+    module Flog0 = Flog0.Flog0
+  end
+
+module Stores =
+  struct
+    module Memory = Store.Memory
+    module Sync = Store.Sync
+    module Lwt = Store.Lwt
+  end
