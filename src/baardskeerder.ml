@@ -52,6 +52,7 @@ module Baardskeerder
 
       let log_update log ?(diff=true) f = X.log_update log ~diff f
       let last_update log = X.last_update log
+      let commit_last log = X.commit_last log
 
       let get_latest t k = D.get t k
       let get tx k = X.get tx k

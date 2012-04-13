@@ -70,6 +70,9 @@ module DBX(L:LOG) = struct
     let slab' = Slab.compact tx.slab in 
     L.write log slab'
 
+
+
+
   let log_update (log:L.t) ?(diff = true) (f: tx -> unit L.m) =
     let _find_lookup () = 
       let pp = L.last log in
@@ -99,6 +102,24 @@ module DBX(L:LOG) = struct
     let slab' = Slab.compact tx.slab in
     L.write log slab'
 
+  let commit_last (log:L.t) =
+    let pp = L.last log in
+    (L.read log pp >>= function
+      | Commit lc -> L.return lc
+      | e -> failwith (Printf.sprintf "_read_commit: %s is not commit" (entry2s e))
+    ) >>= fun lc ->
+    let time = Commit.get_time lc in
+    let slab = Slab.make time in
+    let tx = {log;slab;cactions = []} in
+    let pos = Commit.get_pos lc in
+    let previous = Commit.get_previous lc in
+    let lookup = Commit.get_lookup lc in
+    let cactions = Commit.get_cactions lc in
+    let commit = make_commit ~pos ~previous ~lookup time cactions in
+    let c = Commit commit in
+    let _ = Slab.add tx.slab c in
+    L.write log slab
+    
   let last_update (log:L.t) =
     let pp = L.last log in
     L.read log pp >>= function
