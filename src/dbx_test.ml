@@ -64,7 +64,18 @@ let get_after_log_updates() =
   Mlog.dump mlog;
   OUnit.assert_raises (Base.NOT_FOUND k) test
 
+let update_commit_get() =
+  let mlog = _setup() in
+  let k = "a" in
+  let v = "A" in
+  let (>>=) = Mlog.bind in
+  MDBX.log_update mlog (fun tx -> MDBX.set tx k v) >>= fun () ->
+  MDBX.commit_last mlog >>= fun () ->
+  MDB.get mlog k >>= fun v2 ->
+  OUnit.assert_equal ~printer:(fun s -> s) v2 v
+  
 let suite = "DBX" >::: ["get_after_delete" >:: get_after_delete;
                         "get_after_log_update" >:: get_after_log_update;
                         "get_after_log_updates" >:: get_after_log_updates;
+                        "update_commit_get" >:: update_commit_get;
                        ]
