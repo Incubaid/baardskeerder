@@ -71,4 +71,8 @@ module Baardskeerder :
     val get : tx -> k -> v S.m
     val set : tx -> k -> v -> unit S.m
     val delete : tx -> k -> unit S.m
+    
+    val set_metadata: t -> string -> unit S.m
+    val get_metadata: t -> string option S.m
+    val unset_metadata: t -> unit S.m
   end

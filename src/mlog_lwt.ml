@@ -22,3 +22,7 @@ let now = Mlog.now
 
 let dump ?out:out_channel _ = failwith "Not implemented"
 let compact ?(min_blocks=1) ?(progress_cb=None) (_:t) = failwith "Not implemented"
+
+let set_metadata = wrap2 Mlog.set_metadata
+let get_metadata = wrap1 Mlog.get_metadata
+let unset_metadata = wrap1 Mlog.unset_metadata

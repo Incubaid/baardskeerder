@@ -762,4 +762,13 @@ let compact ?min_blocks:(mb=0) ?progress_cb:(pc=None) t =
     | Leaf _ | Value _ | Index _ ->
         invalid_arg "Flog.compact: no commit entry at given offset"
 
+let set_metadata t s =
+  failwith "not implemented"
+
+let unset_metadata t =
+  failwith "not implemented"
+  
+let get_metadata t =
+  failwith "not implemented"
+      
 end (* module / functor *)

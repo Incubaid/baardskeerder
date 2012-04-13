@@ -28,6 +28,7 @@ type s = { mutable es: entry array;
 type t = { spindles: s array;
            mutable current_spindle: int;
            mutable now: Time.t;
+           mutable meta: string option;
          }
 
 type 'a m = 'a
@@ -48,7 +49,7 @@ let close (_:t) = ()
 
 let make_spindles n p = Array.init n (fun _ -> { es=Array.make p NIL; next=0 })
 
-let make2 ?(n_spindles = 4) (_:string) now = { spindles=make_spindles n_spindles 32; current_spindle=0; now }
+let make2 ?(n_spindles = 4) (_:string) now = { spindles=make_spindles n_spindles 32; current_spindle=0; now=now ; meta= None}
 let make (s:string) = make2 s Time.zero
 
 let write (t:t) (slab:Slab.t) =
@@ -163,3 +164,12 @@ let compact ?(min_blocks=1) ?(progress_cb=None) (_:t) =
   ignore min_blocks;
   ignore progress_cb;
   failwith "todo"
+
+let set_metadata t s =
+  t.meta <- Some s
+  
+let get_metadata t =
+  t.meta
+  
+let unset_metadata t =
+  t.meta <- None     

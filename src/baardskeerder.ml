@@ -59,6 +59,10 @@ module Baardskeerder
       let get tx k = X.get tx k
       let set tx k v = X.set tx k v
       let delete tx k = X.delete tx k
+      
+      let set_metadata t s = L.set_metadata t s
+      let get_metadata t = L.get_metadata t
+      let unset_metadata t = L.unset_metadata t 
     end
 
 module SB = Baardskeerder(Logs.Flog0)(Stores.Sync)
