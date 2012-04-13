@@ -21,11 +21,18 @@
 
 include Pos
 
+
+
 type k = string
 
 exception NOT_FOUND of k
 
 type v = string
+
+type action = 
+  |Set of k * v
+  |Delete of k
+
 
 type kp = k * pos
 
