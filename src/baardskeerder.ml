@@ -19,6 +19,7 @@
 
 include Base
 
+type action = Commit.action
 module Logs =
   struct
     module Flog = Flog.Flog

@@ -21,6 +21,7 @@ type t
 type tx
 type k = string
 type v = string
+type action
 
 exception NOT_FOUND of k
 
