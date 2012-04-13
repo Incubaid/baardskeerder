@@ -45,8 +45,23 @@ let vint_to b n =
 	   loop r
   in loop n
 
-let time_to b (x,y,g) = 
-  vint_to b x;
+let vint64_to b (n:int64) = 
+  let add c = Buffer.add_char b c in
+  let rec loop = function
+    | 0L -> add '\x00'
+    | n when n < 128L -> add (Char.chr (Int64.to_int n))
+    | n -> 
+      let last = (Int64.to_int n) land 0x7f in
+      let byte = last lor 0x80  in
+      let () = add (Char.chr byte) in
+      let r = Int64.shift_left n 7 in
+      loop r
+  in loop n
+
+
+let time_to b (t:Time.t) =
+  let (x,y,g) = t in
+  vint64_to b x;
   vint_to b y;
   let c = if g then '\x01' else '\x00' in
   Buffer.add_char b c
@@ -112,6 +127,24 @@ let input_vint input =
       loop v' (f * 128) (p+1)
   in loop 0 1 start
 
+let input_vint64 input = 
+  let (+:) = Int64.add in
+  let ( *: ) = Int64.mul in
+  let s = input.s in
+  let start = input.p in
+  let rec loop v f p = 
+    let c = s.[p] in
+    let cv = Int64.of_int (Char.code c) in
+    if cv < 0x80L 
+    then 
+      let () = input.p <- p+ 1  in
+      v +: cv *: f
+    else 
+      let v' = v +: (Int64.logand cv  0x7fL) *: f in
+      loop v' (f *: 128L) (p+1)
+  in loop 0L 1L start
+
+
 let input_size input = 
   let p = input.p in
   let () = input.p <- p + 4 in
@@ -153,7 +186,7 @@ let list_to b e_to list =
   List.iter (e_to b) list
 
 let input_time input =
-  let x = input_vint input in
+  let x = input_vint64 input in
   let y = input_vint input in
   let c = input_char input in
   let g = match c with 

@@ -25,7 +25,7 @@ open Pos
 
 let es = 
   let pos = Inner 25 in
-  let t0 = Time.make 1 2 false in
+  let t0 = Time.make 1L 2 false in
   let previous = Outer (Spindle 0, Offset (-1)) in
   let lookup = pos in
   [| 
@@ -60,7 +60,7 @@ let es =
 
 
 let t_compaction () = 
-  let fut = Time.make 1 2 false in
+  let fut = Time.make 1L 2 false in
   let slab = Slab.make fut in
   let () = Array.iter (fun e -> ignore(Slab.add slab e)) es in
   let () = Slab.dump slab in

@@ -41,7 +41,7 @@ type 'a q = {
 }
 
 let mem_setup () =  
-  let fut = Time.make 1 2 false in
+  let fut = Time.make 1L 2 false in
   let empty = Slab.make fut in
   {
   log = Mlog.make "bla";
