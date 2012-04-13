@@ -511,30 +511,22 @@ let lookup t =
 
 
 let init ?(d=4) fn t0 = 
-  M.iter
-    (fun fn ->
-      S.init fn >>= fun s ->
-      if S.next s = 0 then
-        let commit = (Spindle 0, Offset 0) in
-        _write_metadata s {commit;td = d; t0} >>= fun () ->
-        S.close s
-      else
-        S.close s >>= fun () ->
-        let s = Printf.sprintf "%s already exists" fn in
-        failwith s)
-    (List.map (fun d -> Printf.sprintf "%s.%d" fn d) [0; 1; 2])
+  S.init fn >>= fun s ->
+  if S.next s = 0 then
+    let commit = (Spindle 0, Offset 0) in
+    _write_metadata s {commit;td = d; t0} >>= fun () ->
+    S.close s
+  else
+    S.close s >>= fun () ->
+    let s = Printf.sprintf "%s already exists" fn in
+    failwith s
 
 
-let make filename = 
-  M.init_array 3
-    (fun i ->
-      S.init (Printf.sprintf "%s.%d" filename i) >>= fun s ->
+let make filename =
+  S.init filename >>= fun s ->
+  assert (S.next s > 0);
 
-      assert (S.next s > 0);
-
-      return s
-
-    ) >>= fun spindles ->
+  let spindles = Array.make 1 s in
 
   let sp0 = Array.get spindles 0 in
   _read_metadata sp0 >>= fun m ->
