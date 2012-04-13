@@ -113,7 +113,7 @@ module DBX(L:LOG) = struct
     let tx = {log;slab;cactions = []} in
     let pos = Commit.get_pos lc in
     let previous = Commit.get_previous lc in
-    let lookup = Commit.get_lookup lc in
+    let lookup = pos in
     let cactions = Commit.get_cactions lc in
     let commit = make_commit ~pos ~previous ~lookup time cactions in
     let c = Commit commit in

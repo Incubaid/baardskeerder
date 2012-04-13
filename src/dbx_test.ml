@@ -26,7 +26,7 @@ module MDB = DB(Mlog)
 let _setup () = 
   let fn = "bla" in
   let () = Mlog.init ~d:2 Time.zero fn in
-  Mlog.make fn   
+  Mlog.make2 ~n_spindles:1 fn Time.zero
 
 let get_after_delete () = 
   let mlog = _setup() in
@@ -71,6 +71,7 @@ let update_commit_get() =
   let (>>=) = Mlog.bind in
   MDBX.log_update mlog (fun tx -> MDBX.set tx k v) >>= fun () ->
   MDBX.commit_last mlog >>= fun () ->
+  Mlog.dump mlog;
   MDB.get mlog k >>= fun v2 ->
   OUnit.assert_equal ~printer:(fun s -> s) v2 v
   
