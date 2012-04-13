@@ -62,7 +62,10 @@ module Baardskeerder :
 
     val get_latest : t -> k -> v S.m
     val with_tx : t -> (tx -> unit) -> unit S.m
+
     val log_update: t -> ?diff:bool -> (tx -> unit S.m) -> unit S.m
+    val last_update: t -> (Time.t * (Commit.action list)) S.m
+
     val get : tx -> k -> v S.m
     val set : tx -> k -> v -> unit S.m
     val delete : tx -> k -> unit S.m

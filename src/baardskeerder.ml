@@ -51,6 +51,8 @@ module Baardskeerder
       let with_tx log f = X.with_tx log (fun v -> L.return (f v))
 
       let log_update log ?(diff=true) f = X.log_update log ~diff f
+      let last_update log = X.last_update log
+
       let get_latest t k = D.get t k
       let get tx k = X.get tx k
       let set tx k v = X.set tx k v

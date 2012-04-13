@@ -23,6 +23,8 @@ open Log
 open Entry
 open Slab
 open Commit
+open Catchup
+
 
 module DBX(L:LOG) = struct
 
@@ -33,6 +35,7 @@ module DBX(L:LOG) = struct
               mutable cactions: caction list}
 
   module DBL = DB(L)
+  module CaL = Catchup(L)
 
   let get tx k = DBL._get tx.log tx.slab k
 
@@ -96,4 +99,14 @@ module DBX(L:LOG) = struct
     let slab' = Slab.compact tx.slab in
     L.write log slab'
 
+  let last_update (log:L.t) =
+    let pp = L.last log in
+    L.read log pp >>= function
+      | Commit lc ->
+        let cas = Commit.get_cactions lc in
+        let time = Commit.get_time lc in
+        CaL.translate_cactions log cas >>= fun actions ->
+        L.return (time, actions)
+      | e -> failwith (Printf.sprintf "last_update: %s should be commit" (entry2s e))
+        
 end

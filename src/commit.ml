@@ -27,6 +27,10 @@ let caction2s = function
   | CSet (k,p) -> Printf.sprintf "CSet (%S,%s)" k (pos2s p)
   | CDelete k  -> Printf.sprintf "CDelete %S" k
 
+type action = 
+  |Set of k * v
+  |Delete of k
+
 type commit = { pos: pos ; 
                 previous: pos; 
                 lookup: pos;
