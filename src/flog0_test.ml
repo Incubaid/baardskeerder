@@ -78,9 +78,38 @@ let pu_commit() =
   let c1 = MF.inflate_commit input in
   let () = OUnit.assert_equal ~printer:Commit.commit2s c0 c1 in
   ()
+
+let test_metadata () =
+  MF.init "test_metadata.db" Time.zero;
+  let db = MF.make "test_metadata.db" in
+  match MF.get_metadata db with
+    | Some _ -> OUnit.assert_failure "Found metadata"
+    | None -> ();
+  let md = "metadata, oh metadata!" in
+  MF.set_metadata db md;
+
+  MF.close db;
+
+  let db = MF.make "test_metadata.db" in
+  match MF.get_metadata db with
+    | None -> OUnit.assert_failure "Didn't find metadata"
+    | Some v -> OUnit.assert_equal v md;
+
+  MF.unset_metadata db;
+
+  match MF.get_metadata db with
+    | Some _ -> OUnit.assert_failure "Found metadata after unset"
+    | None -> ();
+
+  MF.close db;
+
+  Unix.unlink "test_metadata.db"
+
+
 let suite = 
   "Flog0" >::: [
     "pu_leaf" >:: pu_leaf;
     "pu_index" >:: pu_index;
     "pu_commit" >:: pu_commit;
+    "metadata" >:: test_metadata;
   ]

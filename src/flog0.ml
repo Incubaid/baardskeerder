@@ -239,7 +239,7 @@ type t = { spindles : S.t array;
            mutable next_spindle: int;
 	   mutable d: int;
            mutable now: Time.t;
-           
+           filename : string;
 	 }
 
 let get_d t = t.d
@@ -592,8 +592,44 @@ let make filename =
                 d=d;
                 now = now;
                 start = m.t0;
+                filename;
               }
   in
   return flog0
+
+let set_metadata t s =
+  let f = t.filename ^ ".meta" in
+  let o = f ^ ".new" in
+  let b = Buffer.create 128 in
+  size_to b (String.length s);
+  Buffer.add_string b s;
+  let s' = Buffer.contents b in
+  S.init o >>= fun fd ->
+  S.write fd s' 0 (String.length s') 0 >>= fun () ->
+  S.close fd >>= fun () ->
+  Unix.rename o f;
+  return ()
+
+let unset_metadata t =
+  let () = try
+    Unix.unlink (t.filename ^ ".meta")
+  with Unix_error (Unix.ENOENT, _, _) -> ()
+  in
+  return ()
+
+let get_metadata t =
+  let f = t.filename ^ ".meta" in
+  if
+    try
+      let _ = Unix.stat f in true
+    with Unix_error (Unix.ENOENT, _, _) -> false
+  then
+    S.init f >>= fun fd ->
+    S.read fd 0 4 >>= fun d ->
+    let l = size_from d 0 in
+    S.read fd 4 l >>= fun s ->
+    return (Some s)
+  else
+    return None
 
 end (* module / functor *)
