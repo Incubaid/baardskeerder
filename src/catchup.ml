@@ -2,8 +2,13 @@ open Log
 open Commit
 open Entry
 open Time
+open Base
 
 module Catchup(L: LOG) = struct
+  type caction = 
+    |CSet of k * v
+    |CDelete of k
+
   let catchup (start:Time.t) (f : 'a -> action list -> 'a L.m) (a0:'a) (log : L.t) =
     let _read_commit pos =
       L.bind 
