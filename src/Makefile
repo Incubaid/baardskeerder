@@ -10,6 +10,7 @@ install:
 	  _build/baardskeerder.cma \
 	  _build/baardskeerder.cmxa \
 	  _build/bs_internal.cma \
+	  _build/bs_internal.cmi \
 	  _build/bs_internal.cmxa \
 	  _build/baardskeerder.mli \
 	  _build/baardskeerder.cmi \
