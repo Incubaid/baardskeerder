@@ -217,7 +217,7 @@ let () =
     | DumpStream ->
       begin
         let log = MyLog.make !fn in
-        let f () t a = Printf.printf "%s\t: %s\n" (Time.time2s t) (Commit.action2s a) in
+        let f () t a = Printf.printf "%s\t: %s\n" (Time.time2s t) (Commit.caction2s a) in
         let t0 = Time.zero in
         let () = MySync.fold_actions t0 f () log in
         MyLog.close log

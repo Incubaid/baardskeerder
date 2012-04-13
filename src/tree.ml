@@ -173,10 +173,10 @@ module DB = functor (L:LOG ) -> struct
     let fut = Time.next_major now in
     let slab = Slab.make fut in
     _set t slab k v >>= fun (pos:pos) ->
-    let action = Commit.Set (k,Inner 0) in (* a little knowledge is a dangerous thing *)
+    let caction = Commit.CSet (k,Inner 0) in (* a little knowledge is a dangerous thing *)
     let previous = L.last t in
     let lookup = pos in
-    let commit = Commit.make_commit ~pos ~previous ~lookup fut [action] in (* UGLY *)
+    let commit = Commit.make_commit ~pos ~previous ~lookup fut [caction] in (* UGLY *)
     let _ = Slab.add_commit slab commit in
     L.write t slab
 
@@ -490,10 +490,10 @@ module DB = functor (L:LOG ) -> struct
     let fut = Time.next_major now in
     let slab = Slab.make fut in
     _delete t slab k >>= fun (pos:pos) ->
-    let action = Commit.Delete k in
+    let caction = Commit.CDelete k in
     let previous = L.last t in
     let lookup = pos in
-    let commit = Commit.make_commit ~pos ~previous ~lookup fut [action] in
+    let commit = Commit.make_commit ~pos ~previous ~lookup fut [caction] in
     let _ = Slab.add_commit slab commit in
     L.write t slab
 

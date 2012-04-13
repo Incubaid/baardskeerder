@@ -62,9 +62,9 @@ let pu_commit() =
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
   let pos = out 0 0 
-  and actions = [Commit.Set ("set0", Outer (Spindle 0, Offset 0));
-                 Commit.Set ("set1", Outer (Spindle 0, Offset 1));
-                 Commit.Delete "delete0" ]
+  and actions = [Commit.CSet ("set0", Outer (Spindle 0, Offset 0));
+                 Commit.CSet ("set1", Outer (Spindle 0, Offset 1));
+                 Commit.CDelete "delete0" ]
   and now = Time.make 1 2 false in
   let previous = Outer (Spindle 0, Offset 0) in
   let lookup = pos in

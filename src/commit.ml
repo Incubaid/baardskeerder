@@ -19,25 +19,25 @@
 
 open Base
 
-type action = 
-  | Set of (k * pos)
-  | Delete of k
+type caction = 
+  | CSet of (k * pos)
+  | CDelete of k
 
-let action2s = function
-  | Set (k,p) -> Printf.sprintf "Set (%S,%s)" k (pos2s p)
-  | Delete k  -> Printf.sprintf "Delete %S" k
+let caction2s = function
+  | CSet (k,p) -> Printf.sprintf "CSet (%S,%s)" k (pos2s p)
+  | CDelete k  -> Printf.sprintf "CDelete %S" k
 
 type commit = { pos: pos ; 
                 previous: pos; 
                 lookup: pos;
                 time:Time.t; 
-                actions: action list;}
+                cactions: caction list;}
 
-let make_commit ~pos ~previous ~lookup time actions = {pos;previous; lookup; time;actions }
+let make_commit ~pos ~previous ~lookup time cactions = {pos;previous; lookup; time;cactions }
 
 let get_pos t = t.pos
 
-let get_actions t = t.actions
+let get_cactions t = t.cactions
 
 let get_lookup t = t.lookup
 
@@ -45,7 +45,7 @@ let get_time t = t.time
 
 let get_previous t = t.previous
 
-let commit2s t = Printf.sprintf "{pos=%s; previous = %s; lookup=%s;time=%s; actions=%s}" 
+let commit2s t = Printf.sprintf "{pos=%s; previous = %s; lookup=%s;time=%s; cactions=%s}" 
   (pos2s t.pos) (pos2s t.previous)  (pos2s t.lookup)
   (Time.time2s t.time)
-  (Pretty.string_of_list action2s t.actions)
+  (Pretty.string_of_list caction2s t.cactions)

@@ -270,11 +270,11 @@ let inflate_action input =
   let t = input_char input in
   match t with
     | 'D' -> let k = input_string input in
-             Commit.Delete k
+             Commit.CDelete k
     | 'S' -> let k = input_string input in
              let s = input_vint input in
              let p = input_vint input in
-             Commit.Set (k, Outer (Spindle s, Offset p))
+             Commit.CSet (k, Outer (Spindle s, Offset p))
     | t   -> let s = Printf.sprintf "%C action?" t in failwith s
 
        
@@ -401,11 +401,11 @@ let deflate_leaf b h kps =
 
 
 let deflate_action b h = function
-  | Commit.Set (k,p) -> 
+  | Commit.CSet (k,p) -> 
     Buffer.add_char b 'S';
     string_to b k;
     pos_remap b h p
-  | Commit.Delete k ->
+  | Commit.CDelete k ->
     Buffer.add_char b 'D';
     string_to b k
 
@@ -417,7 +417,7 @@ let deflate_commit b h c =
   let lookup = Commit.get_lookup c in
   let t = Commit.get_time c in
   
-  let actions = Commit.get_actions c in
+  let actions = Commit.get_cactions c in
   pos_remap mb h pos;
   pos_remap mb h previous;
   pos_remap mb h lookup;

@@ -126,15 +126,15 @@ let compact s =
   in
   let rewrite_actions actions = List.map 
     (function
-      | Commit.Set (k,p) -> Commit.Set (k, lookup_pos p)
-      | (Commit.Delete _) as d  -> d)
+      | Commit.CSet (k,p) -> Commit.CSet (k, lookup_pos p)
+      | (Commit.CDelete _) as d  -> d)
     actions
   in
   let rewrite_leaf kps        = List.map (fun (k,p) -> (k,lookup_pos p)) kps in
   let rewrite_index (p0,kps)  = (lookup_pos p0 , rewrite_leaf kps) in
   let rewrite_commit c  = 
     let pos = lookup_pos (Commit.get_pos c) 
-    and actions =rewrite_actions (Commit.get_actions c) 
+    and actions =rewrite_actions (Commit.get_cactions c) 
     and t = Commit.get_time c 
     and previous = lookup_pos (Commit.get_previous c) in
     let lookup = lookup_pos (Commit.get_lookup c) in

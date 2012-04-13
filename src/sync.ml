@@ -30,7 +30,7 @@ module Sync (L:LOG) = struct
 
   module M = Monad(L)
 
-  let fold_actions t0 (f:'a -> Time.t -> action -> 'a) a0 log =
+  let fold_actions t0 (f:'a -> Time.t -> caction -> 'a) a0 log =
     let read_commit p = 
       L.read log p >>= function
         | Commit c -> return c
@@ -55,7 +55,7 @@ module Sync (L:LOG) = struct
     M.fold_left 
       (fun acc p -> 
         read_commit p >>= fun c ->
-        let actions = Commit.get_actions c in
+        let actions = Commit.get_cactions c in
         let t = Commit.get_time c in
         let f' acc a = f acc t a in
         return (List.fold_left f' acc actions))

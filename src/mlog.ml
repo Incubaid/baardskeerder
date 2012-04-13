@@ -60,18 +60,18 @@ let write (t:t) (slab:Slab.t) =
     | (Outer _) as p -> p
     | Inner i -> Outer (sp, (Offset (i + off)))
   in
-  let externalize_actions xs = 
-    let externalize_action = function
-      | Commit.Set (k,p) -> Commit.Set (k, externalize_pos p) 
-      | (Commit.Delete _) as x-> x
+  let externalize_cactions xs = 
+    let externalize_caction = function
+      | Commit.CSet (k,p) -> Commit.CSet (k, externalize_pos p) 
+      | (Commit.CDelete _) as x-> x
     in
-    List.fold_left (fun acc a -> externalize_action a :: acc) [] xs
+    List.fold_left (fun acc a -> externalize_caction a :: acc) [] xs
   in
   let externalize_leaf  l = List.map (function (k,p) -> (k,externalize_pos p)) l in
   let externalize_index (p0, l) = (externalize_pos p0, externalize_leaf l) in
   let externalize_commit c = 
     let pos = externalize_pos (Commit.get_pos c) in
-    let actions = externalize_actions (Commit.get_actions c) in
+    let actions = externalize_cactions (Commit.get_cactions c) in
     let time = Commit.get_time c in
     let previous = externalize_pos (Commit.get_previous c) in
     let lookup = externalize_pos (Commit.get_lookup c) in
