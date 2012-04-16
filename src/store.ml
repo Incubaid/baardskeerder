@@ -148,14 +148,20 @@ module Lwt : STORE with type 'a m = 'a Lwt.t =
     let (>>=) = bind
 
     let init name =
-      Lwt_unix.openfile name [Lwt_unix.O_RDWR; Lwt_unix.O_CREAT;] 0o640 >>= fun fd ->
-      Lwt_unix.fstat fd >>= fun stat ->
-      let len = stat.st_size in
-
-      Lwt_unix.lseek fd len Lwt_unix.SEEK_SET >>= fun i ->
-      assert (i = len);
-
-      return (T (fd, ref len))
+      Lwt.catch
+        (fun () ->
+          Lwt_unix.openfile name [Lwt_unix.O_RDWR; Lwt_unix.O_CREAT;] 0o640 >>= fun fd ->
+          Lwt_unix.fstat fd >>= fun stat ->
+          let len = stat.st_size in
+          
+          Lwt_unix.lseek fd len Lwt_unix.SEEK_SET >>= fun i ->
+          assert (i = len);
+          
+          return (T (fd, ref len))
+        )
+        (fun e -> 
+          let msg = Printf.sprintf "init %s failed with :%s" name (Printexc.to_string e) in
+          Lwt.fail (Failure msg))
 
     let close (T (fd, _)) =
       Lwt_unix.close fd
