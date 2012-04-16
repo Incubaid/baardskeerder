@@ -122,7 +122,6 @@ let test_remake () =
   (* deliberately don't close: metadata is out of date *)
   let log2 = MF.make fn in
   let last = MF.last log2 in
-  Printf.printf "last=%s\n" (pos2s last);
   OUnit.assert_bool "last should not point to beginning of log" (last <> Outer (Spindle 0, Offset 0));
   Unix.unlink fn
 

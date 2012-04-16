@@ -560,32 +560,35 @@ let make filename =
   assert (S.next s > 0);
 
   let spindles = Array.make 1 s in
-
+  
   let sp0 = Array.get spindles 0 in
+
   _read_metadata sp0 >>= fun m ->
-  let last = m.commit in
+  let next_free = S.next sp0 in
   let d = m.td in
-
-  begin
-  if last = (Spindle 0, Offset 0)
-  then
-    return m.t0
-  else
-    begin
-      let (Spindle s, Offset o) = last in
-      let sp = Array.get spindles s in
-      _read_entry_s sp o >>= fun s ->
-      let input = make_input s 0 in
-      let e = input_entry input in
-      match e with
-        | Commit c -> return (Commit.get_time c)
-        | NIL | Value _ | Index _ | Leaf _ -> 
-            let msg = Printf.sprintf "%s should have been a commit" (entry2s e) in
-            failwith msg
-    end
-  end
-  >>= fun now ->
-
+  let rec _scan_forward lt (tbr:int) = 
+    if tbr = next_free then
+      S.return lt
+    else
+      begin
+        try
+          _read_entry_s sp0 tbr >>= fun es ->
+          let input = make_input es 0 in
+          let e = input_entry input in
+          let next = tbr + 4 + String.length es in
+          match e with
+            | Commit c -> 
+              let time = Commit.get_time c in
+              let lt' = (Spindle 0, Offset tbr), time in
+              _scan_forward lt'   next
+            | e -> _scan_forward lt next
+        with End_of_file ->
+          S.return lt
+      end
+  in
+  let (_,Offset tbr) = m.commit in
+  let corrected_tbr = max _METADATA_SIZE tbr in
+  _scan_forward ((Spindle 0, Offset 0),Time.zero) corrected_tbr >>= fun (last, now) ->
   let flog0 = { spindles=spindles;
                 last=last;
                 next_spindle=0;
