@@ -106,10 +106,32 @@ let test_metadata () =
   Unix.unlink "test_metadata.db"
 
 
+let test_remake () = 
+  let fn = "test_remake.db" in
+  MF.init fn Time.zero;
+  let log = MF.make fn in
+  let slab = Slab.make Time.zero in
+  let p0 = Slab.add_value slab "value0" in
+  let p1 = Slab.add_leaf  slab  ["key0", p0] in
+  let nil = Outer (Spindle 0, Offset 0) in
+  let commit = Commit.make_commit
+    ~pos:p1 ~previous:nil ~lookup:nil Time.zero [Commit.CSet ("key0", Inner 0)]
+  in
+  let _ = Slab.add_commit slab commit in
+  MF.write log slab;
+  (* deliberately don't close: metadata is out of date *)
+  let log2 = MF.make fn in
+  let last = MF.last log2 in
+  Printf.printf "last=%s\n" (pos2s last);
+  OUnit.assert_bool "last should not point to beginning of log" (last <> Outer (Spindle 0, Offset 0));
+  Unix.unlink fn
+
+
 let suite = 
   "Flog0" >::: [
     "pu_leaf" >:: pu_leaf;
     "pu_index" >:: pu_index;
     "pu_commit" >:: pu_commit;
     "metadata" >:: test_metadata;
+    "remake" >:: test_remake;
   ]
