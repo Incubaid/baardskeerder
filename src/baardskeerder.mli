@@ -69,6 +69,7 @@ module Baardskeerder :
     val log_update: t -> ?diff:bool -> (tx -> unit S.m) -> unit S.m
     val last_update: t -> (int64 * (action list)* bool) option S.m
     val commit_last: t -> unit S.m
+    val catchup: t -> int64 -> ('a -> int64 -> action list -> 'a S.m) -> 'a -> 'a S.m
 
     val get : tx -> k -> v S.m
     val set : tx -> k -> v -> unit S.m

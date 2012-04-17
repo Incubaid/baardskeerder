@@ -25,8 +25,8 @@ let t_catchup1 () =
       end
   in
   loop 11;
-  let t0 = Time.zero in
-  let result = MCatchup.catchup t0 (fun acc actions -> actions :: acc) [] mlog in
+  let i0 = 0L in
+  let result = MCatchup.catchup i0 (fun acc i actions -> actions :: acc) [] mlog in
   ()
     
 

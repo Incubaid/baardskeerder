@@ -39,7 +39,7 @@ module Baardskeerder
       module L = LF(S)
       module D = Tree.DB(L)
       module X = Dbx.DBX(L)
-
+      module C = Catchup.Catchup(L)
       type t = L.t
       type tx = X.tx
 
@@ -53,6 +53,7 @@ module Baardskeerder
       let log_update log ?(diff=true) f = X.log_update log ~diff f
       let last_update log = X.last_update log
       let commit_last log = X.commit_last log
+      let catchup log i0 f a0 = C.catchup i0 f a0 log
 
       let get_latest t k = D.get t k
       let get tx k = X.get tx k

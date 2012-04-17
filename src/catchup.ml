@@ -39,8 +39,8 @@ module Catchup(L: LOG) = struct
     loop [] cas
  
 
-  let catchup (start:Time.t) (f : 'a -> action list -> 'a L.m) (a0:'a) (log : L.t) =
-
+  let catchup (i0: int64) (f : 'a -> int64 -> action list -> 'a L.m) (a0:'a) (log : L.t) =
+    let start = (i0, 0,false) in
     let rec go_back acc p =
       L.bind 
         (L.read log p) 
@@ -71,7 +71,8 @@ module Catchup(L: LOG) = struct
             then
               let prev_cas = Commit.get_cactions prev_c in
               translate_cactions log prev_cas >>= fun prev_as ->
-              f acc prev_as >>= fun acc' -> loop acc' cur_c tail
+              let prev_i = Time.major_of prev_t in
+              f acc prev_i prev_as >>= fun acc' -> loop acc' cur_c tail
             else
               loop acc cur_c tail                    
         in
