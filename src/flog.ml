@@ -150,7 +150,8 @@ and commit_reader =
   and a = []
   and previous = Outer (Spindle 0, Offset (-2)) in
   let lookup = pos in
-  let c = Commit.make_commit ~pos ~previous ~lookup i a in
+  let explicit = false in
+  let c = Commit.make_commit ~pos ~previous ~lookup i a explicit in
   Binary.return $ Commit c
 
 

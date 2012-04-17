@@ -134,11 +134,12 @@ let compact s =
   let rewrite_index (p0,kps)  = (lookup_pos p0 , rewrite_leaf kps) in
   let rewrite_commit c  = 
     let pos = lookup_pos (Commit.get_pos c) 
-    and actions =rewrite_actions (Commit.get_cactions c) 
+    and cactions =rewrite_actions (Commit.get_cactions c) 
     and t = Commit.get_time c 
     and previous = lookup_pos (Commit.get_previous c) in
     let lookup = lookup_pos (Commit.get_lookup c) in
-    Commit.make_commit ~pos ~previous ~lookup t actions
+    let explicit = Commit.is_explicit c in
+    Commit.make_commit ~pos ~previous ~lookup t cactions explicit
   in
   let esa = s.es in
   let size = s.nes in

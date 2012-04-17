@@ -55,7 +55,7 @@ let es =
   Index (Inner 7, ["key_00000001", Inner 14]);
   Index (Inner 21, ["key_00000005", Inner 22]);
   Index (Inner 23, ["key_00000003", Inner 24]);
-  Commit (Commit.make_commit ~pos ~previous ~lookup t0 []) (* should be correct values *);
+  Commit (Commit.make_commit ~pos ~previous ~lookup t0 [] false) (* should be correct values *);
 	 |]
 
 

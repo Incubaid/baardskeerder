@@ -66,7 +66,9 @@ let time_to b (t:Time.t) =
   let c = if g then '\x01' else '\x00' in
   Buffer.add_char b c
     
-    
+let bool_to b (v:bool) = 
+  let c = if v then '1' else '0' in
+  Buffer.add_char b c
 
 let string_to b s = 
   let l = String.length s in
@@ -111,6 +113,12 @@ let input_char input =
   let () = input.p <- input.p + 1 in
   c
 
+let input_bool input = 
+  let c = input_char input in
+  match c with
+    | '0' -> false
+    | '1' -> true
+    | _ -> failwith "not a bool"
 
 let input_vint input = 
   let s = input.s in
@@ -323,7 +331,8 @@ let inflate_commit input =
   let lookup = inflate_pos input in
   let t = input_time input in
   let actions = input_list inflate_action input in    
-  Commit.make_commit ~pos ~previous ~lookup t actions
+  let explicit = input_bool input in
+  Commit.make_commit ~pos ~previous ~lookup t actions explicit
 
 
 let inflate_value input = input_string input
@@ -451,12 +460,14 @@ let deflate_commit b h c =
   let t = Commit.get_time c in
   
   let actions = Commit.get_cactions c in
+  let explicit = Commit.is_explicit c in
   pos_remap mb h pos;
   pos_remap mb h previous;
   pos_remap mb h lookup;
   time_to mb t;
   vint_to mb (List.length actions);
   List.iter (fun a -> deflate_action mb h a) actions;
+  bool_to mb explicit;
   _add_buffer b mb
 
 let deflate_entry (b:Buffer.t) h (e:entry) =

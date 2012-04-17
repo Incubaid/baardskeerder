@@ -68,7 +68,7 @@ let pu_commit() =
   and now = Time.make 1L 2 false in
   let previous = Outer (Spindle 0, Offset 0) in
   let lookup = pos in
-  let c0 = Commit.make_commit ~pos ~previous ~lookup now actions in
+  let c0 = Commit.make_commit ~pos ~previous ~lookup now actions true in
   let () = Printf.printf "com=%s\n" (Commit.commit2s c0) in
   let _ = MF.deflate_commit b h c0 in
   let bs = Buffer.contents b in
@@ -115,7 +115,7 @@ let test_remake () =
   let p1 = Slab.add_leaf  slab  ["key0", p0] in
   let nil = Outer (Spindle 0, Offset 0) in
   let commit = Commit.make_commit
-    ~pos:p1 ~previous:nil ~lookup:nil Time.zero [Commit.CSet ("key0", Inner 0)]
+    ~pos:p1 ~previous:nil ~lookup:nil Time.zero [Commit.CSet ("key0", Inner 0)] false
   in
   let _ = Slab.add_commit slab commit in
   MF.write log slab;

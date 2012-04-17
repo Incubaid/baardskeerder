@@ -33,9 +33,11 @@ type commit = { pos: pos ;
                 previous: pos; 
                 lookup: pos;
                 time:Time.t; 
-                cactions: caction list;}
+                cactions: caction list;
+                explicit: bool; (* this commit explicitly validates the previous update *)
+              }
 
-let make_commit ~pos ~previous ~lookup time cactions = {pos;previous; lookup; time;cactions }
+let make_commit ~pos ~previous ~lookup time cactions explicit = {pos;previous; lookup; time;cactions; explicit }
 
 let get_pos t = t.pos
 
@@ -46,6 +48,8 @@ let get_lookup t = t.lookup
 let get_time t = t.time
 
 let get_previous t = t.previous
+
+let is_explicit t = t.explicit
 
 let commit2s t = Printf.sprintf "{pos=%s; previous = %s; lookup=%s;time=%s; cactions=%s}" 
   (pos2s t.pos) (pos2s t.previous)  (pos2s t.lookup)

@@ -76,7 +76,8 @@ let write (t:t) (slab:Slab.t) =
     let time = Commit.get_time c in
     let previous = externalize_pos (Commit.get_previous c) in
     let lookup = externalize_pos (Commit.get_lookup c) in
-    Commit.make_commit ~pos ~previous ~lookup time actions
+    let explicit = Commit.is_explicit c in
+    Commit.make_commit ~pos ~previous ~lookup time actions explicit
   in
   let externalize = function
     | NIL -> NIL

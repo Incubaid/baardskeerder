@@ -176,7 +176,7 @@ module DB = functor (L:LOG ) -> struct
     let caction = Commit.CSet (k,Inner 0) in (* a little knowledge is a dangerous thing *)
     let previous = L.last t in
     let lookup = pos in
-    let commit = Commit.make_commit ~pos ~previous ~lookup fut [caction] in (* UGLY *)
+    let commit = Commit.make_commit ~pos ~previous ~lookup fut [caction] false in (* UGLY *)
     let _ = Slab.add_commit slab commit in
     L.write t slab
 
@@ -493,7 +493,7 @@ module DB = functor (L:LOG ) -> struct
     let caction = Commit.CDelete k in
     let previous = L.last t in
     let lookup = pos in
-    let commit = Commit.make_commit ~pos ~previous ~lookup fut [caction] in
+    let commit = Commit.make_commit ~pos ~previous ~lookup fut [caction] false in
     let _ = Slab.add_commit slab commit in
     L.write t slab
 
