@@ -127,8 +127,9 @@ module DBX(L:LOG) = struct
         let cas = Commit.get_cactions lc in
         let time = Commit.get_time lc in
         let i = Time.major_of time in
+        let explicit = Commit.is_explicit lc in
         CaL.translate_cactions log cas >>= fun actions ->
-        L.return (Some (i, actions))
+        L.return (Some (i, actions, explicit))
       | NIL -> L.return None
       | e -> failwith (Printf.sprintf "last_update: %s should be commit" (entry2s e))
         

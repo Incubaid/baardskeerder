@@ -51,7 +51,7 @@ let get_previous t = t.previous
 
 let is_explicit t = t.explicit
 
-let commit2s t = Printf.sprintf "{pos=%s; previous = %s; lookup=%s;time=%s; cactions=%s}" 
+let commit2s t = Printf.sprintf "{pos=%s; previous = %s; lookup=%s;time=%s; cactions=%s; explicit=%b}" 
   (pos2s t.pos) (pos2s t.previous)  (pos2s t.lookup)
   (Time.time2s t.time)
-  (Pretty.string_of_list caction2s t.cactions)
+  (Pretty.string_of_list caction2s t.cactions) t.explicit
