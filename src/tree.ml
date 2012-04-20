@@ -587,8 +587,8 @@ module DB = functor (L:LOG ) -> struct
   let range (t:L.t) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int option) = 
     let acc = ref [] in
     let f k = acc := k :: !acc in
-    let _ = _range t first finc last linc max f in
-    List.rev !acc
+    _range t first finc last linc max f >>= fun _ ->
+    return (List.rev !acc)
 
 
   let _fold_reverse_range_while t

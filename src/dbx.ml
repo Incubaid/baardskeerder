@@ -70,7 +70,8 @@ module DBX(L:LOG) = struct
     let slab' = Slab.compact tx.slab in 
     L.write log slab'
 
-
+  let range (tx:tx) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int option) = 
+    DBL.range tx.log first finc last linc max
 
 
   let log_update (log:L.t) ?(diff = true) (f: tx -> unit L.m) =
