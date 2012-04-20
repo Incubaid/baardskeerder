@@ -64,17 +64,20 @@ module Baardskeerder :
     val close : t -> unit S.m
 
     val get_latest : t -> k -> v S.m
+    val range_latest: t -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
+
     val with_tx : t -> (tx -> unit S.m) -> unit S.m
 
-    val log_update: t -> ?diff:bool -> (tx -> unit S.m) -> unit S.m
-    val last_update: t -> (int64 * (action list)* bool) option S.m
-    val commit_last: t -> unit S.m
-    val catchup: t -> int64 -> ('a -> int64 -> action list -> 'a S.m) -> 'a -> 'a S.m
 
     val get : tx -> k -> v S.m
     val set : tx -> k -> v -> unit S.m
     val delete : tx -> k -> unit S.m
     val range : tx -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
+
+    val log_update: t -> ?diff:bool -> (tx -> unit S.m) -> unit S.m
+    val last_update: t -> (int64 * (action list)* bool) option S.m
+    val commit_last: t -> unit S.m
+    val catchup: t -> int64 -> ('a -> int64 -> action list -> 'a S.m) -> 'a -> 'a S.m
 
     val set_metadata: t -> string -> unit S.m
     val get_metadata: t -> string option S.m

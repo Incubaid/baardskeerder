@@ -56,6 +56,9 @@ module Baardskeerder
       let catchup log i0 f a0 = C.catchup i0 f a0 log
 
       let get_latest t k = D.get t k
+      let range_latest t first finc last linc max = 
+        D.range t first finc last linc max
+
       let get tx k = X.get tx k
       let set tx k v = X.set tx k v
       let delete tx k = X.delete tx k
