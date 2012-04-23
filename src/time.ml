@@ -28,7 +28,7 @@ let get_minor (_,f,_) = f
 
 let make (x:major) y g = (x,y, g)
 
-let zero :t = (0L, 0, false ) 
+let zero :t = ( 0L, 0, false) 
 
 let next_major (x,_,_) = (Int64.succ x, 0,false)
 let next_minor (x,y,g) = 

@@ -41,6 +41,7 @@ module Catchup(L: LOG) = struct
 
   let catchup (i0: int64) (f : 'a -> int64 -> action list -> 'a L.m) (a0:'a) (log : L.t) =
     let start = (i0, 0,false) in
+    print_newline();
     let rec go_back acc p =
       L.bind 
         (L.read log p) 
@@ -50,10 +51,13 @@ module Catchup(L: LOG) = struct
             if t0 =>: start 
             then
               let p' = Commit.get_previous c in
+              Printf.printf "commit t0:%s start:%s => p' = %s\n" (Time.time2s t0) (Time.time2s t0) (pos2s p');
               go_back (p::acc) p'
             else
               L.return acc
-          | NIL -> L.return acc
+          | NIL -> 
+            Printf.printf "NIL\n";
+            L.return acc
           | e -> failwith (Printf.sprintf "Catchup:%s is not commit" (entry2s e))
         )
     in
@@ -62,7 +66,15 @@ module Catchup(L: LOG) = struct
       | [] -> L.return a0
       | ph :: r -> 
         let rec loop acc prev_c = function
-          | [] -> L.return acc
+          | [] -> 
+            if Commit.is_explicit prev_c then 
+              let prev_cas = Commit.get_cactions prev_c in
+              translate_cactions log prev_cas >>= fun prev_as ->              
+              let prev_t = Commit.get_time prev_c in
+              let prev_i = Time.major_of prev_t in
+              f acc prev_i prev_as >>= fun acc' ->
+              L.return acc'
+            else L.return acc
           | cp :: tail -> 
             read_commit log cp >>= fun cur_c ->
             let cur_t = Commit.get_time cur_c in

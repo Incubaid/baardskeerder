@@ -13,5 +13,8 @@
 # load "log.cmo";;
 # load "mlog.cmo";;
 # load "tree.cmo";;
+# load "catchup.cmo";;
 # load "dbx.cmo";;
+# use "topfind";;
+# require "oUnit";;
 (* # load "dot.cmo";; *)

@@ -58,6 +58,23 @@ let pu_index () =
   let () = OUnit.assert_equal ~printer:Index.index2s i0 i1 in
   ()
 
+let pu_vint () = 
+  let do_one i =
+    let b = Buffer.create 128 in
+    let () = MF.vint_to b i in
+    let bs = Buffer.contents b in
+    let input = MF.make_input bs 0 in
+    let i1 = MF.input_vint input in
+    let () = OUnit.assert_equal ~printer:string_of_int i i1 in
+    ()
+  in
+ do_one 0;
+ do_one 1;
+ do_one 255;
+ do_one 12345;
+ (* do_one (-1); *)
+ ()
+
 let pu_commit() = 
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
@@ -128,6 +145,7 @@ let test_remake () =
 
 let suite = 
   "Flog0" >::: [
+    "pu_vint" >:: pu_vint;
     "pu_leaf" >:: pu_leaf;
     "pu_index" >:: pu_index;
     "pu_commit" >:: pu_commit;
