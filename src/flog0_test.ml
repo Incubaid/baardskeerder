@@ -68,12 +68,21 @@ let pu_vint () =
     let () = OUnit.assert_equal ~printer:string_of_int i i1 in
     ()
   in
- do_one 0;
- do_one 1;
- do_one 255;
- do_one 12345;
- (* do_one (-1); *)
- ()
+  List.iter do_one [0;1;255;12345]
+
+
+let pu_vint64 () = 
+  let do_one i =
+    let b = Buffer.create 128 in
+    let () = MF.vint64_to b i in
+    let bs = Buffer.contents b in
+    let input = MF.make_input bs 0 in
+    let i1 = MF.input_vint64 input in
+    let () = OUnit.assert_equal ~printer:Int64.to_string i i1 in
+    ()
+  in
+  List.iter do_one [0L;1L;126L;127L;128L;4096L;12345L]
+
 
 let pu_commit() = 
   let b = Buffer.create 128 in
@@ -146,6 +155,7 @@ let test_remake () =
 let suite = 
   "Flog0" >::: [
     "pu_vint" >:: pu_vint;
+    "pu_vint64">:: pu_vint64;
     "pu_leaf" >:: pu_leaf;
     "pu_index" >:: pu_index;
     "pu_commit" >:: pu_commit;

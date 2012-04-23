@@ -54,7 +54,7 @@ let vint64_to b (n:int64) =
       let last = (Int64.to_int n) land 0x7f in
       let byte = last lor 0x80  in
       let () = add (Char.chr byte) in
-      let r = Int64.shift_left n 7 in
+      let r = Int64.shift_right n 7 in
       loop r
   in loop n
 
