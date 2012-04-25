@@ -51,12 +51,10 @@ module Catchup(L: LOG) = struct
             if t0 =>: start 
             then
               let p' = Commit.get_previous c in
-              Printf.printf "commit t0:%s start:%s => p' = %s\n" (Time.time2s t0) (Time.time2s t0) (pos2s p');
               go_back (p::acc) p'
             else
               L.return acc
           | NIL -> 
-            Printf.printf "NIL\n";
             L.return acc
           | e -> failwith (Printf.sprintf "Catchup:%s is not commit" (entry2s e))
         )
