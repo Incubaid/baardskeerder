@@ -27,7 +27,7 @@ open Leaf
 open Entry
 
 module MDB = DB(Mlog)
-
+open Test_helper
 
 type 'a q = {
   log:'a; 
@@ -35,7 +35,7 @@ type 'a q = {
   read:  'a  -> pos -> entry;
   clear: 'a  -> unit;
   set:   'a  -> k -> v -> unit;
-  get:   'a  -> k -> v;
+  get:   'a  -> k -> v option;
   delete :'a -> k -> unit;
   dump   :?out:out_channel -> 'a -> unit;
 }
@@ -63,7 +63,8 @@ let mem_wrap t = OUnit.bracket mem_setup t mem_teardown
 let check q kvs = 
   List.iter (fun k ->
     let v = String.uppercase k in
-    OUnit.assert_equal v (q.get q.log k)) kvs 
+    let vo = Some v in
+    OUnit.assert_equal ~printer:vo2s vo (q.get q.log k)) kvs 
 
 let check_empty q =
   let i = q.last q.log in
@@ -121,7 +122,7 @@ let check_invariants (q: 'a q) =
 	   failwith s
 									
 let check_not q kvs = 
-  List.iter (fun k -> OUnit.assert_raises ~msg:k (NOT_FOUND k) (fun () -> q.get q.log k)) kvs    
+  List.iter (fun k -> OUnit.assert_equal ~printer:vo2s None (q.get q.log k)) kvs 
     
     
 
@@ -205,9 +206,9 @@ let insert_delete_bug2 q =
   List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs;
   q.delete q.log "a";
   let kvs' = List.filter ( (<>) "a") kvs in
-  List.iter (fun k -> let v = String.uppercase k in 
-		      let v2 = q.get q.log k in
-		      OUnit.assert_equal v v2) kvs'
+  List.iter (fun k -> let vo = Some (String.uppercase k) in 
+		      let vo2 = q.get q.log k in
+		      OUnit.assert_equal vo vo2) kvs'
 
 let insert_delete_bug3 q = 
   let kvs = ["a";"b";"c";"d";"e";
@@ -444,7 +445,8 @@ let qc_insert_lookup log = fun kvs ->
       then
         (a, ks)
       else
-        (a && (MDB.get log k == v), k :: ks)
+	let vo = Some v in
+        (a && (MDB.get log k == vo), k :: ks)
     )
     kvs (true, [])
   in
@@ -462,17 +464,13 @@ let qc_replace log = fun (k, vs) ->
   List.iter (fun v -> MDB.set log k v) vs;
   match vs with
     | [] -> begin
-        try
-          let v = MDB.get log k in
-          false
-        with exc -> begin
-          match exc with
-            | Base.NOT_FOUND _ -> true
-            | _ -> false
-        end
+      let vo = MDB.get log k in
+      match vo with
+	| Some _ -> false
+	| None -> true
       end
     | _ ->
-        MDB.get log k = List.nth vs (List.length vs - 1)
+        MDB.get log k = Some (List.nth vs (List.length vs - 1))
 
 let qc_key_value_list =
   let ak = arbitrary_string

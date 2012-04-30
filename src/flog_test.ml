@@ -29,6 +29,7 @@ open Monad
 module MyFlog = Flog(Store.Sync)
 
 open MyFlog
+open Test_helper
 
 let test_uintN wf rf l n () =
   let m = 0x40000000 - 1 in
@@ -183,9 +184,9 @@ let test_database_set_get _ db =
   and v = "bar" in
 
   FDB.set db k v;
-  let v' = FDB.get db k in
-
-  OUnit.assert_equal v v'
+  let vo' = FDB.get db k in
+  let vo = Some v in
+  OUnit.assert_equal vo vo'
 
 let test_database_multi_action _ db =
   let k1 = "foo"
@@ -197,14 +198,14 @@ let test_database_multi_action _ db =
   FDB.set db k1 v1;
   FDB.set db k2 v2;
   let my_get k = FDB.get db k in
-  OUnit.assert_equal v1 (my_get k1);
-  OUnit.assert_equal v2 (my_get k2);
+  OUnit.assert_equal (Some v1) (my_get k1);
+  OUnit.assert_equal (Some v2) (my_get k2);
 
   FDB.set db k1 v1';
-  OUnit.assert_equal v1' (my_get k1);
+  OUnit.assert_equal (Some v1') (my_get k1);
 
   FDB.delete db k2;
-  OUnit.assert_raises (Base.NOT_FOUND k2) (fun () -> my_get k2)
+  OUnit.assert_equal None (my_get k2)
 
 
 let test_database_reopen fn db =
@@ -220,11 +221,11 @@ let test_database_reopen fn db =
 
   let db' = make fn in
   let my_get k = FDB.get db'  k in
-  let v1' = my_get k1
-  and v2' = my_get k2 in
+  let vo1' = my_get k1
+  and vo2' = my_get k2 in
 
-  OUnit.assert_equal v1 v1';
-  OUnit.assert_equal v2 v2';
+  OUnit.assert_equal (Some v1) vo1';
+  OUnit.assert_equal (Some v2) vo2';
 
   close db'
 
@@ -238,12 +239,13 @@ let test_database_sync fn db =
   MyFlog.sync db;
   MyFlog.sync db;
   let my_get k = FDB.get db k in
-  OUnit.assert_equal (my_get k) v;
+  let vo = Some v in
+  OUnit.assert_equal (my_get k) vo;
 
   close db;
 
   let db' = make fn in
-  OUnit.assert_equal (FDB.get db' k) v;
+  OUnit.assert_equal (FDB.get db' k) vo;
 
   close db'
 
@@ -288,9 +290,8 @@ let test_compaction_basic fn db =
   close db;
 
   let db' = make fn in
-  let id x = x in
   let my_get k = FDB.get db' k in
-  OUnit.assert_equal ~printer:id (my_get "foo") "bal";
+  OUnit.assert_equal ~printer:vo2s (my_get "foo") (Some "bal");
   close db';
 
   dump_fiemap fn
@@ -348,7 +349,7 @@ let test_compaction_all_states m c fn db =
       | i when i = (n - 1) -> ()
       | i ->
           let key = Printf.sprintf "key_%d" i in
-          OUnit.assert_raises (Base.NOT_FOUND key) (fun () -> FDB.get db key);
+          OUnit.assert_equal ~printer:vo2s None (FDB.get db key);
           check_deleted n (pred i)
     in
 
@@ -357,7 +358,7 @@ let test_compaction_all_states m c fn db =
       | i ->
           let key = Printf.sprintf "key_%d" i
           and value = Printf.sprintf "value_%d" i in
-          OUnit.assert_equal value (FDB.get db key);
+          OUnit.assert_equal ~printer:vo2s (Some value) (FDB.get db key);
           check_existing (pred i)
     in
 

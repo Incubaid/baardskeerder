@@ -40,18 +40,18 @@ module DB = functor (L:LOG ) -> struct
     let rec descend pos = 
       _read pos >>= fun e ->
       match e with
-	| NIL -> raise (NOT_FOUND k)
-	| Value v -> return v
+	| NIL -> return None
+	| Value v -> return (Some v)
 	| Leaf l -> descend_leaf l
 	| Index i -> descend_index i
 	| Commit _ -> let msg = Printf.sprintf "descend reached a second commit %s" (Pos.pos2s pos) in
 		      failwith msg
     and descend_leaf = function
-      | [] -> raise (NOT_FOUND k)
+      | [] -> return None
       | (k0,p0) :: t -> 
 	if k= k0 then descend p0 else
 	  if k > k0 then descend_leaf t
-	  else raise (NOT_FOUND k)
+	  else return None
     and descend_index (p0, kps) = 
       let rec loop pi = function
 	| []                       -> pi
@@ -68,7 +68,7 @@ module DB = functor (L:LOG ) -> struct
 	L.read t pos >>= fun e ->
 	match e with 
 	  | Commit c -> descend (Commit.get_lookup c)
-	  | NIL -> raise (NOT_FOUND k)
+	  | NIL -> return None
 	  | Index _ | Leaf _ | Value _ -> failwith "descend_root does not start at appropriate level"
       else
 	let pos = Slab.last slab in
@@ -683,10 +683,9 @@ module DB = functor (L:LOG ) -> struct
 
   let confirm (t:L.t) (s:Slab.t) k v =
     let set_needed () =
-      try
-	_get t s k >>= fun vc ->
-	return (vc <> v)
-      with NOT_FOUND _ -> return true
+      _get t s k >>= function 
+	| None -> return true
+	| Some vc -> return (vc <> v)
     in
     set_needed () >>= fun sn ->
     if sn

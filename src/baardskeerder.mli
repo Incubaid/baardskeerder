@@ -25,17 +25,19 @@ type action =
   | Set of k * v
   | Delete of k 
 
-exception NOT_FOUND of k
+
 
 val init : string -> unit
 val make : string -> t
 val close : t -> unit
 
-val get_latest : t -> k -> v
+val get_latest : t -> k -> v option
 val with_tx : t -> (tx -> unit) -> unit
 
-val get   : tx -> k -> v
+val get   : tx -> k -> v option
 val set   : tx -> k -> v -> unit
+
+exception NOT_FOUND of k
 val delete: tx -> k -> unit
 
 
@@ -63,13 +65,13 @@ module Baardskeerder :
     val make : string -> t S.m
     val close : t -> unit S.m
 
-    val get_latest : t -> k -> v S.m
+    val get_latest : t -> k -> v option S.m
     val range_latest: t -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
 
-    val with_tx : t -> (tx -> unit S.m) -> unit S.m
+    val with_tx : t -> (tx -> 'a S.m) -> 'a S.m
 
 
-    val get : tx -> k -> v S.m
+    val get : tx -> k -> v option S.m
     val set : tx -> k -> v -> unit S.m
     val delete : tx -> k -> unit S.m
     val range : tx -> k option -> bool -> k option -> bool -> int option -> (k list) S.m

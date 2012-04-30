@@ -58,7 +58,7 @@ module DBX(L:LOG) = struct
     let fut = inc now in
     let slab = Slab.make fut in
     let tx = {log;slab;cactions = []} in
-    f tx >>= fun () ->
+    f tx >>= fun txr ->
     let root = Slab.length tx.slab -1 in
     let previous = L.last log in
     let pos = Inner root in
@@ -68,7 +68,8 @@ module DBX(L:LOG) = struct
     let _ = Slab.add tx.slab c in
     (* let slab' = slab in *)
     let slab' = Slab.compact tx.slab in 
-    L.write log slab'
+    L.write log slab' >>= fun () ->
+    return txr
 
   let range (tx:tx) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int option) = 
     DBL.range tx.log first finc last linc max

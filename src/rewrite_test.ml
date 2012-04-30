@@ -55,7 +55,9 @@ let test_presence () =
   let fut = Time.next_major now in
   let empty = Slab.make fut in 
   M.iter
-    (fun (k,v) -> MDB._get m1 empty k >>= fun v' -> return (OUnit.assert_equal v' v))
+    (fun (k,v) -> 
+      let vo = Some v in
+      MDB._get m1 empty k >>= fun vo' -> return (OUnit.assert_equal vo' vo))
     kvs >>= fun () ->
   let m1t = LLog.now m1 in
   let s = Printf.sprintf "%s <> %s" (Time.time2s m0t) (Time.time2s m1t) in
