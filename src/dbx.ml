@@ -74,6 +74,8 @@ module DBX(L:LOG) = struct
   let range (tx:tx) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int option) = 
     DBL.range tx.log first finc last linc max
 
+  let range_entries (tx:tx) (first:k option) (finc: bool) (last: k option) (linc: bool) (max:int option) = 
+    DBL.range_entries tx.log first finc last linc max
 
   let log_update (log:L.t) ?(diff = true) (f: tx -> unit L.m) =
     let _find_lookup () = 

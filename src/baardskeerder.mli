@@ -67,7 +67,7 @@ module Baardskeerder :
 
     val get_latest : t -> k -> v option S.m
     val range_latest: t -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
-
+    val range_entries_latest: t -> k option -> bool -> k option -> bool -> int option -> (k * v) list S.m
     val with_tx : t -> (tx -> 'a S.m) -> 'a S.m
 
 
@@ -75,6 +75,7 @@ module Baardskeerder :
     val set : tx -> k -> v -> unit S.m
     val delete : tx -> k -> unit S.m
     val range : tx -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
+    val range_entries : tx -> k option -> bool -> k option -> bool -> int option -> (k *v) list S.m
 
     val log_update: t -> ?diff:bool -> (tx -> unit S.m) -> unit S.m
     val last_update: t -> (int64 * (action list)* bool) option S.m

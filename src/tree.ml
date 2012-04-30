@@ -501,7 +501,7 @@ module DB = functor (L:LOG ) -> struct
   let _range t 
       (first: k option) finc 
       (last: k option) linc 
-      (max: int option) f = 
+      (max: int option) (f:k -> pos -> unit L.m) = 
 
     let lp = L.last t in
     L.read t lp >>= function
@@ -531,13 +531,13 @@ module DB = functor (L:LOG ) -> struct
 	    L.read t pos >>= function
 	      | NIL     -> return count
 	      | Value _ -> return count
-	      | Leaf leaf -> return (walk_leaf count leaf)
+	      | Leaf leaf -> walk_leaf count leaf
 	      | Index index -> walk_index count index
 	      | Commit c -> let lookup = Commit.get_lookup c in walk count lookup
 	  and walk_leaf count leaf = 
 	    let rec loop count = function
-	      | [] -> count
-	      | (k,_) :: t -> 
+	      | [] -> return count
+	      | (k,vpos) :: t -> 
 		if t_max count 
 		then 
 		  begin 
@@ -545,13 +545,13 @@ module DB = functor (L:LOG ) -> struct
 		    then 
 		      if t_right k 
 		      then 
-			let () = f k in
+			f k vpos >>= fun () ->
 			loop (count + 1) t
-		      else count
+		      else return count
 		    else
 		      loop count t
 		  end
-		else count
+		else return count
 	    in
 	    loop count leaf
 	  and walk_index count (p,kps) = 
@@ -586,10 +586,22 @@ module DB = functor (L:LOG ) -> struct
 
   let range (t:L.t) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int option) = 
     let acc = ref [] in
-    let f k = acc := k :: !acc in
+    let f k vpos = 
+      let () = acc := k :: !acc in 
+      return () 
+    in
     _range t first finc last linc max f >>= fun _ ->
     return (List.rev !acc)
 
+  let range_entries (t:L.t) (first: k option) (finc:bool) (last:k option) (linc:bool) (max:int option) = 
+    let acc = ref [] in
+    let f k vpos = 
+      L.read t vpos >>= function 
+	| Value v -> let () = acc := (k,v)::!acc in return ()
+	| _ -> failwith "should be value"
+    in
+    _range t first finc last linc max f >>= fun _ ->
+    return (List.rev !acc)
 
   let _fold_reverse_range_while t
       (first: k option) finc

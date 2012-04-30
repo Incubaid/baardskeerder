@@ -58,11 +58,14 @@ module Baardskeerder
       let get_latest t k = D.get t k
       let range_latest t first finc last linc max = 
         D.range t first finc last linc max
+      let range_entries_latest t first finc last linc max = 
+	D.range_entries t first finc last linc max
 
       let get tx k = X.get tx k
       let set tx k v = X.set tx k v
       let delete tx k = X.delete tx k
       let range tx first finc last linc max = X.range tx first finc last linc max
+      let range_entries tx first finc last linc max = X.range_entries tx first finc last linc max
       
       let set_metadata t s = L.set_metadata t s
       let get_metadata t = L.get_metadata t
