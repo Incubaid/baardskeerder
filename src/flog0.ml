@@ -123,34 +123,34 @@ let input_bool input =
 let input_vint input = 
   let s = input.s in
   let start = input.p in
-  let rec loop v f p = 
+  let rec loop v shift p = 
     let c = s.[p] in
     let cv = Char.code c in
     if cv < 0x80 
     then 
       let () = input.p <- p+ 1  in
-      v + cv * f
+      v + (cv lsl shift)
     else 
-      let v' = v + (cv land 0x7f) * f in
-      loop v' (f * 128) (p+1)
-  in loop 0 1 start
+      let v' = v + ((cv land 0x7f) lsl shift) in
+      loop v' (shift + 7) (p+1)
+  in loop 0 0 start
 
 let input_vint64 input = 
   let (+:) = Int64.add in
-  let ( *: ) = Int64.mul in
+  let ( <<: ) = Int64.shift_left in
   let s = input.s in
   let start = input.p in
-  let rec loop v f p = 
+  let rec loop v shift p = 
     let c = s.[p] in
     let cv = Int64.of_int (Char.code c) in
     if cv < 0x80L 
     then 
       let () = input.p <- p+ 1  in
-      v +: cv *: f
+      v +: (cv <<: shift)
     else 
-      let v' = v +: (Int64.logand cv  0x7fL) *: f in
-      loop v' (f *: 128L) (p+1)
-  in loop 0L 1L start
+      let v' = v +: ((Int64.logand cv  0x7fL) <<: shift) in
+      loop v' (shift + 7) (p+1)
+  in loop 0L 0 start
 
 
 let input_size input = 
@@ -554,7 +554,7 @@ let lookup t =
     | e -> failwith "can only do commits"
 
 
-let init ?(d=4) fn t0 = 
+let init ?(d=8) fn t0 = 
   S.init fn >>= fun s ->
   if S.next s = 0 then
     let commit = (Spindle 0, Offset 0) in
