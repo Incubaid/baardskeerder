@@ -32,6 +32,9 @@ module Stores =
     module Lwt = Store.Lwt
   end
 
+
+module Pack = Flog0.Pack
+
 module Baardskeerder
   (LF: functor(S: Bs_internal.STORE) -> Log.LOG with type 'a m = 'a S.m) =
   functor(S: Bs_internal.STORE) ->

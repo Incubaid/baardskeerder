@@ -23,6 +23,135 @@ open Base
 open Entry
 open Unix
 
+let size_from s pos =
+  let byte_of i= Char.code s.[pos + i] in
+  let b0 = byte_of 0
+  and b1 = byte_of 1
+  and b2 = byte_of 2
+  and b3 = byte_of 3 in
+  let result = b0 lor (b1 lsl 8) lor (b2 lsl 16) lor (b3 lsl 24)
+  in result
+
+
+module Pack = struct
+
+
+  type output = Buffer.t
+
+  let make_output h = Buffer.create h
+
+  let bool_to b (v:bool) = 
+    let c = if v then '1' else '0' in
+    Buffer.add_char b c
+
+  let vint_to b n = 
+    let add c = Buffer.add_char b c in
+    let rec loop = function
+      | 0 -> add '\x00'
+      | n when n < 128 -> add (Char.chr n)
+      | n -> let byte = (n land 0x7f) lor 0x80  in
+	     let () = add (Char.chr byte) in
+	     let r = n lsr 7 in
+	     loop r
+    in loop n
+
+  let vint64_to b (n:int64) = 
+    let add c = Buffer.add_char b c in
+    let rec loop = function
+      | 0L -> add '\x00'
+      | n when n < 128L -> add (Char.chr (Int64.to_int n))
+      | n -> 
+        let last = (Int64.to_int n) land 0x7f in
+        let byte = last lor 0x80  in
+        let () = add (Char.chr byte) in
+        let r = Int64.shift_right n 7 in
+        loop r
+    in loop n
+    
+  let string_to b s = 
+    let l = String.length s in
+    vint_to b l;
+    Buffer.add_string b s
+
+  let list_to b e_to list = 
+    let l = Leaf.length list in
+    vint_to b l;
+    List.iter (e_to b) list
+      
+  type input = {s:string; mutable p:int}  
+
+  let input2s input = Printf.sprintf "{%S;%i}" input.s input.p
+
+  let make_input s p = {s;p}
+
+  let input_char input = 
+    let c = input.s.[input.p] in
+    let () = input.p <- input.p + 1 in
+    c
+
+  let input_bool input = 
+    let c = input_char input in
+    match c with
+      | '0' -> false
+      | '1' -> true
+      | _ -> failwith "not a bool"
+
+
+  let input_size input = 
+    let p = input.p in
+    let () = input.p <- p + 4 in
+    size_from input.s p
+      
+  let input_vint input = 
+    let s = input.s in
+    let start = input.p in
+    let rec loop v shift p = 
+      let c = s.[p] in
+      let cv = Char.code c in
+      if cv < 0x80 
+      then 
+        let () = input.p <- p+ 1  in
+        v + (cv lsl shift)
+      else 
+        let v' = v + ((cv land 0x7f) lsl shift) in
+        loop v' (shift + 7) (p+1)
+    in loop 0 0 start
+    
+  let input_vint64 input = 
+    let (+:) = Int64.add in
+    let ( <<: ) = Int64.shift_left in
+    let s = input.s in
+    let start = input.p in
+    let rec loop v shift p = 
+      let c = s.[p] in
+      let cv = Int64.of_int (Char.code c) in
+      if cv < 0x80L 
+      then 
+        let () = input.p <- p+ 1  in
+        v +: (cv <<: shift)
+      else 
+        let v' = v +: ((Int64.logand cv  0x7fL) <<: shift) in
+        loop v' (shift + 7) (p+1)
+    in loop 0L 0 start
+
+  let input_string input = 
+    let l = input_vint input in
+    let s = String.sub input.s input.p l in
+    let () = input.p <- input.p + l in
+    s
+
+
+  let input_list input_e input = 
+    let l = input_vint input in
+    let rec loop acc = function
+      | 0 -> List.rev acc
+      | n -> let e = input_e input in
+	     loop (e :: acc) (n-1)
+    in
+    loop [] l      
+end
+
+
 module Flog0 =
   functor(S:Bs_internal.STORE) ->
   struct
@@ -34,62 +163,25 @@ let return = S.return
 let (>>=) = bind
 module M = Monad.Monad(S)
 
-let vint_to b n = 
-  let add c = Buffer.add_char b c in
-  let rec loop = function
-    | 0 -> add '\x00'
-    | n when n < 128 -> add (Char.chr n)
-    | n -> let byte = (n land 0x7f) lor 0x80  in
-	   let () = add (Char.chr byte) in
-	   let r = n lsr 7 in
-	   loop r
-  in loop n
-
-let vint64_to b (n:int64) = 
-  let add c = Buffer.add_char b c in
-  let rec loop = function
-    | 0L -> add '\x00'
-    | n when n < 128L -> add (Char.chr (Int64.to_int n))
-    | n -> 
-      let last = (Int64.to_int n) land 0x7f in
-      let byte = last lor 0x80  in
-      let () = add (Char.chr byte) in
-      let r = Int64.shift_right n 7 in
-      loop r
-  in loop n
-
 
 let time_to b (t:Time.t) =
   let (x,y,g) = t in
-  vint64_to b x;
-  vint_to b y;
+  Pack.vint64_to b x;
+  Pack.vint_to b y;
   let c = if g then '\x01' else '\x00' in
   Buffer.add_char b c
     
-let bool_to b (v:bool) = 
-  let c = if v then '1' else '0' in
-  Buffer.add_char b c
-
-let string_to b s = 
-  let l = String.length s in
-  vint_to b l;
-  Buffer.add_string b s
 
 
-type input = {s:string; mutable p:int}  
 
-let make_input s p = {s;p}
 
-let input2s input = Printf.sprintf "{%S;%i}" input.s input.p
 
-let size_from s pos =
-  let byte_of i= Char.code s.[pos + i] in
-  let b0 = byte_of 0
-  and b1 = byte_of 1
-  and b2 = byte_of 2
-  and b3 = byte_of 3 in
-  let result = b0 lor (b1 lsl 8) lor (b2 lsl 16) lor (b3 lsl 24)
-  in result
+
+
+
+
+
+
 
 let size_to b (p:int) = 
   let i32  = Int32.of_int p in
@@ -108,95 +200,33 @@ let size_to b (p:int) =
   add 3
 
 
-let input_char input = 
-  let c = input.s.[input.p] in
-  let () = input.p <- input.p + 1 in
-  c
-
-let input_bool input = 
-  let c = input_char input in
-  match c with
-    | '0' -> false
-    | '1' -> true
-    | _ -> failwith "not a bool"
-
-let input_vint input = 
-  let s = input.s in
-  let start = input.p in
-  let rec loop v shift p = 
-    let c = s.[p] in
-    let cv = Char.code c in
-    if cv < 0x80 
-    then 
-      let () = input.p <- p+ 1  in
-      v + (cv lsl shift)
-    else 
-      let v' = v + ((cv land 0x7f) lsl shift) in
-      loop v' (shift + 7) (p+1)
-  in loop 0 0 start
-
-let input_vint64 input = 
-  let (+:) = Int64.add in
-  let ( <<: ) = Int64.shift_left in
-  let s = input.s in
-  let start = input.p in
-  let rec loop v shift p = 
-    let c = s.[p] in
-    let cv = Int64.of_int (Char.code c) in
-    if cv < 0x80L 
-    then 
-      let () = input.p <- p+ 1  in
-      v +: (cv <<: shift)
-    else 
-      let v' = v +: ((Int64.logand cv  0x7fL) <<: shift) in
-      loop v' (shift + 7) (p+1)
-  in loop 0L 0 start
 
 
-let input_size input = 
-  let p = input.p in
-  let () = input.p <- p + 4 in
-  size_from input.s p
 
-let input_string input = 
-  let l = input_vint input in
-  let s = String.sub input.s input.p l in
-  let () = input.p <- input.p + l in
-  s
 
 let input_kp input =
-  let k = input_string input in
-  let s = input_vint input in
-  let p = input_vint input in
+  let k = Pack.input_string input in
+  let s = Pack.input_vint input in
+  let p = Pack.input_vint input in
   k, Outer (Spindle s, Offset p)
 
 
 let pos_to b = function
-  | Outer (Spindle s, Offset o) -> vint_to b s; vint_to b o
+  | Outer (Spindle s, Offset o) -> Pack.vint_to b s; Pack.vint_to b o
   | Inner _ -> failwith "cannot serialize inner pos"
 
 let kp_to b (k,p) =
-  string_to b k;
+  Pack.string_to b k;
   pos_to b p
 
-let input_list input_e input = 
-  let l = input_vint input in
-  let rec loop acc = function
-    | 0 -> List.rev acc
-    | n -> let e = input_e input in
-	   loop (e :: acc) (n-1)
-  in
-  loop [] l
 
-let list_to b e_to list = 
-  let l = Leaf.length list in
-  vint_to b l;
-  List.iter (e_to b) list
+
+
 
 let input_time input =
-  let x = input_vint64 input in
-  let y = input_vint input in
-  let c = input_char input in
+  let x = Pack.input_vint64 input in
+  let y = Pack.input_vint input in
+  let c = Pack.input_char input in
   let g = match c with 
     | '\x00' -> false
     | '\x01' -> true
@@ -221,9 +251,9 @@ let metadata2s m =
 let _write_metadata fd m = 
   let b = Buffer.create 128 in
   let (Spindle s, Offset o) = m.commit in
-  let () = vint_to b s in
-  let () = vint_to b o in
-  let () = vint_to b m.td in
+  let () = Pack.vint_to b s in
+  let () = Pack.vint_to b o in
+  let () = Pack.vint_to b m.td in
   let () = time_to b m.t0 in
   let block = String.create _METADATA_SIZE in
   
@@ -233,11 +263,11 @@ let _write_metadata fd m =
 
 let _read_metadata fd = 
   S.read fd 0 _METADATA_SIZE >>= fun m ->
-  let input = make_input m 0 in
-  let s = input_vint input in
-  let o = input_vint input in
+  let input = Pack.make_input m 0 in
+  let s = Pack.input_vint input in
+  let o = Pack.input_vint input in
   let commit = (Spindle s, Offset o) in
-  let td = input_vint input in
+  let td = Pack.input_vint input in
   let t0 = input_time input in
   return {commit; td;t0}
 
@@ -296,6 +326,7 @@ let tag_to b = function
   | INDEX  -> Buffer.add_char b '\x03'
   | VALUE  -> Buffer.add_char b '\x04'
 
+open Pack
 let input_tag input = 
   let tc = input.s.[input.p] in
   let () = input.p <- input.p + 1 in
@@ -321,8 +352,8 @@ let inflate_action input =
        
 
 let inflate_pos input = 
-  let s = input_vint input in
-  let p = input_vint input in
+  let s = Pack.input_vint input in
+  let p = Pack.input_vint input in
   Outer (Spindle s, Offset p)
 
 let inflate_commit input = 
@@ -330,8 +361,8 @@ let inflate_commit input =
   let previous = inflate_pos input in
   let lookup = inflate_pos input in
   let t = input_time input in
-  let actions = input_list inflate_action input in    
-  let explicit = input_bool input in
+  let actions = Pack.input_list inflate_action input in    
+  let explicit = Pack.input_bool input in
   Commit.make_commit ~pos ~previous ~lookup t actions explicit
 
 
