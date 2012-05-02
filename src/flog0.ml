@@ -88,11 +88,13 @@ module Pack = struct
     vint_to b l;
     Buffer.add_string b s
 
-  let string_option_to b = function
-    | None -> bool_to b false
-    | Some s -> 
-      let () = bool_to b true in
-      string_to b s
+  let option_to b a_to = function
+    | None   -> bool_to b false
+    | Some a -> let () = bool_to b true in
+                a_to b a
+
+
+  let string_option_to b so = option_to b string_to so
       
   let list_to b e_to list = 
     let l = Leaf.length list in
@@ -169,11 +171,14 @@ module Pack = struct
     let () = input.p <- input.p + l in
     s
 
-  let input_string_option input =
+
+  let input_option input_a input =
     let some = input_bool input in
-    if some 
-    then let s = input_string input in Some s 
+    if some
+    then let a = input_a input in Some a
     else None
+
+  let input_string_option input = input_option input_string input
 
   let input_list input_e input = 
     let l = input_vint input in
