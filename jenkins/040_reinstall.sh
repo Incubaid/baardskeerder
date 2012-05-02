@@ -1,6 +1,8 @@
 #!/bin/bash -eux
 export ROOT=$(pwd)/../ROOT/
-export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib:${ROOT}/OCAML/lib
+export PATH=${ROOT}/OCAML/bin:$PATH
+export LD_LIBRARY_PATH=${ROOT}/OCAML/lib:/usr/lib:/usr/local/lib
 cd src
+which ocamlfind
 make uninstall
 make install
