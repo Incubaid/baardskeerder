@@ -1,7 +1,7 @@
 OCAML_FIND ?= ocamlfind
 
 build:
-	ocamlbuild -use-ocamlfind bsmgr.native baardskeerder.cma baardskeerder.cmxa baardskeerder.a bs_internal.cma bs_internal.cmxa
+	ocamlbuild -use-ocamlfind bsmgr.byte bsmgr.native baardskeerder.cma baardskeerder.cmxa baardskeerder.a bs_internal.cma bs_internal.cmxa
 
 clean:
 	ocamlbuild -use-ocamlfind -clean
