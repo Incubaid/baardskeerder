@@ -63,6 +63,7 @@ module Pack :
     val vint64_to: output  -> int64 -> unit
     val string_to: output  -> string -> unit
     val list_to  : output  -> (output -> 'a -> unit) -> 'a list -> unit
+    val close_output: output -> string
     
     type input
     val make_input   : string -> int -> input

@@ -33,6 +33,23 @@ let size_from s pos =
   in result
 
 
+let size_to b (p:int) = 
+  let i32  = Int32.of_int p in
+  let (<<<) = Int32.shift_left in
+  let (>>>) = Int32.shift_right_logical in
+  let char_at n =
+    let pos = n * 8 in
+    let mask = (Int32.of_int 0xff) <<< pos in
+    let code = (Int32.logand i32 mask) >>> pos in
+    Char.chr (Int32.to_int code)
+  in
+  let add i = Buffer.add_char b (char_at i) in
+  add 0;
+  add 1;
+  add 2;
+  add 3
+
+
 module Pack = struct
 
 
@@ -77,7 +94,15 @@ module Pack = struct
     let l = Leaf.length list in
     vint_to b l;
     List.iter (e_to b) list
-      
+
+  let close_output b = 
+    let s = Buffer.contents b in
+    let size = String.length s in
+    let b2 = Buffer.create 4 in
+    let () = size_to b2 size in
+    let b2s = Buffer.contents b2 in
+    b2s ^ s
+    
   type input = {s:string; mutable p:int}  
 
   let input2s input = Printf.sprintf "{%S;%i}" input.s input.p
@@ -183,21 +208,7 @@ let time_to b (t:Time.t) =
 
 
 
-let size_to b (p:int) = 
-  let i32  = Int32.of_int p in
-  let (<<<) = Int32.shift_left in
-  let (>>>) = Int32.shift_right_logical in
-  let char_at n =
-    let pos = n * 8 in
-    let mask = (Int32.of_int 0xff) <<< pos in
-    let code = (Int32.logand i32 mask) >>> pos in
-    Char.chr (Int32.to_int code)
-  in
-  let add i = Buffer.add_char b (char_at i) in
-  add 0;
-  add 1;
-  add 2;
-  add 3
+
 
 
 
