@@ -73,8 +73,8 @@ let update_commit_get() =
 let delete_empty () = 
   let mlog = _setup() in
   let k = "non-existing" in
-  let () = MDBX.with_tx mlog (fun tx -> MDBX.delete tx k) in
-  ()
+  OUnit.assert_raises (Base.NOT_FOUND k) (fun () ->  MDBX.with_tx mlog (fun tx -> MDBX.delete tx k))
+
 
 let suite = "DBX" >::: ["get_after_delete" >:: get_after_delete;
                         "get_after_log_update" >:: get_after_log_update;

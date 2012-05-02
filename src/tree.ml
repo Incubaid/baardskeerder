@@ -202,6 +202,7 @@ module DB = functor (L:LOG ) -> struct
 	      _step slab lr z rest
       end
     | Leaf_down _ :: _ -> failwith "rest trail cannot contain Leaf_down _ "
+
   let _delete (t:L.t) slab k = 
     let d = L.get_d t in
     let _read pos = match pos with 
@@ -210,7 +211,7 @@ module DB = functor (L:LOG ) -> struct
     in
     let rec descend pos trail = 
       _read pos >>= function
-	| NIL -> failwith "corrupt"
+	| NIL -> failwith "corrupt: read a NIL node"
 	| Value _ -> return trail
 	| Leaf l -> descend_leaf trail l
 	| Index i -> descend_index trail i
@@ -229,7 +230,7 @@ module DB = functor (L:LOG ) -> struct
       descend pos' trail'
     and delete_start slab start trail = 
       match trail with
-      | [] -> failwith "corrupt" 
+      | [] -> raise (NOT_FOUND k)
       | [Leaf_down z ]-> 
 	let leaf', _ = Leafz.delete z in
 	return (Slab.add_leaf slab leaf')
