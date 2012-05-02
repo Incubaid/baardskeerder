@@ -32,12 +32,7 @@ let size_from s pos =
   let result = b0 lor (b1 lsl 8) lor (b2 lsl 16) lor (b3 lsl 24)
   in result
 
-
-
-
-
 module Pack = struct
-
 
   type output = Buffer.t
 
@@ -93,6 +88,12 @@ module Pack = struct
     vint_to b l;
     Buffer.add_string b s
 
+  let string_option_to b = function
+    | None -> bool_to b false
+    | Some s -> 
+      let () = bool_to b true in
+      string_to b s
+      
   let list_to b e_to list = 
     let l = Leaf.length list in
     vint_to b l;
@@ -122,7 +123,7 @@ module Pack = struct
     match c with
       | '0' -> false
       | '1' -> true
-      | _ -> failwith "not a bool"
+      | _ -> let msg = Printf.sprintf "'%C' is not a bool" c in failwith msg
 
 
   let input_size input = 
@@ -168,6 +169,11 @@ module Pack = struct
     let () = input.p <- input.p + l in
     s
 
+  let input_string_option input =
+    let some = input_bool input in
+    if some 
+    then let s = input_string input in Some s 
+    else None
 
   let input_list input_e input = 
     let l = input_vint input in
@@ -200,24 +206,6 @@ let time_to b (t:Time.t) =
   Buffer.add_char b c
     
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 let input_kp input =
   let k = Pack.input_string input in
   let s = Pack.input_vint input in
@@ -232,9 +220,6 @@ let pos_to b = function
 let kp_to b (k,p) =
   Pack.string_to b k;
   pos_to b p
-
-
-
 
 
 let input_time input =
