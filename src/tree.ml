@@ -607,7 +607,7 @@ module DB = functor (L:LOG ) -> struct
   let _fold_reverse_range_while t
       (first: k option) finc
       (last: k option) linc
-      (f: 'a -> Base.k -> Base.pos -> (bool * 'a))
+      (f: 'a -> Base.k -> Base.pos -> (bool * 'a) L.m )
       (is: 'a) =
 
     let lp = L.last t in
@@ -629,23 +629,23 @@ module DB = functor (L:LOG ) -> struct
             L.read t pos >>= function
               | NIL -> failwith "Tree._fold_reverse_range_while: unexpected entry NIL"
               | Value _ -> failwith "Tree._fold_reverse_range_while: unexpected entry Value"
-              | Leaf leaf -> return (walk_leaf s leaf)
+              | Leaf leaf -> walk_leaf s leaf
               | Index index -> walk_index s index
               | Commit c -> failwith "Tree._fold_reverse_range_while: unexpected entry Commit"
           and walk_leaf s leaf =
             let rec loop s' = function
-              | [] -> (true, s')
+              | [] -> return (true, s')
               | (k, _) :: _ when left_of_range k ->
-                  (false, s')
+                  return (false, s')
               | (k, _) :: kps when right_of_range k ->
                   loop s' kps
               | (k, p) :: kps ->
-                  let (cont, s'') = f s' k p in
+                  f s' k p >>= fun (cont, s'') ->
                   if cont
                   then
                     loop s'' kps
                   else
-                    (false, s'')
+                    return (false, s'')
             in
             loop s (List.rev leaf)
           and walk_index s (p, kps) =
@@ -687,12 +687,33 @@ module DB = functor (L:LOG ) -> struct
         | Some c -> count' < c
       in
 
-      (cont, (count', k :: acc))
+      return (cont, (count', k :: acc))
     end in
 
     _fold_reverse_range_while t first finc last linc f (0, []) >>= fun (_, res) ->
     return (List.rev res)
 
+  let rev_range_entries (t:L.t)
+      (first:k option) (finc:bool)
+      (last: k option) (linc:bool)
+      (max: int option) =
+    let f (count, acc) k o = 
+      begin
+        let count' = count + 1 in
+        let cont = match max with 
+          | None -> true
+          | Some c -> count' < c
+        in
+        L.read t o >>= fun entry ->
+        let v = match entry with
+          | Entry.Value v -> v
+          | _ -> failwith "Not a value" 
+        in
+        return (cont, (count', (k,v)::acc))
+      end
+    in
+    _fold_reverse_range_while t first finc last linc f (0, []) >>= fun (_, res) ->
+    return res
 
   let confirm (t:L.t) (s:Slab.t) k v =
     let set_needed () =

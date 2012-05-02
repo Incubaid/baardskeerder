@@ -68,8 +68,8 @@ module Baardskeerder :
     val get_latest : t -> k -> v option S.m
     val range_latest: t -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
     val range_entries_latest: t -> k option -> bool -> k option -> bool -> int option -> (k * v) list S.m
+    val rev_range_entries_latest: t -> k option -> bool -> k option -> bool -> int option -> (k * v) list S.m
     val with_tx : t -> (tx -> 'a S.m) -> 'a S.m
-
 
     val get : tx -> k -> v option S.m
     val set : tx -> k -> v -> unit S.m
