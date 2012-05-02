@@ -97,6 +97,7 @@ module Baardskeerder :
     val delete : tx -> k -> unit S.m
     val range : tx -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
     val range_entries : tx -> k option -> bool -> k option -> bool -> int option -> (k *v) list S.m
+    val rev_range_entries : tx -> k option -> bool -> k option -> bool -> int option -> (k *v) list S.m
 
     val log_update: t -> ?diff:bool -> (tx -> unit S.m) -> unit S.m
     val last_update: t -> (int64 * (action list)* bool) option S.m
