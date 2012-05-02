@@ -38,7 +38,7 @@ let pu_leaf () =
   let bs = Buffer.contents b in
   let () = Printf.printf "\n%S\n" bs in
   let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
-  let input = MF.make_input bs 5 in (* only leaf part *)
+  let input = Pack.make_input bs 5 in (* only leaf part *)
   let leaf' = MF.inflate_leaf input in
   let leaf = kps in
   let () = OUnit.assert_equal ~printer:Leaf.leaf2s leaf leaf' in
@@ -53,7 +53,7 @@ let pu_index () =
   let bs = Buffer.contents b in
   let () = Printf.printf "\n%S\n" bs in
   let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
-  let input = MF.make_input bs 5 in (* only index part *)
+  let input = Pack.make_input bs 5 in (* only index part *)
   let i1 = MF.inflate_index input in
   let () = OUnit.assert_equal ~printer:Index.index2s i0 i1 in
   ()
@@ -61,10 +61,10 @@ let pu_index () =
 let pu_vint () = 
   let do_one i =
     let b = Buffer.create 128 in
-    let () = MF.vint_to b i in
+    let () = Pack.vint_to b i in
     let bs = Buffer.contents b in
-    let input = MF.make_input bs 0 in
-    let i1 = MF.input_vint input in
+    let input = Pack.make_input bs 0 in
+    let i1 = Pack.input_vint input in
     let () = OUnit.assert_equal ~printer:string_of_int i i1 in
     ()
   in
@@ -74,10 +74,10 @@ let pu_vint () =
 let pu_vint64 () = 
   let do_one i =
     let b = Buffer.create 128 in
-    let () = MF.vint64_to b i in
+    let () = Pack.vint64_to b i in
     let bs = Buffer.contents b in
-    let input = MF.make_input bs 0 in
-    let i1 = MF.input_vint64 input in
+    let input = Pack.make_input bs 0 in
+    let i1 = Pack.input_vint64 input in
     let () = OUnit.assert_equal ~printer:Int64.to_string i i1 in
     ()
   in
@@ -100,7 +100,7 @@ let pu_commit() =
   let bs = Buffer.contents b in
   let () = Printf.printf "\n%S\n" bs in
   let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
-  let input = MF.make_input bs 5 in (* only commit part *) 
+  let input = Pack.make_input bs 5 in (* only commit part *) 
   let c1 = MF.inflate_commit input in
   let () = OUnit.assert_equal ~printer:Commit.commit2s c0 c1 in
   ()

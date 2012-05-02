@@ -54,6 +54,27 @@ module Stores :
     module Lwt : Bs_internal.STORE with type 'a m = 'a Lwt.t
   end
 
+module Pack :
+  sig
+    type output
+    val make_output: int   -> output
+    val bool_to  : output  -> bool  -> unit
+    val vint_to  : output  -> int   -> unit
+    val vint64_to: output  -> int64 -> unit
+    val string_to: output  -> string -> unit
+    val list_to  : output  -> (output -> 'a -> unit) -> 'a list -> unit
+    
+    type input
+    val make_input   : string -> int -> input
+
+    val input_bool   : input -> bool
+    val input_vint   : input -> int
+    val input_vint64 : input -> int64
+    val input_string : input -> string
+    val input_list   : (input -> 'a) -> input -> 'a list
+  end
+
+
 module Baardskeerder :
   functor (LF: functor(S: Bs_internal.STORE) -> Log.LOG with type 'a m = 'a S.m) ->
   functor (S: Bs_internal.STORE) ->
