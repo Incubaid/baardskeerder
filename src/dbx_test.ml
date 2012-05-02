@@ -69,9 +69,16 @@ let update_commit_get() =
   Mlog.dump mlog;
   MDB.get mlog k >>= fun vo2 ->
   OUnit.assert_equal ~printer:vo2s vo2 (Some v)
-  
+
+let delete_empty () = 
+  let mlog = _setup() in
+  let k = "non-existing" in
+  let () = MDBX.with_tx mlog (fun tx -> MDBX.delete tx k) in
+  ()
+
 let suite = "DBX" >::: ["get_after_delete" >:: get_after_delete;
                         "get_after_log_update" >:: get_after_log_update;
                         "get_after_log_updates" >:: get_after_log_updates;
                         "update_commit_get" >:: update_commit_get;
+                        "delete_empty" >:: delete_empty;
                        ]
