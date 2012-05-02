@@ -33,21 +33,7 @@ let size_from s pos =
   in result
 
 
-let size_to b (p:int) = 
-  let i32  = Int32.of_int p in
-  let (<<<) = Int32.shift_left in
-  let (>>>) = Int32.shift_right_logical in
-  let char_at n =
-    let pos = n * 8 in
-    let mask = (Int32.of_int 0xff) <<< pos in
-    let code = (Int32.logand i32 mask) >>> pos in
-    Char.chr (Int32.to_int code)
-  in
-  let add i = Buffer.add_char b (char_at i) in
-  add 0;
-  add 1;
-  add 2;
-  add 3
+
 
 
 module Pack = struct
@@ -56,6 +42,23 @@ module Pack = struct
   type output = Buffer.t
 
   let make_output h = Buffer.create h
+
+  let size_to b (p:int) = 
+    let i32  = Int32.of_int p in
+    let (<<<) = Int32.shift_left in
+    let (>>>) = Int32.shift_right_logical in
+    let char_at n =
+      let pos = n * 8 in
+      let mask = (Int32.of_int 0xff) <<< pos in
+      let code = (Int32.logand i32 mask) >>> pos in
+      Char.chr (Int32.to_int code)
+    in
+    let add i = Buffer.add_char b (char_at i) in
+    add 0;
+    add 1;
+    add 2;
+    add 3
+
 
   let bool_to b (v:bool) = 
     let c = if v then '1' else '0' in
