@@ -171,6 +171,10 @@ module Pack = struct
     let () = input.p <- input.p + l in
     s
 
+  let input_raw input l = 
+    let s = String.sub input.s input.p l in
+    let () = input.p <- input.p + l in
+    s
 
   let input_option input_a input =
     let some = input_bool input in

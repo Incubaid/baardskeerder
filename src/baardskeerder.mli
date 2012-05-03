@@ -76,6 +76,7 @@ module Pack :
     val input_vint   : input -> int
     val input_vint64 : input -> int64
     val input_string : input -> string
+    val input_raw    : input -> int -> string
     val input_option : (input -> 'a) -> input -> 'a option
     val input_string_option: input -> string option
     val input_list   : (input -> 'a) -> input -> 'a list
