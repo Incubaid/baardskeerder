@@ -57,8 +57,10 @@ module Rewrite
         else Time.next_minor
       in
       DBX1.with_tx l1 ~inc
-	(fun tx ->
-	  M.iter (fun (k,v) -> DBX1.set tx k v) u.kvs)
+	(fun tx -> 
+          M.iter (fun (k,v) -> DBX1.set tx k v) u.kvs  
+            >>= fun () -> return (OK ())
+        )
     in
     let read_value pos = 
       L0.read l0 pos >>= function
@@ -83,8 +85,9 @@ module Rewrite
       loop acc leaf >>= fun acc1 ->
       if fat acc1 
         then 
-          apply_update acc1 false >>= fun () ->
-          return (make_update ())
+          apply_update acc1 false >>= function
+            | OK () -> return (make_update ())
+            | NOK k -> failwith "todo"
         else
           return acc1
     and walk_index acc (p0,kps) = 

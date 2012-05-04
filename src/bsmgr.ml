@@ -153,8 +153,9 @@ let () =
       then MyLog.sync db
       else
 	let key = make_key i in
-	let () = delete key in
-	loop (i+1)
+	match delete key with
+          | Base.OK () -> loop (i+1)
+          | Base.NOK k -> failwith (Printf.sprintf "%s not found" k)
     in
     loop 0 
   in
@@ -163,19 +164,15 @@ let () =
     let v = String.make vs 'x' in
     let set_tx b = 
       let f tx =
-	(* let () = Printf.printf "[\n" in *)
 	let rec loop i = 
 	  let kn = b+ i in
-	  if i = m || kn >= n then ()
+	  if i = m || kn >= n then Base.OK ()
 	  else 
 	    let k = make_key kn in
-	    (* let () = Printf.printf "\t%s\n" k in *)
 	    let () = MyDBX.set tx k v in
 	    loop (i+1) 
 	in
-	let () = loop 0 in
-	(* Printf.printf "]\n" *)
-	()
+	loop 0 
       in
       MyDBX.with_tx db f
     in
@@ -184,8 +181,10 @@ let () =
       if i >= n 
       then MyLog.sync db
       else
-	let () = set_tx i in
-	loop (i+m)
+	match set_tx i 
+        with 
+          | Base.OK () -> loop (i+m)
+          | Base.NOK k -> failwith (Printf.sprintf "NOK %s" k)
     in
     loop 0
   in
@@ -245,7 +244,10 @@ let () =
         let now0 = MyLog.now l0 in
         MyLog.init !fn2 now0;
         let l1 = MyLog.make !fn2 in
-        MyRewrite.rewrite l0 (MyLog.last l0) l1;
+        match MyRewrite.rewrite l0 (MyLog.last l0) l1 
+        with
+          | Base.OK ()  -> ()
+          | Base.NOK _  -> ();
         MyLog.close l0;
 	MyLog.close l1
       end

@@ -3,6 +3,7 @@ open OUnit
 
 open Tree
 open Test_helper
+open Base
 
 module MDB = DB(Mlog_lwt)
 
@@ -18,7 +19,7 @@ let test_set db =
 let test_set_get db =
   MDB.set db "key" "value" >>= fun () ->
   MDB.get db "key" >>= fun vo ->
-  OUnit.assert_equal ~printer:vo2s vo (Some "value");
+  OUnit.assert_equal vo (OK "value");
   return ()
 
 let basic =

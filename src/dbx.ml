@@ -47,10 +47,15 @@ module DBX(L:LOG) = struct
     return ()
 
   let delete tx k = 
-    DBL._delete tx.log tx.slab k >>= fun _ ->
-    let a = CDelete k in
-    let () = tx.cactions <- a :: tx.cactions in
-    return ()
+    DBL._delete tx.log tx.slab k >>= fun r ->
+    let r' = match r with
+      | OK _ ->
+        let a = CDelete k in
+        let () = tx.cactions <- a :: tx.cactions in
+        OK ()
+      | NOK k -> NOK k
+    in
+    return r'
 
 
   let with_tx ?(inc=Time.next_major) log f = 
@@ -59,17 +64,20 @@ module DBX(L:LOG) = struct
     let slab = Slab.make fut in
     let tx = {log;slab;cactions = []} in
     f tx >>= fun txr ->
-    let root = Slab.length tx.slab -1 in
-    let previous = L.last log in
-    let pos = Inner root in
-    let lookup = pos in
-    let commit = make_commit ~pos ~previous ~lookup fut (List.rev tx.cactions) false in
-    let c = Commit commit in
-    let _ = Slab.add tx.slab c in
-    (* let slab' = slab in *)
-    let slab' = Slab.compact tx.slab in 
-    L.write log slab' >>= fun () ->
-    return txr
+    match txr with
+      | OK a ->
+        let root = Slab.length tx.slab -1 in
+        let previous = L.last log in
+        let pos = Inner root in
+        let lookup = pos in
+        let commit = make_commit ~pos ~previous ~lookup fut (List.rev tx.cactions) false in
+        let c = Commit commit in
+        let _ = Slab.add tx.slab c in
+          (* let slab' = slab in *)
+        let slab' = Slab.compact tx.slab in 
+        L.write log slab' >>= fun () ->
+        return txr
+      | NOK k -> return txr 
 
   let range (tx:tx) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int option) = 
     DBL.range tx.log first finc last linc max
@@ -80,7 +88,7 @@ module DBX(L:LOG) = struct
   let range_entries (tx:tx) (first:k option) (finc: bool) (last: k option) (linc: bool) (max:int option) = 
     DBL.range_entries tx.log first finc last linc max
 
-  let log_update (log:L.t) ?(diff = true) (f: tx -> unit L.m) =
+  let log_update (log:L.t) ?(diff = true) (f: tx -> unit result L.m) =
     let _find_lookup () = 
       let pp = L.last log in
       L.read log pp >>= function 
@@ -99,15 +107,20 @@ module DBX(L:LOG) = struct
     let tx = {log;slab; cactions = []} in
     
     _find_lookup () >>= fun lookup ->
-    f tx >>= fun () ->
-    let root = Slab.length tx.slab -1 in
-    let previous = L.last log in
-    let pos = Inner root in
-    let commit = make_commit ~pos ~previous ~lookup fut (List.rev tx.cactions) false in
-    let c = Commit commit in
-    let _ = Slab.add tx.slab c in
-    let slab' = Slab.compact tx.slab in
-    L.write log slab'
+    f tx >>= function 
+      | OK () ->
+        begin
+          let root = Slab.length tx.slab -1 in
+          let previous = L.last log in
+          let pos = Inner root in
+          let commit = make_commit ~pos ~previous ~lookup fut (List.rev tx.cactions) false in
+          let c = Commit commit in
+          let _ = Slab.add tx.slab c in
+          let slab' = Slab.compact tx.slab in
+          L.write log slab' >>= fun () ->
+          return (OK ())
+        end
+      | NOK k -> return (NOK k)
 
   let commit_last (log:L.t) =
     let pp = L.last log in

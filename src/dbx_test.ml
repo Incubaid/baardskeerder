@@ -23,57 +23,66 @@ open Tree
 module MDBX = DBX(Mlog)
 module MDB = DB(Mlog)
 open Test_helper
+open Base
 
+let (>>=) = Mlog.bind
 
 let _setup () = 
   let fn = "bla" in
   let () = Mlog.init ~d:2 Time.zero fn in
   Mlog.make2 ~n_spindles:1 fn Time.zero
 
+let _ok_set tx k v =
+  MDBX.set tx k v >>= fun () ->
+  Mlog.return (OK ())
+
 let get_after_delete () = 
   let mlog = _setup() in
-  let () = MDBX.with_tx mlog (fun tx -> MDBX.set tx "a" "A") in
+  let r0 = MDBX.with_tx mlog (fun tx -> _ok_set tx "a" "A") in
   let test tx = 
-    MDBX.delete tx "a";
-    MDBX.get tx "a"
+    MDBX.delete tx "a" >>= fun (OK ()) ->
+    MDBX.get tx "a" >>= fun r ->
+    Mlog.return r
   in
-  OUnit.assert_equal ~printer:vo2s None (MDBX.with_tx mlog test)
+  let v2 = MDBX.with_tx mlog test in
+  OUnit.assert_equal (NOK "a") v2 
+    
 
 
 let get_after_log_update () =
   let mlog = _setup () in
   let k = "a" 
   and v = "A" in
-  let () = MDBX.log_update mlog (fun tx -> MDBX.set tx k v) in
+  let r0 = MDBX.log_update mlog (fun tx -> _ok_set tx k v) in
   let test = MDB.get mlog k in
-  OUnit.assert_equal ~printer:vo2s None test
+  OUnit.assert_equal (NOK k) test
 
 let get_after_log_updates() = 
   let mlog = _setup() in
   let k = "a"
   and v = "A" in
-  let () = MDBX.log_update mlog (fun tx-> MDBX.set tx k v) in
-  let () = MDBX.log_update mlog ~diff:false (fun tx -> MDBX.set tx "a" "v1") in
-  let () = MDBX.log_update mlog ~diff:false (fun tx -> MDBX.set tx "a" "v2") in
+  MDBX.log_update mlog (fun tx-> _ok_set tx k v) >>= fun (OK()) ->
+  MDBX.log_update mlog ~diff:false (fun tx -> _ok_set tx "a" "v1") >>= fun (OK())->
+  MDBX.log_update mlog ~diff:false (fun tx -> _ok_set tx "a" "v2") >>= fun (OK())->
   let test = MDB.get mlog k in
   Mlog.dump mlog;
-  OUnit.assert_equal ~printer:vo2s None test
+  OUnit.assert_equal (NOK k) test
 
 let update_commit_get() =
   let mlog = _setup() in
   let k = "a" in
   let v = "A" in
   let (>>=) = Mlog.bind in
-  MDBX.log_update mlog (fun tx -> MDBX.set tx k v) >>= fun () ->
+  MDBX.log_update mlog (fun tx -> _ok_set tx k v) >>= fun (OK()) ->
   MDBX.commit_last mlog >>= fun () ->
   Mlog.dump mlog;
   MDB.get mlog k >>= fun vo2 ->
-  OUnit.assert_equal ~printer:vo2s vo2 (Some v)
+  OUnit.assert_equal vo2 (OK v)
 
 let delete_empty () = 
   let mlog = _setup() in
   let k = "non-existing" in
-  OUnit.assert_raises (Base.NOT_FOUND k) (fun () ->  MDBX.with_tx mlog (fun tx -> MDBX.delete tx k))
+  OUnit.assert_equal (Base.NOK k) (MDBX.with_tx mlog (fun tx -> MDBX.delete tx k))
 
 
 let suite = "DBX" >::: ["get_after_delete" >:: get_after_delete;

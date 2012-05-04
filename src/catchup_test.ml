@@ -8,6 +8,8 @@ module MDBX = DBX(Mlog)
 
 let (>>=) = Mlog.bind
 
+let ok_set tx ki vi = MDBX.set tx ki vi >>= fun () -> return (Base.OK ())
+
 let catchup1 () = 
   let fn = "mlog" in
   let () = Mlog.init ~d:2 Time.zero fn in
@@ -21,7 +23,7 @@ let catchup1 () =
         let diff = i mod 2 = 1 in
         let ki = Printf.sprintf "key%i" i in
         let vi = Printf.sprintf "value%i" i in
-        MDBX.log_update ~diff mlog (fun tx -> MDBX.set tx ki vi) >>= fun () ->
+        MDBX.log_update ~diff mlog (fun tx -> ok_set tx ki vi) >>= fun (Base.OK()) ->
         loop (i-1)
       end
   in
@@ -35,7 +37,7 @@ let catchup2 () =
   let fn = "mlog" in
   let () = Mlog.init ~d:2 Time.zero fn in
   let mlog = Mlog.make2 ~n_spindles:1 fn Time.zero in
-  MDBX.log_update ~diff:true mlog (fun tx -> MDBX.set tx "xxx" "xxx") >>= fun () ->
+  MDBX.log_update ~diff:true mlog (fun tx -> ok_set tx "xxx" "xxx") >>= fun (Base.OK()) ->
   MDBX.commit_last mlog >>= fun () ->
   (* Mlog.dump mlog; *)
   MCatchup.catchup 0L (fun acc i actions -> (actions,i) :: acc) [] mlog >>= fun result ->

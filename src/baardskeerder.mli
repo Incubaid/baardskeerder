@@ -25,20 +25,19 @@ type action =
   | Set of k * v
   | Delete of k 
 
-
+type 'a result = | OK of 'a | NOK of k
 
 val init : string -> unit
 val make : string -> t
 val close : t -> unit
 
-val get_latest : t -> k -> v option
-val with_tx : t -> (tx -> unit) -> unit
+val get_latest : t -> k -> v result
+val with_tx : t -> (tx -> 'a result) -> 'a result
 
-val get   : tx -> k -> v option
+val get   : tx -> k -> v result
 val set   : tx -> k -> v -> unit
 
-exception NOT_FOUND of k
-val delete: tx -> k -> unit
+val delete: tx -> k -> unit result
 
 
 module Logs :
@@ -94,20 +93,21 @@ module Baardskeerder :
     val make : string -> t S.m
     val close : t -> unit S.m
 
-    val get_latest : t -> k -> v option S.m
+    val get_latest : t -> k -> v result S.m
     val range_latest: t -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
     val range_entries_latest: t -> k option -> bool -> k option -> bool -> int option -> (k * v) list S.m
     val rev_range_entries_latest: t -> k option -> bool -> k option -> bool -> int option -> (k * v) list S.m
-    val with_tx : t -> (tx -> 'a S.m) -> 'a S.m
 
-    val get : tx -> k -> v option S.m
+    val with_tx : t -> (tx -> 'a result S.m) -> 'a result S.m
+
+    val get : tx -> k -> v result S.m
     val set : tx -> k -> v -> unit S.m
-    val delete : tx -> k -> unit S.m
+    val delete : tx -> k -> unit result S.m
     val range : tx -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
     val range_entries : tx -> k option -> bool -> k option -> bool -> int option -> (k *v) list S.m
     val rev_range_entries : tx -> k option -> bool -> k option -> bool -> int option -> (k *v) list S.m
 
-    val log_update: t -> ?diff:bool -> (tx -> unit S.m) -> unit S.m
+    val log_update: t -> ?diff:bool -> (tx -> unit result S.m) -> unit result S.m
     val last_update: t -> (int64 * (action list)* bool) option S.m
     val commit_last: t -> unit S.m
     val catchup: t -> int64 -> ('a -> int64 -> action list -> 'a S.m) -> 'a -> 'a S.m

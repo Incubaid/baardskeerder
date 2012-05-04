@@ -50,13 +50,13 @@ let test_presence () =
   let root0 = LLog.last m0 in
   LLog.init "m1" m0t >>= fun () ->
   LLog.make "m1" >>= fun m1 ->
-  MMRewrite.rewrite m0 root0 m1 >>= fun () ->
+  MMRewrite.rewrite m0 root0 m1 >>= fun (Base.OK()) ->
   let now = LLog.now m0 in
   let fut = Time.next_major now in
   let empty = Slab.make fut in 
   M.iter
     (fun (k,v) -> 
-      let vo = Some v in
+      let vo = Base.OK v in
       MDB._get m1 empty k >>= fun vo' -> return (OUnit.assert_equal vo' vo))
     kvs >>= fun () ->
   let m1t = LLog.now m1 in

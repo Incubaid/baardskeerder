@@ -40,18 +40,18 @@ module DB = functor (L:LOG ) -> struct
     let rec descend pos = 
       _read pos >>= fun e ->
       match e with
-	| NIL -> return None
-	| Value v -> return (Some v)
+	| NIL -> return (NOK k)
+	| Value v -> return (OK v)
 	| Leaf l -> descend_leaf l
 	| Index i -> descend_index i
 	| Commit _ -> let msg = Printf.sprintf "descend reached a second commit %s" (Pos.pos2s pos) in
 		      failwith msg
     and descend_leaf = function
-      | [] -> return None
+      | [] -> return (NOK k)
       | (k0,p0) :: t -> 
 	if k= k0 then descend p0 else
 	  if k > k0 then descend_leaf t
-	  else return None
+	  else return (NOK k)
     and descend_index (p0, kps) = 
       let rec loop pi = function
 	| []                       -> pi
@@ -68,7 +68,7 @@ module DB = functor (L:LOG ) -> struct
 	L.read t pos >>= fun e ->
 	match e with 
 	  | Commit c -> descend (Commit.get_lookup c)
-	  | NIL -> return None
+	  | NIL -> return (NOK k)
 	  | Index _ | Leaf _ | Value _ -> failwith "descend_root does not start at appropriate level"
       else
 	let pos = Slab.last slab in
@@ -212,14 +212,14 @@ module DB = functor (L:LOG ) -> struct
     let rec descend pos trail = 
       _read pos >>= function
 	| NIL -> failwith "corrupt: read a NIL node"
-	| Value _ -> return trail
+	| Value _ -> return (Some trail)
 	| Leaf l -> descend_leaf trail l
 	| Index i -> descend_index trail i
 	| Commit _ -> let msg = Printf.sprintf "descend reached a second commit %s" (Pos.pos2s pos) in
 		      failwith msg
     and descend_leaf trail leaf = 
       match Leafz.find_delete leaf k with
-	| None -> raise (NOT_FOUND k)
+	| None -> return None
 	| Some (p,z) -> 
 	  let step = Leaf_down z in 
 	  descend p (step::trail)
@@ -230,7 +230,7 @@ module DB = functor (L:LOG ) -> struct
       descend pos' trail'
     and delete_start slab start trail = 
       match trail with
-      | [] -> raise (NOT_FOUND k)
+      | [] -> failwith "empty trail impossible?"
       | [Leaf_down z ]-> 
 	let leaf', _ = Leafz.delete z in
 	return (Slab.add_leaf slab leaf')
@@ -468,11 +468,12 @@ module DB = functor (L:LOG ) -> struct
 	       _delete_rest slab ipos sep_c rest
     in
     let descend_root () = 
-      if Slab.is_empty slab then
+      if Slab.is_empty slab 
+      then
 	let lp = L.last t in
 	L.read t lp >>= fun e ->
 	match e with
-	  | NIL -> return []
+	  | NIL -> return None
 	  | Commit c -> let lookup = Commit.get_lookup c in descend lookup []
 	  | Index _ | Leaf _ | Value _  -> 
 	    let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in
@@ -480,23 +481,28 @@ module DB = functor (L:LOG ) -> struct
       else
 	descend (Slab.last slab) []
     in
-    descend_root () >>= fun trail ->
-    let start = Slab.next slab in
-    delete_start slab start trail >>= fun (rp':pos) ->
-    return rp'
+    descend_root () >>= fun trail_o ->
+    match trail_o with
+      | None       -> return (NOK k)
+      | Some trail -> let start = Slab.next slab in
+                      delete_start slab start trail >>= fun (rp':pos) ->
+                      return (OK rp')
 
 
   let delete (t:L.t) k =
     let now = L.now t in
     let fut = Time.next_major now in
     let slab = Slab.make fut in
-    _delete t slab k >>= fun (pos:pos) ->
-    let caction = Commit.CDelete k in
-    let previous = L.last t in
-    let lookup = pos in
-    let commit = Commit.make_commit ~pos ~previous ~lookup fut [caction] false in
-    let _ = Slab.add_commit slab commit in
-    L.write t slab
+    _delete t slab k >>= function 
+      | OK (pos:pos) ->
+        let caction = Commit.CDelete k in
+        let previous = L.last t in
+        let lookup = pos in
+        let commit = Commit.make_commit ~pos ~previous ~lookup fut [caction] false in
+        let _ = Slab.add_commit slab commit in
+        L.write t slab >>= fun () ->
+        return (OK ())
+      | NOK k -> return (NOK k)
 
 
   let _range t 
@@ -718,8 +724,8 @@ module DB = functor (L:LOG ) -> struct
   let confirm (t:L.t) (s:Slab.t) k v =
     let set_needed () =
       _get t s k >>= function 
-	| None -> return true
-	| Some vc -> return (vc <> v)
+	| NOK _   -> return true
+	| OK vc   -> return (vc <> v)
     in
     set_needed () >>= fun sn ->
     if sn

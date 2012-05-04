@@ -35,10 +35,15 @@ type 'a q = {
   read:  'a  -> pos -> entry;
   clear: 'a  -> unit;
   set:   'a  -> k -> v -> unit;
-  get:   'a  -> k -> v option;
-  delete :'a -> k -> unit;
+  get:   'a  -> k -> v result;
+  delete :'a -> k -> unit result;
   dump   :?out:out_channel -> 'a -> unit;
 }
+
+let _ok_delete q a =
+  let r = q.delete q.log a in
+  assert (r = OK ());
+  ()
 
 let mem_setup () =  
   let fut = Time.make 1L 2 false in
@@ -63,8 +68,8 @@ let mem_wrap t = OUnit.bracket mem_setup t mem_teardown
 let check q kvs = 
   List.iter (fun k ->
     let v = String.uppercase k in
-    let vo = Some v in
-    OUnit.assert_equal ~printer:vo2s vo (q.get q.log k)) kvs 
+    let vo = OK v in
+    OUnit.assert_equal vo (q.get q.log k)) kvs 
 
 let check_empty q =
   let i = q.last q.log in
@@ -122,14 +127,14 @@ let check_invariants (q: 'a q) =
 	   failwith s
 									
 let check_not q kvs = 
-  List.iter (fun k -> OUnit.assert_equal ~printer:vo2s None (q.get q.log k)) kvs 
+  List.iter (fun k -> OUnit.assert_equal (NOK k) (q.get q.log k)) kvs 
     
     
 
 let insert_delete_1 q = 
   q.set q.log "a" "A";
   check q ["a"];
-  q.delete q.log "a";
+  _ok_delete q "a";
   check_not q ["a"]
 
 
@@ -141,7 +146,7 @@ let delete_all_check q kvs =
   let rec loop acc = function
     | [] -> ()
     | k :: t -> 
-      q.delete q.log k;
+      _ok_delete q k;
       let acc' = k :: acc in
       check_not q acc';
       check q t;
@@ -194,9 +199,10 @@ let insert_delete_bug q =
      "w";"z"]
   in
   List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs;
-  q.delete q.log "a";
-  q.delete q.log "b";
-  q.delete q.log "j"
+  _ok_delete q "a";
+  _ok_delete q "b";
+  _ok_delete q "j";
+  ()
   
 let insert_delete_bug2 q =
   let kvs = ["a";"b"; "c"; "d";"e"; 
@@ -204,9 +210,9 @@ let insert_delete_bug2 q =
 	   "w";"z"]
   in
   List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs;
-  q.delete q.log "a";
+  _ok_delete q "a";
   let kvs' = List.filter ( (<>) "a") kvs in
-  List.iter (fun k -> let vo = Some (String.uppercase k) in 
+  List.iter (fun k -> let vo = OK (String.uppercase k) in 
 		      let vo2 = q.get q.log k in
 		      OUnit.assert_equal vo vo2) kvs'
 
@@ -219,7 +225,7 @@ let insert_delete_bug3 q =
   List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs;
   set_all q kvs;
   check q kvs;
-  q.delete q.log "a";
+  _ok_delete q "a";
   ()
 
 let split_1 q =   
@@ -227,7 +233,7 @@ let split_1 q =
   set_all q kvs0;
   q.set q.log "j" "J";
   check q ("j"::kvs0);
-  q.delete q.log "j";
+  _ok_delete q "j";
   check q kvs0
 
   
@@ -236,18 +242,18 @@ let split_2 q =
   set_all q kvs0;
   q.set q.log "q" "Q";
   check q ("q"::kvs0);
-  q.delete q.log "q";
+  _ok_delete q "q";
   check q kvs0
 
 let underflow_n2 q = 
   let kvs = ["a"; "d"; "g"; "j"; "m";"q"] in
   set_all q kvs;
-  q.delete q.log "g"
+  _ok_delete q "g"
 
 let underflow_n2_2 q = 
   let kvs = ["a";"d"; "g"; "j";"m"; "q"] in
   set_all q kvs;
-  q.delete q.log "j"
+  _ok_delete q "j"
 
 let insert_overflow q = 
   let kvs =  ["a"; "d"; "g"; "m";"q"; "t"; "j";] in
@@ -303,7 +309,7 @@ let insert_delete_permutations_generic  n q =
       if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
       Array.iter (fun k -> q.set q.log k (String.uppercase k)) a;
       check q (Array.to_list a);
-      Array.iter (fun k -> check_invariants q;q.delete q.log k) a;
+      Array.iter (fun k -> let () = check_invariants q in _ok_delete q k) a;
       check_empty q
     with 
       | e -> 	
@@ -351,7 +357,7 @@ let insert_static_delete_permutations_generic  n (q: 'a q) =
       if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
       List.iter (fun k -> q.set q.log k (String.uppercase k)) kvs;
       check q kvs;
-      Array.iter (fun k -> check_invariants q; q.delete q.log k) a;
+      Array.iter (fun k -> check_invariants q; _ok_delete q k) a;
       check_empty q
     with
       e -> 
@@ -387,7 +393,7 @@ let _insert_delete_bugx max q =
       check_invariants q;
       let k = Printf.sprintf "key_%d" n in
       Printf.printf "Delete %s\n%!" k;
-      q.delete q.log k;
+      _ok_delete q k;
       loop2 (pred n)
   in
   loop2 max
@@ -445,7 +451,7 @@ let qc_insert_lookup log = fun kvs ->
       then
         (a, ks)
       else
-	let vo = Some v in
+	let vo = OK v in
         (a && (MDB.get log k == vo), k :: ks)
     )
     kvs (true, [])
@@ -455,7 +461,13 @@ let qc_insert_lookup log = fun kvs ->
 let qc_insert_delete log = fun kvs ->
   List.iter (fun (k, v) -> MDB.set log k v) kvs;
   let _ = List.fold_right
-    (fun (k, _) ks -> if List.mem k ks then ks else (MDB.delete log k; k :: ks))
+    (fun (k, _) ks -> 
+      if List.mem k ks 
+      then ks 
+      else let r = MDB.delete log k in 
+           assert (r = OK ()); 
+           k :: ks
+    )
     kvs []
   in
   MDB.range log None true None true None = []
@@ -466,11 +478,10 @@ let qc_replace log = fun (k, vs) ->
     | [] -> begin
       let vo = MDB.get log k in
       match vo with
-	| Some _ -> false
-	| None -> true
+	| OK _  -> false
+	| NOK _ -> true
       end
-    | _ ->
-        MDB.get log k = Some (List.nth vs (List.length vs - 1))
+    | _ -> MDB.get log k = OK (List.nth vs (List.length vs - 1))
 
 let qc_key_value_list =
   let ak = arbitrary_string
