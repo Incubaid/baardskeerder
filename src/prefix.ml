@@ -73,7 +73,7 @@ module Prefix = functor (L:LOG ) -> struct
             loop count acc p kps
           in
           walk 0 [] root >>= fun (_,r) -> 
-          return r
+          return (List.rev r)
         end
       | Index _ | Leaf _ | Value _ -> failwith "not expected entry type"
 
