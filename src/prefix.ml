@@ -6,16 +6,16 @@ module Prefix = functor (L:LOG ) -> struct
     let (>>= ) = L.bind in
     let return = L.return in
     let lp = L.last t in
+    let t_max = 
+      match max with 
+        | None -> fun _ -> true
+        | Some m -> (>) m
+    in
     L.read t lp >>= function
       | NIL -> return []
       | Commit c ->
         let root = Commit.get_lookup c in
         begin
-          let t_max count = match
-              max with
-                | None -> true
-                | Some m -> count < m
-          in
           let prefix_ok k = 
             let i_end = min (String.length k)  (String.length prefix) in
             let rec loop i =
