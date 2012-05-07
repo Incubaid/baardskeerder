@@ -732,6 +732,7 @@ module DB = functor (L:LOG ) -> struct
     then _set t s k v >>= fun _ -> return ()
     else return ()
 
+
   let depth (t:L.t) (slab:Slab.t )= 
     let rec _depth_descend t slab pos c = begin
       match pos with

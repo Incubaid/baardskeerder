@@ -19,7 +19,10 @@
 
 open Tree
 open OUnit
+open Prefix
 module MDB = DB(Mlog)
+
+module MPrefix = Prefix(Mlog)
 
 let printer r = Pretty.string_of_list (fun s -> s) r
 
@@ -120,6 +123,9 @@ let reverse_range_bounded_overflow_right log =
   let r = MDB.reverse_range log (Some "f") false (Some "0") false None in
   OUnit.assert_equal ~printer ["e";"d";"c";"b";"a"] r
 
+let prefix_keys log = 
+  let r = MPrefix.prefix_keys log "d" None in
+  OUnit.assert_equal ~printer ["d"] r
 
 let wrap t = OUnit.bracket setup t teardown
 
@@ -147,4 +153,5 @@ let suite = "Range" >::: [
   "reverse_range_bounded_linc_finc" >:: wrap reverse_range_bounded_linc_finc;
   "reverse_range_bounded_overflow_left" >:: wrap reverse_range_bounded_overflow_left;
   "reverse_range_bounded_overflow_right" >:: wrap reverse_range_bounded_overflow_right;
+  "prefix_keys" >:: wrap prefix_keys;
 ]

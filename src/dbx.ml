@@ -24,7 +24,7 @@ open Entry
 open Slab
 open Commit
 open Catchup
-
+open Prefix
 
 module DBX(L:LOG) = struct
 
@@ -36,6 +36,7 @@ module DBX(L:LOG) = struct
 
   module DBL = DB(L)
   module CaL = Catchup(L)
+  module PrL = Prefix(L)
 
   let get tx k = DBL._get tx.log tx.slab k
 
@@ -87,6 +88,8 @@ module DBX(L:LOG) = struct
 
   let range_entries (tx:tx) (first:k option) (finc: bool) (last: k option) (linc: bool) (max:int option) = 
     DBL.range_entries tx.log first finc last linc max
+
+  let prefix_keys (tx:tx) (prefix : string) (max: int option) =  PrL.prefix_keys tx.log prefix max
 
   let log_update (log:L.t) ?(diff = true) (f: tx -> unit result L.m) =
     let _find_lookup () = 

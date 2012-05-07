@@ -75,6 +75,8 @@ module Baardskeerder
         X.range_entries tx first finc last linc max
       let rev_range_entries tx first finc last linc max = 
         X.rev_range_entries tx first finc last linc max
+
+      let prefix_keys tx prefix max = X.prefix_keys tx prefix max
       
       let set_metadata t s = L.set_metadata t s
       let get_metadata t = L.get_metadata t

@@ -399,6 +399,7 @@ let _insert_delete_bugx max q =
   loop2 max
 
 
+
 let template =
   ["insert_delete_1",  insert_delete_1;
    "insert_delete_2",  insert_delete_2;
