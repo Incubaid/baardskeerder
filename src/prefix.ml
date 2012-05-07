@@ -76,4 +76,6 @@ module Prefix = functor (L:LOG ) -> struct
           return r
         end
       | Index _ | Leaf _ | Value _ -> failwith "not expected entry type"
+
+
 end

@@ -97,6 +97,7 @@ module Baardskeerder :
     val range_latest: t -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
     val range_entries_latest: t -> k option -> bool -> k option -> bool -> int option -> (k * v) list S.m
     val rev_range_entries_latest: t -> k option -> bool -> k option -> bool -> int option -> (k * v) list S.m
+    val prefix_keys_latest: t -> string -> int option -> (k list) S.m
 
     val with_tx : t -> (tx -> 'a result S.m) -> 'a result S.m
 

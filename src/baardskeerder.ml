@@ -43,6 +43,7 @@ module Baardskeerder
       module D = Tree.DB(L)
       module X = Dbx.DBX(L)
       module C = Catchup.Catchup(L)
+      module PrL = Prefix.Prefix(L)
       type t = L.t
       type tx = X.tx
 
@@ -65,6 +66,8 @@ module Baardskeerder
         D.range_entries t first finc last linc max
       let rev_range_entries_latest t first finc last linc max = 
         D.rev_range_entries t first finc last linc max
+      let prefix_keys_latest t prefix max = 
+        PrL.prefix_keys t prefix max
 
       let get tx k = X.get tx k
       let set tx k v = X.set tx k v
