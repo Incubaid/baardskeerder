@@ -109,7 +109,7 @@ module Baardskeerder :
     val rev_range_entries : tx -> k option -> bool -> k option -> bool -> int option -> (k *v) list S.m
     val prefix_keys : tx -> string -> int option -> (k list) S.m
 
-    val log_update: t -> ?diff:bool -> (tx -> unit result S.m) -> unit result S.m
+    val log_update: t -> ?diff:bool -> (tx -> 'a result S.m) -> 'a result S.m
     val last_update: t -> (int64 * (action list)* bool) option S.m
     val commit_last: t -> unit S.m
     val catchup: t -> int64 -> ('a -> int64 -> action list -> 'a S.m) -> 'a -> 'a S.m

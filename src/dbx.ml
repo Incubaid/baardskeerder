@@ -91,7 +91,7 @@ module DBX(L:LOG) = struct
 
   let prefix_keys (tx:tx) (prefix : string) (max: int option) =  PrL.prefix_keys tx.log prefix max
 
-  let log_update (log:L.t) ?(diff = true) (f: tx -> unit result L.m) =
+  let log_update (log:L.t) ?(diff = true) (f: tx -> 'a result L.m) =
     let _find_lookup () = 
       let pp = L.last log in
       L.read log pp >>= function 
@@ -111,7 +111,7 @@ module DBX(L:LOG) = struct
     
     _find_lookup () >>= fun lookup ->
     f tx >>= function 
-      | OK () ->
+      | OK x ->
         begin
           let root = Slab.length tx.slab -1 in
           let previous = L.last log in
@@ -121,7 +121,7 @@ module DBX(L:LOG) = struct
           let _ = Slab.add tx.slab c in
           let slab' = Slab.compact tx.slab in
           L.write log slab' >>= fun () ->
-          return (OK ())
+          return (OK x)
         end
       | NOK k -> return (NOK k)
 
