@@ -719,7 +719,7 @@ module DB = functor (L:LOG ) -> struct
       end
     in
     _fold_reverse_range_while t first finc last linc f (0, []) >>= fun (_, res) ->
-    return res
+    return (List.rev res)
 
   let confirm (t:L.t) (s:Slab.t) k v =
     let set_needed () =
