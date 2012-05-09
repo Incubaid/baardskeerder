@@ -69,7 +69,10 @@ let iteri_rev slab f =
   let rec loop i = 
     if i < 0 
     then ()
-    else let () = f i slab.es.(i) in loop (i-1)
+    else
+      let e = slab.es.(i) in
+      let () = f i e in 
+      loop (i-1)
   in
   loop (slab.nes -1)
 
@@ -88,13 +91,15 @@ let mark slab =
   let r = Array.make (slab.nes) false in
   let maybe_mark = function
     | Outer _ -> ()
-    | Inner x -> r.(x) <- true
+    | Inner x -> if x >=0 then r.(x) <- true
   in
   let maybe_mark2 (_,p) = maybe_mark p in
-  let mark _ e = 
+  let mark (i:int) e = 
     match e with
       | NIL | Value _ -> ()
-      | Commit c -> let p = Commit.get_pos c in maybe_mark p
+      | Commit c -> 
+	let p = Commit.get_pos c in 
+	maybe_mark p
       | Leaf l -> List.iter maybe_mark2 l
       | Index (p0,kps) -> let () = maybe_mark p0 in List.iter maybe_mark2 kps
   in
@@ -122,7 +127,10 @@ let compact s =
   let s_map = mapping s_mark in
   let lookup_pos = function
     | Outer _ as o -> o
-    | Inner x -> Inner (Hashtbl.find s_map x)
+    | Inner x -> 
+      if x >= 0 
+      then Inner (Hashtbl.find s_map x)
+      else (Inner x)
   in
   let rewrite_actions actions = List.map 
     (function
