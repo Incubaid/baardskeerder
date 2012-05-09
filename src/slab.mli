@@ -20,7 +20,7 @@
 
 type t
 val make : Time.t -> t
-val string_of_slab : t -> string
+val slab2s : t -> string
 val add : t -> Entry.entry -> Pos.pos
 
 val add_value: t -> string         -> Pos.pos

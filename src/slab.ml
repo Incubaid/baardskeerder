@@ -25,7 +25,7 @@ type t = { mutable es: entry array; mutable nes: int; time: Time.t}
 let make time = { es = Array.make 32 NIL; 
 	       nes = 0; time}
 
-let string_of_slab s = Printf.sprintf "{ es = %s; nes = %i;time=%s}" 
+let slab2s s = Printf.sprintf "{ es = %s; nes = %i;time=%s}" 
   (Pretty.string_of_array entry2s s.es) s.nes (Time.time2s s.time)
   
 

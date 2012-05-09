@@ -446,7 +446,8 @@ let deflate_value b _ v =
 let pos_remap mb h p = 
   let (s, o) = match p with
     | Outer (Spindle s, Offset o) -> (s, o)
-    | Inner x -> 
+    | Inner x when x = -1-> (0,0) (* TODO: don't special case with -1 *)
+    | Inner x ->
       let (Spindle s, Offset o) = Hashtbl.find h x in
       (s, o)
   in
