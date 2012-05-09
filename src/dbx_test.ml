@@ -84,10 +84,18 @@ let delete_empty () =
   let k = "non-existing" in
   OUnit.assert_equal (Base.NOK k) (MDBX.with_tx mlog (fun tx -> MDBX.delete tx k))
 
+let log_nothing () = 
+  let mlog = _setup() in
+  let k = "non-existing" in
+  let ok = OK () in
+  let x = MDBX.log_update mlog (fun tx -> Mlog.return ok) in
+  OUnit.assert_equal ok x;
+  ()
 
 let suite = "DBX" >::: ["get_after_delete" >:: get_after_delete;
                         "get_after_log_update" >:: get_after_log_update;
                         "get_after_log_updates" >:: get_after_log_updates;
                         "update_commit_get" >:: update_commit_get;
                         "delete_empty" >:: delete_empty;
+                        "log_nothing" >:: log_nothing;
                        ]
