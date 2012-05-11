@@ -41,7 +41,6 @@ module Catchup(L: LOG) = struct
 
   let catchup (i0: int64) (f : 'a -> int64 -> action list -> 'a L.m) (a0:'a) (log : L.t) =
     let start = (i0, 0,false) in
-    print_newline();
     let rec go_back acc p =
       L.bind 
         (L.read log p) 
