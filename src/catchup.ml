@@ -76,7 +76,7 @@ module Catchup(L: LOG) = struct
             read_commit log cp >>= fun cur_c ->
             let cur_t = Commit.get_time cur_c in
             let prev_t = Commit.get_time prev_c in
-            if cur_t =>: prev_t 
+            if cur_t >: prev_t 
             then
               let prev_cas = Commit.get_cactions prev_c in
               translate_cactions log prev_cas >>= fun prev_as ->

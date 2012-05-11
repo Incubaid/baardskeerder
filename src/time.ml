@@ -54,6 +54,14 @@ let (=>:) (x0,y0,_) (x1,y1,_) =
       if y0 < y1 
       then false
       else true
+
+let (>:) (x0,y0,_) (x1,y1,_) = 
+  if x0 > x1 
+  then true
+  else 
+    if x0 = x1 && y0 > y1 
+    then true
+    else false
         
 
 
