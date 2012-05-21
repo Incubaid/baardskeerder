@@ -52,7 +52,7 @@ module Pack = struct
   let vint_to b n = 
     let add c = Buffer.add_char b c in
     let rec loop = function
-      | 0 -> add '\x00'
+      (* | 0 -> add '\x00' (* unneeded *) *)
       | n when n < 128 -> add (Char.unsafe_chr n)
       | n -> let byte = (n land 0x7f) lor 0x80  in
 	     let () = add (Char.unsafe_chr byte) in
