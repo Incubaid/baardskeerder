@@ -11,7 +11,26 @@ module Pack = struct
 
   type output = Buffer.t
 
-  let make_output h = Buffer.create h
+  let make_output h = 
+    let h = Buffer.create (h+4) in
+    (* size will be filled in here at closing time *)
+    Buffer.add_string h "\x00\x00\x00\x00";
+     h
+
+  let close_output b = 
+    let s = Buffer.contents b in
+    let size = String.length s - 4 in
+    (* set size in the first 4 bytes *)
+    let char_at pos = 
+      let mask = 0xff lsl pos in
+      let code = (size land mask) lsr pos in
+      Char.unsafe_chr code
+    in
+    s.[0] <- char_at 0;
+    s.[1] <- char_at 8;
+    s.[2] <- char_at 16;
+    s.[3] <- char_at 24;
+    s
 
   let size_to b (i:int) = 
     let char_at pos =
@@ -72,13 +91,7 @@ module Pack = struct
     vint_to b l;
     List.iter (e_to b) list
 
-  let close_output b = 
-    let s = Buffer.contents b in
-    let size = String.length s in
-    let b2 = Buffer.create 4 in
-    let () = size_to b2 size in
-    let b2s = Buffer.contents b2 in
-    b2s ^ s
+
     
   type input = {s:string; mutable p:int}  
 
