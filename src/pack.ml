@@ -13,21 +13,17 @@ module Pack = struct
 
   let make_output h = Buffer.create h
 
-  let size_to b (p:int) = 
-    let i32  = Int32.of_int p in
-    let (<<<) = Int32.shift_left in
-    let (>>>) = Int32.shift_right_logical in
-    let char_at n =
-      let pos = n * 8 in
-      let mask = (Int32.of_int 0xff) <<< pos in
-      let code = (Int32.logand i32 mask) >>> pos in
-      Char.chr (Int32.to_int code)
+  let size_to b (i:int) = 
+    let char_at pos =
+      let mask = 0xff lsl pos in
+      let code = (i land mask) lsr pos in
+      Char.unsafe_chr code
     in
-    let add i = Buffer.add_char b (char_at i) in
+    let add pos = Buffer.add_char b (char_at pos) in
     add 0;
-    add 1;
-    add 2;
-    add 3
+    add 8;
+    add 16;
+    add 24
 
 
   let bool_to b (v:bool) = 
@@ -38,9 +34,9 @@ module Pack = struct
     let add c = Buffer.add_char b c in
     let rec loop = function
       | 0 -> add '\x00'
-      | n when n < 128 -> add (Char.chr n)
+      | n when n < 128 -> add (Char.unsafe_chr n)
       | n -> let byte = (n land 0x7f) lor 0x80  in
-	     let () = add (Char.chr byte) in
+	     let () = add (Char.unsafe_chr byte) in
 	     let r = n lsr 7 in
 	     loop r
     in loop n
