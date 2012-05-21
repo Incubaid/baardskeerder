@@ -18,6 +18,7 @@
  *)
 
 include Base
+include Pack
 
 module Logs =
   struct
@@ -33,7 +34,7 @@ module Stores =
   end
 
 
-module Pack = Flog0.Pack
+
 
 module Baardskeerder
   (LF: functor(S: Bs_internal.STORE) -> Log.LOG with type 'a m = 'a S.m) =
