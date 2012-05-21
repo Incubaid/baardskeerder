@@ -30,8 +30,10 @@ let vint_to_performance () =
   let rec loop i = 
     if i = 0 then ()
     else
-      let b = Buffer.create 128 in
+      let b = Pack.make_output 64 in
       let () = Array.iter (fun v ->Pack.vint_to b v) sample in
+      let bs = Pack.close_output b in
+      assert (String.length bs < 100);
       loop (i-1)
   in
   let n = 10 * 1000 * 1000 in
