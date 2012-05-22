@@ -49,7 +49,9 @@ let get_lf = function
 
 let get_store = function
   | "Sync" -> (module Store.Sync: MS)
-  | "Lwt" -> (module Store.Lwt : MS)
+  | "Lwt" -> 
+    let () = Lwt_unix.set_default_async_method Lwt_unix.Async_none in 
+    (module Store.Lwt : MS)
   | _ -> invalid_arg "get_store"
 
 let () = 
