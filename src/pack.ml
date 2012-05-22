@@ -7,6 +7,13 @@ let size_from s pos =
   let result = b0 lor (b1 lsl 8) lor (b2 lsl 16) lor (b3 lsl 24)
   in result
 
+let set_size s size = 
+  s.[0]   <- Char.unsafe_chr  (size land 0xff);
+  s.[1] <- Char.unsafe_chr ((size land 0xff00) lsr    8);
+  s.[2] <- Char.unsafe_chr ((size land 0xff0000) lsr 16);
+  s.[3] <- Char.unsafe_chr ((size land 0xff000000) lsr 24)
+
+
 module Pack = struct
 
   type output = Buffer.t
@@ -21,15 +28,7 @@ module Pack = struct
     let s = Buffer.contents b in
     let size = String.length s - 4 in
     (* set size in the first 4 bytes *)
-    let char_at pos = 
-      let mask = 0xff lsl pos in
-      let code = (size land mask) lsr pos in
-      Char.unsafe_chr code
-    in
-    s.[0] <- char_at 0;
-    s.[1] <- char_at 8;
-    s.[2] <- char_at 16;
-    s.[3] <- char_at 24;
+    set_size s size;
     s
 
   let size_to b (i:int) = 
@@ -60,17 +59,20 @@ module Pack = struct
     in loop n
 
   let vint64_to b (n:int64) = 
-    let add c = Buffer.add_char b c in
-    let rec loop = function
-      | 0L -> add '\x00'
-      | n when n < 128L -> add (Char.chr (Int64.to_int n))
-      | n -> 
-        let last = (Int64.to_int n) land 0x7f in
-        let byte = last lor 0x80  in
-        let () = add (Char.chr byte) in
-        let r = Int64.shift_right n 7 in
-        loop r
-    in loop n
+    let max64 = Int64.of_int Pervasives.max_int in
+    if n < max64 
+    then vint_to b (Int64.to_int n)
+    else
+      let add c = Buffer.add_char b c in
+      let rec loop = function
+        | n when n < 128L -> add (Char.unsafe_chr (Int64.to_int n))
+        | n -> 
+          let last = (Int64.to_int n) land 0x7f in
+          let byte = last lor 0x80  in
+          let () = add (Char.chr byte) in
+          let r = Int64.shift_right n 7 in
+          loop r
+      in loop n
     
   let string_to b s = 
     let l = String.length s in
@@ -138,13 +140,13 @@ module Pack = struct
     let start = input.p in
     let rec loop v shift p = 
       let c = s.[p] in
-      let cv = Int64.of_int (Char.code c) in
-      if cv < 0x80L 
+      let cv_int = Char.code c in
+      if cv_int < 0x80
       then 
         let () = input.p <- p+ 1  in
-        v +: (cv <<: shift)
+        v +: (Int64.of_int cv_int <<: shift)
       else 
-        let v' = v +: ((Int64.logand cv  0x7fL) <<: shift) in
+        let v' = v +: ((Int64.of_int (cv_int land 0x7f)) <<: shift) in
         loop v' (shift + 7) (p+1)
     in loop 0L 0 start
 
