@@ -41,11 +41,16 @@ type command =
   | Hudson
 
 module type LF = functor(S: Bs_internal.STORE) -> Log.LOG with type 'a m = 'a S.m
+module type MS = Bs_internal.STORE
 let get_lf = function
   | "Flog0" -> (module Flog0.Flog0 : LF)
   | "Flog" -> (module Flog.Flog : LF)
   | _ -> invalid_arg "get_lf"
 
+let get_store = function
+  | "Sync" -> (module Store.Sync: MS)
+  | "Lwt" -> (module Store.Lwt : MS)
+  | _ -> invalid_arg "get_store"
 
 let () = 
   let command = ref Bench in
@@ -66,6 +71,7 @@ let () =
   let fn2 = ref "test_compacted.db" in
   let d = ref 4 in
   let log_name = ref "Flog0" in
+  let store_name = ref "Sync" in
   let mb = ref 1 in
   let test_refs = ref [] in
   let () = 
@@ -75,6 +81,7 @@ let () =
       ("--bench-size",Set_int n,  Printf.sprintf "number of sets/gets/deletes (%i)" !n);
       ("--d", Set_int d, Printf.sprintf "1/2 of the fan-out (%i)" !d);
       ("--log-name", Set_string log_name, Printf.sprintf "name of the log implementation (%s)" !log_name);
+      ("--store-name", Set_string store_name, Printf.sprintf "name of the sore implementation (%s)" !store_name);
       ("--min-blocks", Set_int mb, Printf.sprintf
         "minimal number of consecutive blocks to punch (%i)" !mb);
       ("--dump", Unit dump, Printf.sprintf "doesn't run a benchmark, but dumps file's contents");
@@ -92,7 +99,8 @@ let () =
       "simple baardskeerder benchmark"
   in
   let f = get_lf !log_name in
-  let module MyStore = Store.Sync (* Store.Lwt *) in
+  let store = get_store !store_name in
+  let module MyStore = (val store: MS) in
   let module MyF = (val f : LF) in
   let module MyLog = MyF(MyStore) in
   let module MyDB  = DB(MyLog) in  
@@ -177,11 +185,7 @@ let () =
     loop 0
   in
   let () = 
-    let run x = 
-      (* Lwt_main.run x *)
-      x
-    (* TODO: how to make this depend on the choice of store? *) 
-    in 
+    let run x = MyStore.run x in
     match !command with
       | Test -> let _ = OUnit.run_test_tt_main Test.suite in ()
       | ListTest -> 
@@ -299,6 +303,7 @@ let () =
           return (dt,da)
         in
         begin
+          Printf.printf "Using:%s\n%!" !store_name ;
           MyLog.init !fn ~d:!d Time.zero >>= fun () ->
           MyLog.make !fn >>= fun db ->
 	      let () = Printf.printf "\niterations = %i\nvalue_size = %i\n%!" !n !vs in
