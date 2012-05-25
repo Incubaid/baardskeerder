@@ -43,6 +43,8 @@ module type STORE =
     val fsync : t -> unit m
 
     val with_fd : t -> (Unix.file_descr -> 'a) -> 'a m
+
+    val run : 'a m -> 'a
   end
 
 

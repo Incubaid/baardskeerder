@@ -70,6 +70,8 @@ module Memory : STORE with type 'a m = 'a =
     let fsync (T _) = return ()
 
     let with_fd _ _ = failwith "Store.Memory.with_fd"
+
+    let run x = x
   end
 
 module Sync : STORE with type 'a m = 'a =
@@ -131,6 +133,8 @@ module Sync : STORE with type 'a m = 'a =
 
     let with_fd (T (fd, _)) f =
       return (f fd)
+
+    let run x = x
   end
 
 module Lwt_ = Lwt
@@ -206,4 +210,7 @@ module Lwt : STORE with type 'a m = 'a Lwt.t =
 
     let with_fd (T (fd, _)) f =
       Lwt_preemptive.detach f (Lwt_unix.unix_file_descr fd)
+
+
+    let run x = Lwt_main.run x
   end
