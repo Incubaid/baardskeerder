@@ -64,7 +64,8 @@ module Pack :
     val option_to: output  -> (output -> 'a -> unit) -> 'a option -> unit
     val string_option_to: output -> string option -> unit
     val list_to  : output  -> (output -> 'a -> unit) -> 'a list -> unit
-
+    val hashtbl_to : output -> (output -> 'a -> 'b -> unit) -> ('a, 'b) Hashtbl.t -> unit
+    
     val size_to  : output  -> int -> unit
     val close_output: output -> string
     
@@ -78,7 +79,8 @@ module Pack :
     val input_raw    : input -> int -> string
     val input_option : (input -> 'a) -> input -> 'a option
     val input_string_option: input -> string option
-    val input_list   : (input -> 'a) -> input -> 'a list
+    val input_list   : input -> (input -> 'a) -> 'a list
+    val hashtbl_from : input -> (input -> 'a * 'b)  -> ('a, 'b) Hashtbl.t
   end
 
 

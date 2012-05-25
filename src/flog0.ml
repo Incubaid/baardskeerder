@@ -101,6 +101,11 @@ module Pack = struct
     vint_to b l;
     List.iter (e_to b) list
 
+  let hashtbl_to b e_to ht =
+    let l = Hashtbl.length ht in
+    vint_to b l;
+    Hashtbl.iter (e_to b) ht
+     
   let close_output b = 
     let s = Buffer.contents b in
     let size = String.length s in
@@ -184,7 +189,7 @@ module Pack = struct
 
   let input_string_option input = input_option input_string input
 
-  let input_list input_e input = 
+  let input_list input input_e = 
     let l = input_vint input in
     let rec loop acc = function
       | 0 -> List.rev acc
@@ -192,6 +197,18 @@ module Pack = struct
 	     loop (e :: acc) (n-1)
     in
     loop [] l      
+    
+  let hashtbl_from input e_from =
+    let l = input_vint input in
+    let ht = Hashtbl.create l in
+    let rec loop = function
+      | 0 -> ht
+      | i -> 
+        let k, v = e_from input in
+        Hashtbl.replace ht k v;
+        loop (i-1)
+    in loop l
+
 end
 
 
@@ -369,7 +386,7 @@ let inflate_commit input =
   let previous = inflate_pos input in
   let lookup = inflate_pos input in
   let t = input_time input in
-  let actions = Pack.input_list inflate_action input in    
+  let actions = Pack.input_list input inflate_action in    
   let explicit = Pack.input_bool input in
   Commit.make_commit ~pos ~previous ~lookup t actions explicit
 
@@ -378,7 +395,7 @@ let inflate_value input = input_string input
 
 let input_suffix_list input =
   let prefix = input_string input in
-  let suffixes = input_list input_kp input in
+  let suffixes = input_list input input_kp in
   let kps = List.map (fun (s,p) -> (prefix ^s, p)) suffixes in
   kps
 
