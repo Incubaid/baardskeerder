@@ -172,7 +172,7 @@ module Pack = struct
 
   let input_string_option input = input_option input_string input
 
-  let input_list input_e input = 
+  let input_list input input_e = 
     let l = input_vint input in
     let rec loop acc = function
       | 0 -> List.rev acc
