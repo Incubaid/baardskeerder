@@ -73,6 +73,10 @@ module Pack = struct
           let r = Int64.shift_right n 7 in
           loop r
       in loop n
+
+  let float_to b (f:float) = 
+    let bf = Int64.bits_of_float f in
+    vint64_to b bf
     
   let string_to b s = 
     let l = String.length s in
@@ -152,6 +156,11 @@ module Pack = struct
         let v' = v +: ((Int64.of_int (cv_int land 0x7f)) <<: shift) in
         loop v' (shift + 7) (p+1)
     in loop 0L 0 start
+  
+  let input_float input = 
+    let bf = input_vint64 input in
+    let f = Int64.float_of_bits bf in
+    f
 
   let input_string input = 
     let l = input_vint input in

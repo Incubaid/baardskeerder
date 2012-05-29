@@ -60,6 +60,7 @@ module Pack :
     val bool_to  : output  -> bool  -> unit
     val vint_to  : output  -> int   -> unit
     val vint64_to: output  -> int64 -> unit
+    val float_to : output  -> float -> unit
     val string_to: output  -> string -> unit
     val option_to: output  -> (output -> 'a -> unit) -> 'a option -> unit
     val string_option_to: output -> string option -> unit
@@ -75,6 +76,7 @@ module Pack :
     val input_bool   : input -> bool
     val input_vint   : input -> int
     val input_vint64 : input -> int64
+    val input_float  : input -> float
     val input_string : input -> string
     val input_raw    : input -> int -> string
     val input_option : (input -> 'a) -> input -> 'a option
