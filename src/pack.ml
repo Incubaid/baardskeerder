@@ -75,8 +75,19 @@ module Pack = struct
       in loop n
 
   let float_to b (f:float) = 
-    let bf = Int64.bits_of_float f in
-    vint64_to b bf
+    let (<::) = Int64.shift_left in
+    let (>::) = Int64.shift_right in
+    let i64 = Int64.bits_of_float f in
+    let char_at n =
+      let pos = n * 8 in
+      let mask = Int64.of_int 0xff <:: pos in
+      let code = (Int64.logand i64 mask) >:: pos in
+      Char.chr (Int64.to_int code)
+    in
+    let set x = Buffer.add_char b (char_at x) in
+    set 0; set 1; set 2; set 3;
+    set 4; set 5; set 6; set 7;
+    ()
     
   let string_to b s = 
     let l = String.length s in
@@ -158,9 +169,26 @@ module Pack = struct
     in loop 0L 0 start
   
   let input_float input = 
-    let bf = input_vint64 input in
-    let f = Int64.float_of_bits bf in
-    f
+    let (<::) = Int64.shift_left
+    and (|::) = Int64.logor 
+    in
+    let p = input.p in
+    let i64 i= Int64.of_int (Char.code input.s.[p + i]) in
+    let b0 = i64 0
+    and b1s = i64 1 <:: 8
+    and b2s = i64 2 <:: 16
+    and b3s = i64 3 <:: 24
+    and b4s = i64 4 <:: 32
+    and b5s = i64 5 <:: 40
+    and b6s = i64 6 <:: 48
+    and b7s = i64 7 <:: 56 in
+    let r = 
+      b0 |:: b1s |:: b2s |:: b3s
+      |:: b4s |:: b5s |:: b6s |:: b7s
+    in
+    let () = input.p <- input.p + 8 in
+    Int64.float_of_bits r 
+
 
   let input_string input = 
     let l = input_vint input in
