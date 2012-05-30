@@ -74,6 +74,7 @@ module Pack :
     val make_input   : string -> int -> input
 
     val input_bool   : input -> bool
+    val input_size   : input -> int
     val input_vint   : input -> int
     val input_vint64 : input -> int64
     val input_float  : input -> float
