@@ -14,10 +14,10 @@ value Caml_set_size_unsafe(value v_buf, value v_size){
 
 value Caml_size_from_unsafe(value v_buf, value v_pos){
   CAMLparam2(v_buf,v_pos);
-  char * buf = String_val(v_buf);
+  char* buf = String_val(v_buf);
   int pos = Long_val(v_pos);
-  int * ibuf = (int*) buf;
-  int size = ibuf[pos];
+  int* where = (int*) &buf[pos];
+  int size = * where;
   value v_size = Val_long(size);
   CAMLreturn(v_size);
 }
