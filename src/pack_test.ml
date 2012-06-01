@@ -52,7 +52,9 @@ let size_performance() =
         (fun v ->
           set_size s v;
           let v' = size_from s 0 in
-          OUnit.assert_equal ~printer:string_of_int v v';
+          (* OUnit.assert_equal ~printer:string_of_int v v'; *)
+          assert (v' = v);
+          ()
         ) sample
       in
       loop (i-1)
@@ -62,8 +64,44 @@ let size_performance() =
   let mega_da = da /. (1024.0 *. 1024.0) in
   Printf.printf "\nn=%i;dt=%fs;da=%fMB\n" n dt mega_da
 
+
+let size2_correctness () = 
+  let s = "xxxxxxxx" in
+  let () = Array.iter 
+    (fun v ->
+      Cpack.set_size_unsafe s v;
+      let v_ocaml = size_from s 0 in
+      let () = Printf.printf "%08i:%S\n%!" v_ocaml s in    
+      let v_c  = Cpack.size_from_unsafe s 0 in
+      OUnit.assert_equal ~printer:string_of_int v_ocaml v_c ~msg:(Printf.sprintf "%S: " s);
+      OUnit.assert_equal ~printer:string_of_int v v_c       ~msg:(Printf.sprintf "%S: " s)
+    ) sample
+  in
+  ()
+let size2_performance() = 
+  let s = "xxxxxxxx" in
+  let rec loop i = 
+    if i = 0 then ()
+    else
+      let () = Array.iter
+        (fun v ->
+          Cpack.set_size_unsafe s v;
+          let v' = Cpack.size_from_unsafe s 0 in
+          (*OUnit.assert_equal ~printer:string_of_int v v';*)
+          assert (v = v');
+          ()
+        ) sample
+      in
+      loop (i - 1)
+  in
+  let n = 10 * 1000 * 1000 in
+  let dt,da = measure (fun () -> loop n) in
+  let mega_da = da /. (1024.0 *. 1024.0) in
+  Printf.printf "\nn=%i;dt=%fs;da=%fMB\n" n dt mega_da
 let suite = 
   "Pack">:::[
     "vint_to_performance" >:: vint_to_performance;
     "size_performance" >:: size_performance;
+    "size2_correctness" >:: size2_correctness;
+    "size2_performance" >:: size2_performance;
   ]

@@ -2,3 +2,4 @@ posix.o
 bsd_crc32c.o
 arakoon_crc32c.o
 cpudetect.o
+baardskeerder_util.o
