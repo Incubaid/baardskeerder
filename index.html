@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Baardskeerder by Incubaid</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Baardskeerder</h1>
+        <p>A persistent B-ish-tree</p>
+
+        <p class="view"><a href="https://github.com/Incubaid/baardskeerder">View the Project on GitHub <small>Incubaid/baardskeerder</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/Incubaid/baardskeerder/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/Incubaid/baardskeerder/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/Incubaid/baardskeerder">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <p>Baardskeerder is a so-called Copy-on-Write <a href="http://en.wikipedia.org/wiki/B-tree">B-tree</a> (aka Append-only B-tree), a fully-persistent datastructure which can be implemented using nothing but append writes towards the storage medium on which the data is stored.</p>
+
+<p>A CoW B-tree implements a <a href="http://en.wikipedia.org/wiki/Persistent_data_structure">fully-persistent</a> B-tree datastructure by copying paths from leaf to root whenever a given key is added (or altered) inside the tree.</p>
+
+<p>The project was launched to replace <a href="http://fallabs.com/tokyocabinet/">Tokyo Cabinet</a>, used as part of our distributed &amp; consistent key-value store, <a href="http://arakoon.org">Arakoon</a>.</p>
+
+<p>This is a technology preview, so keep this in mind whenever thinking about using this in a real-world application: the codebase is still in flux, the on-disk database format will most certainly change (without backwards compatibility) before the first version is released,...</p>
+
+<h2>Getting Started</h2>
+
+<p>Baardskeerder uses several features only provided by the Linux kernel, so it can't (for now) be used on other platforms. Some features require a very recent (&gt;= 3.0) kernel and require specific file-system support, currently only provided by ext4, XFS and OCFS2.</p>
+
+<p>It's written in <a href="http://caml.inria.fr/ocaml/">OCaml</a>, so you'll need a recent (&gt;= 3.12) OCaml compiler on your system. The build system uses ocamlbuild and ocamlfind.</p>
+
+<p>Finally, a working C compiler and up-to-date system header files are required.</p>
+
+<p>To build the library, test executable and benchmark tool, execute make in the src tree. Run make install to install the library on your system.</p>
+
+<p>To render the documentation, you'll need <a href="http://sphinx.pocoo.org/">Sphinx</a> and its dependencies installed. Execute make html in the doc tree to generate HTML output. Execute make help to see a list of other output formats available.</p>
+
+<p>Warning: the documentation is out of date in several places, and updating it is currently low priority. If you want to know how it works, take a look at our <a href="http://blog.incubaid.com/">blog</a>.</p>
+
+<h2>License</h2>
+
+<p>Baardskeerder is available under the LGPL-3 license. See <a href="https://raw.github.com/Incubaid/baardskeerder/master/COPYING">COPYING</a> for more information.</p>
+
+<h2>Authors</h2>
+
+<p>The Baardskeerder project was created by Romain <a href="https://github.com/toolslive" class="user-mention">@toolslive</a> Slootmaekers and Nicolas <a href="https://github.com/NicolasT" class="user-mention">@NicolasT</a> Trangez as part of their work at <a href="https://github.com/Incubaid" class="user-mention">@Incubaid</a>.</p>
+
+<p>You can get in touch with the team by e-mail at <a href="mailto:research@incubaid.com">research@incubaid.com</a>, or using Twitter <a href="http://twitter.com/Incubaid">@Incubaid</a>.</p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/Incubaid">Incubaid</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
