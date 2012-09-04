@@ -35,9 +35,9 @@ let test_presence () =
   let kvs = 
     let rec loop acc = function 
       | 26 -> acc
-      | i -> 
+      | i  -> 
 	let c0 = Char.chr (65 + i) in
-	let c1 = Char.chr (96 + i) in
+	let c1 = Char.chr (97 + i) in
 	let kv = (Printf.sprintf "%c" c0, Printf.sprintf "%c" c1) in
 	     loop (kv :: acc) (i+1)
     in

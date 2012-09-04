@@ -31,18 +31,27 @@ module Memory : STORE with type 'a m = 'a =
     let return v = v
 
     let init (n:string) =
-      if Hashtbl.mem memory_store n
-      then
-        return (Hashtbl.find memory_store n)
-      else
-        let v = T (ref (Buffer.create 128)) in
-        Hashtbl.replace memory_store n v;
-        return v
+      let v = 
+        if Hashtbl.mem memory_store n
+        then Hashtbl.find memory_store n
+        else
+          let v = T (ref (Buffer.create 128)) in
+          let () = Hashtbl.replace memory_store n v in
+          v
+      in
+      return v
+
     let close _ = return ()
 
     let next (T b) = Buffer.length (!b)
 
-    let read (T b) o l = return (Buffer.sub !b o l)
+    let read (T b) o l = 
+      if o < Buffer.length (!b) 
+      then
+        return (Buffer.sub !b o l)
+      else
+        raise End_of_file
+
     let write (T b) d p l o =
       let s = Buffer.contents !b in
       let sl = String.length s in

@@ -110,14 +110,15 @@ let _read_metadata fd =
   let t0 = input_time input in
   return {commit; td;t0}
 
-type t = { spindles : S.t array;
-           start : Time.t;
-	   mutable last: (spindle * offset);
-           mutable next_spindle: int;
-	   mutable d: int;
-           mutable now: Time.t;
-           filename : string;
-	 }
+type t = { 
+  spindles : S.t array;
+  start : Time.t;
+  mutable last: (spindle * offset);
+  mutable next_spindle: int;
+  mutable d: int;
+  mutable now: Time.t;
+  filename : string;
+}
 
 let get_d t = t.d
 
@@ -427,7 +428,8 @@ let lookup t =
 
 let init ?(d=8) fn t0 = 
   S.init fn >>= fun s ->
-  if S.next s = 0 then
+  if S.next s = 0 
+  then
     let commit = (Spindle 0, Offset 0) in
     _write_metadata s {commit;td = d; t0} >>= fun () ->
     S.close s
@@ -470,7 +472,8 @@ let make filename =
   in
   let (_,Offset tbr) = m.commit in
   let corrected_tbr = max _METADATA_SIZE tbr in
-  _scan_forward ((Spindle 0, Offset 0),Time.zero) corrected_tbr >>= fun (last, now) ->
+
+  _scan_forward ((Spindle 0, Offset 0),m.t0) corrected_tbr >>= fun (last, now) ->
   let flog0 = { spindles=spindles;
                 last=last;
                 next_spindle=0;
