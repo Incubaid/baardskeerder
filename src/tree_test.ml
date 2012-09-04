@@ -452,8 +452,9 @@ let qc_insert_lookup log = fun kvs ->
       then
         (a, ks)
       else
-	let vo = OK v in
-        (a && (MDB.get log k == vo), k :: ks)
+	    let vo = OK v in
+        let vo' = MDB.get log k in
+        (a && (vo' = vo), k :: ks)
     )
     kvs (true, [])
   in
