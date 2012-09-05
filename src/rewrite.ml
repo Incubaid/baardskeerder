@@ -51,50 +51,54 @@ module Rewrite
   let update_w u = u.w
     
   let rewrite (l0:L0.t) (root0:pos) (l1:L1.t) = 
+
     let apply_update u is_last = 
       let inc = if is_last 
         then Time.last_minor
         else Time.next_minor
       in
       DBX1.with_tx l1 ~inc
-	(fun tx -> 
+	    (fun tx -> 
           M.iter (fun (k,v) -> DBX1.set tx k v) u.kvs  
-            >>= fun () -> return (OK ())
+          >>= fun () -> return (OK ())
         )
     in
     let read_value pos = 
       L0.read l0 pos >>= function
-	| Value v -> return v
-	| NIL | Leaf _ | Commit _ | Index _ -> failwith "value!"
+	    | Value v -> return v
+	    | NIL | Leaf _ | Commit _ | Index _ -> failwith "value!"
     in
     let fat u = update_w u  > max_w in
     let rec walk acc pos =
       L0.read l0 pos >>= function
-	| NIL -> return acc
-	| Value _ -> return acc
-	| Leaf leaf -> walk_leaf acc leaf
-	| Index index -> walk_index acc index
-	| Commit c -> let pos = Commit.get_pos c in walk acc pos
+	    | NIL -> return acc
+	    | Value _ -> return acc
+	    | Leaf leaf -> walk_leaf acc leaf
+	    | Index index -> walk_index acc index
+	    | Commit c -> let pos = Commit.get_pos c in walk acc pos
     and walk_leaf acc leaf = 
       let rec loop acc = function
-	| [] -> return acc
-	| (k,pos)::t -> read_value pos >>= fun v ->
-			let () = add_kvs acc (k,v) in
-			loop acc t
+	    | [] -> return acc
+	    | (k,pos)::t -> read_value pos >>= fun v ->
+		  let () = add_kvs acc (k,v) in
+		  loop acc t
       in
       loop acc leaf >>= fun acc1 ->
       if fat acc1 
         then 
+        begin
+          let () = Printf.printf "fat\n%!" in
           apply_update acc1 false >>= function
             | OK () -> return (make_update ())
             | NOK k -> failwith "todo"
+        end
         else
           return acc1
     and walk_index acc (p0,kps) = 
       let rec loop acc p = function
-	| [] -> walk acc p
-	| (_,pk) :: t -> walk acc p >>= fun acc' ->
-			 loop acc' pk t
+	    | [] -> walk acc p
+	    | (_,pk) :: t -> walk acc p >>= fun acc' ->
+		  loop acc' pk t
       in
       loop acc p0 kps
     in

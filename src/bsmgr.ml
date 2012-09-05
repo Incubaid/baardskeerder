@@ -83,7 +83,7 @@ let () =
       ("--bench-size",Set_int n,  Printf.sprintf "number of sets/gets/deletes (%i)" !n);
       ("--d", Set_int d, Printf.sprintf "1/2 of the fan-out (%i)" !d);
       ("--log-name", Set_string log_name, Printf.sprintf "name of the log implementation (%s)" !log_name);
-      ("--store-name", Set_string store_name, Printf.sprintf "name of the sore implementation (%s)" !store_name);
+      ("--store-name", Set_string store_name, Printf.sprintf "name of the store implementation (%s)" !store_name);
       ("--min-blocks", Set_int mb, Printf.sprintf
         "minimal number of consecutive blocks to punch (%i)" !mb);
       ("--dump", Unit dump, Printf.sprintf "doesn't run a benchmark, but dumps file's contents");
@@ -252,7 +252,9 @@ let () =
 	      let module MyRewrite = Rewrite.Rewrite(MyF)(MyF)(MyStore) in
           MyLog.make !fn >>= fun l0 ->
           let now0 = MyLog.now l0 in
-          MyLog.init !fn2 now0 >>= fun () ->
+          let (x0,y0,g0) = now0 in
+          let now0' = Time.make x0 y0 true in
+          MyLog.init !fn2 now0' >>= fun () ->
           MyLog.make !fn2 >>= fun l1 ->
           MyRewrite.rewrite l0 (MyLog.last l0) l1 >>= fun _ -> 
           MyLog.close l0 >>= fun () ->

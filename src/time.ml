@@ -23,6 +23,8 @@ type major = int64
 type minor = int
 type t = major * minor * bool
 
+let time2s (x,y,g) = Printf.sprintf "(%Lu, %i, %b)" x y g
+
 let get_major (t,_,_) = t
 let get_minor (_,f,_) = f
 
@@ -34,7 +36,7 @@ let next_major (x,_,_) = (Int64.succ x, 0,false)
 let next_minor (x,y,g) = 
   if g 
   then (x,y+1,true)
-  else failwith "next minor?"
+  else failwith (Printf.sprintf "next minor for %s" (time2s (x,y,g)))
 
 let last_minor (x,y,_) = (x, y+1, false)
 
@@ -42,7 +44,7 @@ let major_of ((x:major),_,_) = x
 
 let same_major (x0,_,_) (x1,_,_) = x0 = x1
 
-let time2s (x,y,g) = Printf.sprintf "(%Lu, %i, %b)" x y g
+
 
 let (=>:) (x0,y0,_) (x1,y1,_) = 
   if x0 < x1 
