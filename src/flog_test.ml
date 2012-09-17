@@ -20,17 +20,14 @@
 open OUnit
 open Unix
 
-open Entry
 open Tree
 open Flog
 
-open Monad
 open Base
 
 module MyFlog = Flog(Store.Sync)
 
 open MyFlog
-open Test_helper
 
 let test_uintN wf rf l n () =
   let m = 0x40000000 - 1 in

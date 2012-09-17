@@ -19,7 +19,6 @@
 
 open OUnit
 open Pos
-open Entry
 open Pack
 let kps = ["xxxyyyzzz-123", out 0 1100;
            "xxxyyyzzz-235", out 0 1200;
