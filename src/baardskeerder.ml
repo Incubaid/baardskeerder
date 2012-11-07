@@ -61,6 +61,9 @@ module Baardskeerder
       let catchup log i0 f a0 = C.catchup i0 f a0 log
 
       let get_latest t k = ((D.get t k): v result L.m)
+
+      let key_count_latest t = D.key_count t
+
       let range_latest t first finc last linc max = 
         D.range t first finc last linc max
       let range_entries_latest t first finc last linc max = 

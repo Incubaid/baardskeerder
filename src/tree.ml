@@ -515,8 +515,8 @@ module DB = functor (L:LOG ) -> struct
       | NIL  -> return 0
       | Commit c -> 
 	begin
-          let lookup = Commit.get_lookup c in
-	  let root = lookup in
+      let lookup = Commit.get_lookup c in
+      let root = lookup in
 	  let t_left k = match first with
 	    | None -> true
 	    | Some k_f -> if finc then k_f <= k else k_f < k 
@@ -766,5 +766,48 @@ module DB = functor (L:LOG ) -> struct
         _depth_descend t slab pos 1
     in
     _depth_descend_root t slab
+
+  let _key_count (t:L.t) (slab:Slab.t) = 
+    let foldl f acc0 es = 
+      let rec _foldl acc0 = function 
+        | [] -> return acc0
+        | e0 :: es -> f acc0 e0 >>= fun acc -> _foldl acc es
+      in
+      _foldl acc0 es
+    in
+    let rec _kc_descend t slab pos c = 
+      begin
+        match pos with
+          | Inner _ -> return (Slab.read slab pos)
+          | Outer _ -> L.read t pos
+      end >>= function
+        | NIL     -> return c
+        | Value _ -> return c
+        | Leaf l  -> return (c + List.length l)
+        | Index (p0, kps) -> 
+          _kc_descend t slab p0 c >>= fun c' ->
+          foldl (fun acc (k,p) -> _kc_descend t slab p acc) c' kps 
+        | Commit _ -> failwith "reaced a second commit on descend"
+    in
+    let _kc_descend_root t slab =
+      if Slab.is_empty slab 
+      then
+        let pos = L.last t in
+        L.read t pos >>= fun e ->
+        match e with
+          | NIL -> return 0
+          | Commit c -> let lookup = Commit.get_lookup c in _kc_descend t slab lookup 0
+          | Index _ | Value _ | Leaf _ -> failwith (Printf.sprintf "did not expect:%s" (Entry.entry2s e))
+      else
+        let pos = Slab.last slab in
+        _kc_descend t slab pos 0
+    in
+    _kc_descend_root t slab
+
+ let key_count t = 
+   let now = L.now t in
+   let fut = Time.next_major now in
+   let slab = Slab.make fut in
+   _key_count t slab 
 end 
 
