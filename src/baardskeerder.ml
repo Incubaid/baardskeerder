@@ -71,11 +71,13 @@ module Baardskeerder
       let rev_range_entries_latest t first finc last linc max = 
         D.rev_range_entries t first finc last linc max
       let prefix_keys_latest t prefix max = 
-        PrL.prefix_keys t prefix max
+        PrL.prefix_keys_latest t prefix max
 
       let get tx k = X.get tx k
       let set tx k v = X.set tx k v
       let delete tx k = X.delete tx k
+      let delete_prefix tx k = X.delete_prefix tx k
+
       let range tx first finc last linc max = 
         X.range tx first finc last linc max
       let range_entries tx first finc last linc max = 

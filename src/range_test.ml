@@ -123,18 +123,18 @@ let reverse_range_bounded_overflow_right log =
   let r = MDB.reverse_range log (Some "f") false (Some "0") false None in
   OUnit.assert_equal ~printer ["e";"d";"c";"b";"a"] r
 
-let prefix_keys () = 
+let prefix_keys_latest () = 
   let log = Mlog.make "mlog" in
   List.iter (fun k -> MDB.set log k (String.uppercase k)) 
     ["a";"b";"b";"c";"d_0";"d_1"; "d_2";"e";"f";"g"];
-  let r = MPrefix.prefix_keys log "d" None in
+  let r = MPrefix.prefix_keys_latest log "d" None in
   OUnit.assert_equal ~printer ["d_0";"d_1";"d_2"] r
 
-let prefix_keys_max () = 
+let prefix_keys_latest_max () = 
   let log = Mlog.make "mlog" in
   List.iter (fun k -> MDB.set log k (String.uppercase k)) 
     ["a";"b";"b";"c";"d_0";"d_1"; "d_2";"e";"f";"g"];
-  let r = MPrefix.prefix_keys log "d" (Some 2) in
+  let r = MPrefix.prefix_keys_latest log "d" (Some 2) in
   OUnit.assert_equal ~printer ["d_0";"d_1";] r
 
 let wrap t = OUnit.bracket setup t teardown
@@ -163,6 +163,6 @@ let suite = "Range" >::: [
   "reverse_range_bounded_linc_finc" >:: wrap reverse_range_bounded_linc_finc;
   "reverse_range_bounded_overflow_left" >:: wrap reverse_range_bounded_overflow_left;
   "reverse_range_bounded_overflow_right" >:: wrap reverse_range_bounded_overflow_right;
-  "prefix_keys" >:: prefix_keys;
-  "prefix_keys_max" >:: prefix_keys_max
+  "prefix_keys_last" >:: prefix_keys_latest;
+  "prefix_keys_last_max" >:: prefix_keys_latest_max
 ]

@@ -20,9 +20,10 @@
 open OUnit
 open Dbx
 open Tree
+open Prefix
 module MDBX = DBX(Mlog)
 module MDB = DB(Mlog)
-open Test_helper
+module MPR = Prefix(Mlog)
 open Base
 
 let (>>=) = Mlog.bind
@@ -72,7 +73,6 @@ let update_commit_get() =
   let mlog = _setup() in
   let k = "a" in
   let v = "A" in
-  let (>>=) = Mlog.bind in
   MDBX.log_update mlog (fun tx -> _ok_set tx k v) >>= fun (OK()) ->
   MDBX.commit_last mlog >>= fun () ->
   Mlog.dump mlog;
@@ -84,6 +84,28 @@ let delete_empty () =
   let k = "non-existing" in
   OUnit.assert_equal (Base.NOK k) (MDBX.with_tx mlog (fun tx -> MDBX.delete tx k))
 
+
+let delete_prefix () =
+  let mlog = _setup () in
+  MDBX.with_tx mlog 
+    (fun tx ->
+      let rec loop i =
+        if i = 16
+        then Mlog.return (OK ())
+        else
+          let k = Printf.sprintf "a%03i" i in
+          let v = "X" in
+          _ok_set tx k v >>= fun (OK()) ->
+          loop (i+1)
+      in
+      loop 0
+    );
+  let prefix = "a00" in
+  MDBX.with_tx mlog (fun tx -> MDBX.delete_prefix tx prefix) >>= fun (OK c) -> 
+  OUnit.assert_equal ~printer:string_of_int 10 c;
+  ()
+
+  
 let log_nothing () = 
   let mlog = _setup() in
   let ok = OK () in
@@ -99,11 +121,13 @@ let log_bug2() =
   let ok2 = MDBX.log_update mlog (fun tx -> Mlog.return ok) in
   ()
 
-let suite = "DBX" >::: ["get_after_delete" >:: get_after_delete;
-                        "get_after_log_update" >:: get_after_log_update;
-                        "get_after_log_updates" >:: get_after_log_updates;
-                        "update_commit_get" >:: update_commit_get;
-                        "delete_empty" >:: delete_empty;
-                        "log_nothing" >:: log_nothing;
-			"log_bug2" >:: log_bug2;
-                       ]
+let suite = "DBX" >::: [
+  "get_after_delete" >:: get_after_delete;
+  "get_after_log_update" >:: get_after_log_update;
+  "get_after_log_updates" >:: get_after_log_updates;
+  "update_commit_get" >:: update_commit_get;
+  "delete_empty" >:: delete_empty;
+  "delete_prefix" >:: delete_prefix;
+  "log_nothing" >:: log_nothing;
+  "log_bug2" >:: log_bug2;
+]

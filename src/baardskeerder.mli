@@ -113,6 +113,7 @@ module Baardskeerder :
     val get : tx -> k -> v result S.m
     val set : tx -> k -> v -> unit S.m
     val delete : tx -> k -> unit result S.m
+    val delete_prefix : tx -> k -> int result S.m
     val range : tx -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
     val range_entries : tx -> k option -> bool -> k option -> bool -> int option -> (k *v) list S.m
     val rev_range_entries : tx -> k option -> bool -> k option -> bool -> int option -> (k *v) list S.m

@@ -809,5 +809,6 @@ module DB = functor (L:LOG ) -> struct
    let fut = Time.next_major now in
    let slab = Slab.make fut in
    _key_count t slab 
+
 end 
 

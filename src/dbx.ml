@@ -80,6 +80,8 @@ module DBX(L:LOG) = struct
         return txr
       | NOK k -> return txr 
 
+
+
   let range (tx:tx) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int option) = 
     DBL.range tx.log first finc last linc max
 
@@ -89,7 +91,37 @@ module DBX(L:LOG) = struct
   let range_entries (tx:tx) (first:k option) (finc: bool) (last: k option) (linc: bool) (max:int option) = 
     DBL.range_entries tx.log first finc last linc max
 
-  let prefix_keys (tx:tx) (prefix : string) (max: int option) =  PrL.prefix_keys tx.log prefix max
+  let prefix_keys (tx:tx) (prefix : string) (max: int option) =  
+    PrL.prefix_keys tx.log tx.slab prefix max
+
+  let multi_delete (tx:tx) (keys: k list) : int Base.result L.m =
+    let rec _inner (acc:int) keys = match keys with
+      | [] -> let r = OK acc in
+              return r
+      | k :: keys -> 
+        begin 
+          delete tx k >>= function
+            | OK r   -> _inner (acc+1) keys
+            | NOK k  -> return (NOK k)
+        end
+    in _inner 0 keys
+    
+  let delete_prefix (tx:tx) (prefix : k) = 
+    let max = Some 256 in
+    let rec _inner tx acc =
+      prefix_keys tx prefix max >>= fun keys ->
+      match keys with 
+        | []   -> return (OK acc)
+        | keys -> 
+          begin
+            multi_delete tx keys >>= fun r ->
+            match r with 
+              | OK i -> 
+                _inner tx (acc + i)
+              | r -> return r
+          end                  
+    in 
+    _inner tx 0 
 
   let log_update (log:L.t) ?(diff = true) (f: tx -> 'a result L.m) =
     let _find_lookup () = 
