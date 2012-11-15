@@ -1,23 +1,24 @@
 open Log
 open Entry
 
+let prefix_ok prefix k = 
+  let i_end = min (String.length k)  (String.length prefix) in
+  let rec loop i =
+    if i = i_end
+    then true
+    else k.[i] = prefix.[i] && loop (i+1)
+  in
+  loop 0
+
 module Prefix = functor (L:LOG ) -> struct
+  let (>>= ) = L.bind 
+  let return = L.return
+
   let prefix_keys (t:L.t) (slab: Slab.t) prefix max = 
-    let prefix_ok k = 
-      let i_end = min (String.length k)  (String.length prefix) in
-      let rec loop i =
-        if i = i_end
-        then true
-        else k.[i] = prefix.[i] && loop (i+1)
-      in
-      loop 0
-    in
-    let (>>= ) = L.bind in
-    let return = L.return in
     let t_max = 
       match max with 
-        | None -> fun _ -> true
-        | Some m -> (>) m
+      | None -> fun _ -> true
+      | Some m -> (>) m
     in
     let lp = 
       if Slab.is_empty slab 
@@ -35,7 +36,7 @@ module Prefix = functor (L:LOG ) -> struct
         | (k, vpos) :: t ->
           if t_max count 
           then
-            let ok = prefix_ok k in
+            let ok = prefix_ok prefix k in
             let count', acc'  = 
               if ok
               then (count+1), k :: acc 
@@ -54,7 +55,8 @@ module Prefix = functor (L:LOG ) -> struct
             begin
               if t_max count 
               then
-                if prefix_ok k 
+                if prefix_ok prefix k || 
+                  prefix < k  (* prefix left children might still become ok *)
                 then 
                   begin
                     walk count acc p >>= fun (count', acc') ->
@@ -81,7 +83,7 @@ module Prefix = functor (L:LOG ) -> struct
       | Commit c -> 
         let root = Commit.get_lookup c in
         begin
-          walk 0 [] root >>= fun (_,r) -> 
+          walk 0 [] root >>= fun (_, r) -> 
           return (List.rev r)
         end
       | Index (p,kps) -> walk_index 0 [] (p,kps) >>= fun (_,r) -> return (List.rev r)
