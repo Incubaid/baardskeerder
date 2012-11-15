@@ -39,6 +39,7 @@ type command =
   | ListTest
   | OnlyTest
   | Hudson
+  | Help
 
 module type LF = functor(S: Bs_internal.STORE) -> Log.LOG with type 'a m = 'a S.m
 module type MS = Bs_internal.STORE
@@ -55,7 +56,7 @@ let get_store = function
   | _ -> invalid_arg "get_store"
 
 let () = 
-  let command = ref Bench in
+  let command = ref Help in
 
   let dump () = command := Dump in
   let dump_stream () = command := DumpStream in
@@ -76,8 +77,7 @@ let () =
   let store_name = ref "Sync" in
   let mb = ref 1 in
   let test_refs = ref [] in
-  let () = 
-    Arg.parse [
+  let spec = [
       ("--value-size",Set_int vs, Printf.sprintf "size of the values in bytes (%i)" !vs);
       ("--file", Set_string fn, Printf.sprintf "file name for database (%S)" !fn);
       ("--bench-size",Set_int n,  Printf.sprintf "number of sets/gets/deletes (%i)" !n);
@@ -97,9 +97,9 @@ let () =
       ("--test", Unit test, Printf.sprintf "runs testsuite");
       ("--hudson", Unit hudson, Printf.sprintf "runs testsuite with output suitable for hudson");
     ]
-      (fun _ ->()) 
-      "simple baardskeerder benchmark"
   in
+  let usage_msg = "simple baardskeerder tester driver and benchmark" in
+  let () = Arg.parse spec (fun _ ->()) usage_msg in
   let f = get_lf !log_name in
   let store = get_store !store_name in
   let module MyStore = (val store: MS) in
@@ -189,8 +189,9 @@ let () =
   let () = 
     let run x = MyStore.run x in
     match !command with
-      | Test -> let _ = OUnit.run_test_tt_main Test.suite in ()
-      | ListTest -> 
+    | Help -> Arg.usage spec usage_msg 
+    | Test -> let _ = OUnit.run_test_tt_main Test.suite in ()
+    | ListTest -> 
         List.iter
           (fun pth -> print_endline (OUnit.string_of_path pth))
           (OUnit.test_case_paths Test.suite);

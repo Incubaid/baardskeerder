@@ -39,5 +39,6 @@ let suite =
       Mlog_lwt_test.suite;
       Catchup_test.suite;
       Pack_test.suite;
+      Prefix_test.suite;
     ]
 
