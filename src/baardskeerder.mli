@@ -25,19 +25,19 @@ type action =
   | Set of k * v
   | Delete of k 
 
-type 'a result = | OK of 'a | NOK of k
+type ('a,'b) result = | OK of 'a | NOK of 'b
 
 val init : string -> unit
 val make : string -> t
 val close : t -> unit
 
-val get_latest : t -> k -> v result
-val with_tx : t -> (tx -> 'a result) -> 'a result
+val get_latest : t -> k -> (v,k) result
+val with_tx : t -> (tx -> ('a,'b) result) -> ('a,'b) result
 
-val get   : tx -> k -> v result
+val get   : tx -> k -> (v,k) result
 val set   : tx -> k -> v -> unit
 
-val delete: tx -> k -> unit result
+val delete: tx -> k -> (unit,k) result
 
 
 module Logs :
@@ -98,7 +98,7 @@ module Baardskeerder :
     val make : string -> t S.m
     val close : t -> unit S.m
 
-    val get_latest : t -> k -> v result S.m
+    val get_latest : t -> k -> (v,k) result S.m
 
     
     val range_latest: t -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
@@ -108,18 +108,18 @@ module Baardskeerder :
 
     val key_count_latest : t -> int S.m
 
-    val with_tx : t -> (tx -> 'a result S.m) -> 'a result S.m
+    val with_tx : t -> (tx -> ('a,'b) result S.m) -> ('a,'b) result S.m
 
-    val get : tx -> k -> v result S.m
+    val get : tx -> k -> (v,k) result S.m
     val set : tx -> k -> v -> unit S.m
-    val delete : tx -> k -> unit result S.m
-    val delete_prefix : tx -> k -> int result S.m
+    val delete : tx -> k -> (unit,k) result S.m
+    val delete_prefix : tx -> k -> int S.m 
     val range : tx -> k option -> bool -> k option -> bool -> int option -> (k list) S.m
     val range_entries : tx -> k option -> bool -> k option -> bool -> int option -> (k *v) list S.m
     val rev_range_entries : tx -> k option -> bool -> k option -> bool -> int option -> (k *v) list S.m
     val prefix_keys : tx -> string -> int option -> (k list) S.m
 
-    val log_update: t -> ?diff:bool -> (tx -> 'a result S.m) -> 'a result S.m
+    val log_update: t -> ?diff:bool -> (tx -> ('a,'b) result S.m) -> ('a,'b) result S.m
     val last_update: t -> (int64 * (action list)* bool) option S.m
     val commit_last: t -> unit S.m
     val catchup: t -> int64 -> ('a -> int64 -> action list -> 'a S.m) -> 'a -> 'a S.m

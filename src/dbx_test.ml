@@ -101,8 +101,12 @@ let delete_prefix () =
       loop 0
     );
   let prefix = "a00" in
-  MDBX.with_tx mlog (fun tx -> MDBX.delete_prefix tx prefix) >>= fun (OK c) -> 
-  OUnit.assert_equal ~printer:string_of_int 10 c;
+  MDBX.with_tx mlog (fun tx -> 
+    MDBX.delete_prefix tx prefix 
+    >>= fun c -> Mlog.return (OK c)) 
+  >>= function 
+  | OK c -> OUnit.assert_equal ~printer:string_of_int 10 c
+  | NOK _ -> failwith "can't happen"
   ()
 
   

@@ -60,7 +60,7 @@ module Baardskeerder
       let commit_last log = X.commit_last log
       let catchup log i0 f a0 = C.catchup i0 f a0 log
 
-      let get_latest t k = ((D.get t k): v result L.m)
+      let get_latest t k = ((D.get t k): (v,k) result L.m)
 
       let key_count_latest t = D.key_count t
 

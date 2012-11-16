@@ -35,8 +35,8 @@ type 'a q = {
   read:  'a  -> pos -> entry;
   clear: 'a  -> unit;
   set:   'a  -> k -> v -> unit;
-  get:   'a  -> k -> v result;
-  delete :'a -> k -> unit result;
+  get:   'a  -> k -> (v,k) result;
+  delete :'a -> k -> (unit,k) result;
   dump   :?out:out_channel -> 'a -> unit;
 }
 

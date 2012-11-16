@@ -32,9 +32,9 @@ type action =
   |Delete of k
 
 
-type 'a result = 
+type ('a,'b) result = 
   | OK of 'a
-  | NOK of k
+  | NOK of 'b
 
 type kp = k * pos
 

@@ -94,7 +94,7 @@ module DBX(L:LOG) = struct
   let prefix_keys (tx:tx) (prefix : string) (max: int option) =  
     PrL.prefix_keys tx.log tx.slab prefix max
 
-  let multi_delete (tx:tx) (keys: k list) : int Base.result L.m =
+  let multi_delete (tx:tx) (keys: k list) : (int,k) Base.result L.m =
     let rec _inner (acc:int) keys = match keys with
       | [] -> let r = OK acc in
               return r
@@ -108,7 +108,7 @@ module DBX(L:LOG) = struct
     
   let delete_prefix (tx:tx) (prefix : k) = 
     let max = Some 256 in
-    let rec _inner tx acc =
+    let rec _inner tx acc : (int,Base.k) result L.m =
       prefix_keys tx prefix max >>= fun keys ->
       match keys with 
         | []   -> return (OK acc)
@@ -121,9 +121,11 @@ module DBX(L:LOG) = struct
               | r -> return r
           end                  
     in 
-    _inner tx 0 
+    _inner tx 0 >>= function
+    | OK i -> return i
+    | NOK k -> failwith (Printf.sprintf "delete_prefix: %s" k)
 
-  let log_update (log:L.t) ?(diff = true) (f: tx -> 'a result L.m) =
+  let log_update (log:L.t) ?(diff = true) (f: tx -> ('a,'b) result L.m) =
     let _find_lookup () = 
       let pp = L.last log in
       L.read log pp >>= function 
