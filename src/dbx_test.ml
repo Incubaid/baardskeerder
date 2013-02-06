@@ -125,6 +125,17 @@ let log_bug2() =
   let ok2 = MDBX.log_update mlog (fun tx -> Mlog.return ok) in
   ()
 
+let log_bug3() =
+  let mlog = _setup () in
+  let _ = MDBX.log_update mlog ~diff:true (fun tx -> _ok_set tx "x" "X") in
+  let _ = MDBX.log_update mlog ~diff:true (fun tx -> Mlog.return (OK ())) in
+  MDBX.commit_last mlog >>= fun () ->
+  Mlog.dump mlog;
+  MDB.get mlog "x" >>= fun r ->
+  OUnit.assert_equal r (OK "X");
+  ()
+                         
+
 let suite = "DBX" >::: [
   "get_after_delete" >:: get_after_delete;
   "get_after_log_update" >:: get_after_log_update;
@@ -134,4 +145,5 @@ let suite = "DBX" >::: [
   "delete_prefix" >:: delete_prefix;
   "log_nothing" >:: log_nothing;
   "log_bug2" >:: log_bug2;
+  "log_bug3" >:: log_bug3;
 ]

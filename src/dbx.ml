@@ -126,20 +126,20 @@ module DBX(L:LOG) = struct
     | NOK k -> failwith (Printf.sprintf "delete_prefix: %s" k)
 
   let log_update (log:L.t) ?(diff = true) (f: tx -> ('a,'b) result L.m) =
+    let previous = L.last log in
     let _find_lookup () = 
-      let pp = L.last log in
-      L.read log pp >>= function 
+      L.read log previous >>= function 
         | Commit lc -> 
-          let lu = if diff 
-            then Commit.get_pos lc 
-            else Commit.get_lookup lc
-          in return lu
-        | NIL -> return pp
+            let lu = if diff 
+              then Commit.get_pos lc 
+              else Commit.get_lookup lc
+            in return lu
+        | NIL -> return previous
         | e -> failwith (Printf.sprintf "log_update: %s is not commit" (entry2s e))
     in
     let now = L.now log in
     let fut = if diff then Time.next_major now else now in
-
+    
     let slab = Slab.make fut in
     let tx = {log;slab; cactions = []} in
     
@@ -147,15 +147,41 @@ module DBX(L:LOG) = struct
     f tx >>= function 
       | OK x ->
         begin
-          let root = Slab.length tx.slab -1 in
-          let previous = L.last log in
-          let pos = Inner root in
-          let commit = make_commit ~pos ~previous ~lookup fut (List.rev tx.cactions) false in
-          let c = Commit commit in
-          let _ = Slab.add tx.slab c in
-          let slab' = Slab.compact tx.slab in
-          L.write log slab' >>= fun () ->
-          return (OK x)
+          let sl = Slab.length tx.slab in
+          if sl > 0 
+          then
+            begin
+              let root = sl - 1 in
+              let pos = Inner root in
+              let commit = make_commit ~pos ~previous ~lookup fut (List.rev tx.cactions) false in
+              let c = Commit commit in
+              let _ = Slab.add tx.slab c in
+              let slab' = Slab.compact tx.slab in
+              L.write log slab' >>= fun () ->
+              return (OK x)
+            end
+          else (* This is an empty transaction *)
+            begin
+              L.read log previous >>= 
+                begin function
+                  | Commit lc -> return (Commit.get_pos lc)
+                  | NIL       -> return (Inner (-1))
+                  | e -> failwith (Printf.sprintf "log_update %s is not a commit" (entry2s e))
+                end
+              >>= fun ppos ->
+              let commit = make_commit
+                ~pos:ppos 
+                ~previous
+                ~lookup fut
+                [] 
+                false
+              in
+              let c = Commit commit in
+              let _ = Slab.add tx.slab c in
+              let slab' = Slab.compact tx.slab in
+              L.write log slab' >>= fun () ->
+              return (OK x)
+            end
         end
       | NOK k -> return (NOK k)
 
