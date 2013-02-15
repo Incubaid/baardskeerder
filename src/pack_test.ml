@@ -78,6 +78,7 @@ let size2_correctness () =
     ) sample
   in
   ()
+
 let size2_performance() = 
   let s = "xxxxxxxx" in
   let rec loop i = 
@@ -98,10 +99,22 @@ let size2_performance() =
   let dt,da = measure (fun () -> loop n) in
   let mega_da = da /. (1024.0 *. 1024.0) in
   Printf.printf "\nn=%i;dt=%fs;da=%fMB\n" n dt mega_da
+
+
+let list_correctness () =
+  let xs = [1;2;3;4;5;6] in
+  let out = Pack.make_output 128 in
+  let () = Pack.list_to out Pack.vint_to xs in
+  let buffer = Pack.close_output out in
+  let input = Pack.make_input buffer 4 in
+  let xs' = Pack.input_list input Pack.input_vint in
+  OUnit.assert_equal xs xs'
+
 let suite = 
   "Pack">:::[
     "vint_to_performance" >:: vint_to_performance;
     "size_performance" >:: size_performance;
     "size2_correctness" >:: size2_correctness;
     "size2_performance" >:: size2_performance;
+    "list_correctness" >:: list_correctness;
   ]
