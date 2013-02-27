@@ -54,9 +54,9 @@ module DB = functor (L:LOG ) -> struct
 	  else return (NOK k)
     and descend_index (p0, kps) = 
       let rec loop pi = function
-	| []                       -> pi
-	| (ki,_) :: _ when k <= ki -> pi 
-	| (_ ,p) :: t              -> loop p t
+	    | []                       -> pi
+	    | (ki,_) :: _ when k <= ki -> pi 
+	    | (_ ,p) :: t              -> loop p t
       in
       let pos' = loop p0 kps in
       descend pos'

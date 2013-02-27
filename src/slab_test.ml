@@ -19,7 +19,6 @@
 
 open OUnit
 open Entry
-open Slab
 open Pos
 
 

@@ -8,7 +8,7 @@ let size_from s pos =
   in result
 
 let set_size s size = 
-  s.[0]   <- Char.unsafe_chr  (size land 0xff);
+  s.[0] <- Char.unsafe_chr  (size land 0xff);
   s.[1] <- Char.unsafe_chr ((size land 0xff00) lsr    8);
   s.[2] <- Char.unsafe_chr ((size land 0xff0000) lsr 16);
   s.[3] <- Char.unsafe_chr ((size land 0xff000000) lsr 24)

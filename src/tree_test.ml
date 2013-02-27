@@ -22,12 +22,11 @@ open QuickCheck
 
 open Tree
 open Base
-open Index
 open Leaf
 open Entry
 
 module MDB = DB(Mlog)
-open Test_helper
+
 
 type 'a q = {
   log:'a; 
