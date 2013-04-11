@@ -120,7 +120,65 @@ let reverse_range_bounded_overflow_right log =
   let r = MDB.reverse_range log (Some "f") false (Some "0") false None in
   OUnit.assert_equal ~printer ["e";"d";"c";"b";"a"] r
 
+let last ks = 
+  let rec _loop = function
+    | [] -> failwith "Empty"
+    | [k] -> k
+    | _::y -> _loop y
+  in
+  _loop ks
 
+let fringe_lower log = 
+  let boundary = Some "d" in
+  let size = Some 3 in
+  let limit = 100 in
+  let (>>=) = Mlog.bind in
+  let return = Mlog.return in
+  MDB.set log "\xff" "omega" >>= fun () ->
+  let rec loop start mem acc = 
+    MDB.rev_range_entries log start false boundary false size >>= fun kvs_rev ->
+    let len = List.length kvs_rev in
+    if len = 0
+    then return (List.rev acc, mem) 
+    else
+      let acc' = acc @ kvs_rev in
+      let (lk,_) = last kvs_rev in
+      let start' = Some lk in
+      let mem' = List.fold_left 
+        (fun mem (k,v) ->
+          mem + String.length k + String.length v) mem kvs_rev 
+      in
+      if mem' < limit
+      then loop start' mem' acc'
+      else return (acc', mem')
+  in
+  let start = None (* Some "\xff\xff" *) in
+  loop start 0 [] >>= fun x -> 
+  let (ks,_) = x in
+  print_newline();
+  List.iter (fun (k,_) -> Printf.printf "k:%S\n" k ) ks;
+  ()
+
+let fringe_upper log = 
+  let boundary = Some "e" in
+  let size = Some 2 in
+  let (>>=) = Mlog.bind in
+  let return = Mlog.return in
+  let rec loop start acc = 
+    MDB.range log start false boundary false size >>= fun ks ->
+    let len = List.length ks in
+    if len = 0 
+    then return acc
+    else
+      let acc' = acc @ ks in
+      let start' = Some (last ks) in
+      loop start' acc'
+  in
+  loop None [] >>= fun ks ->
+  print_newline();
+  List.iter (fun k -> Printf.printf "k:%s\n" k) ks;
+  ()
+    
 let wrap t = OUnit.bracket setup t teardown
 
 let suite = "Range" >::: [
@@ -147,4 +205,6 @@ let suite = "Range" >::: [
   "reverse_range_bounded_linc_finc" >:: wrap reverse_range_bounded_linc_finc;
   "reverse_range_bounded_overflow_left" >:: wrap reverse_range_bounded_overflow_left;
   "reverse_range_bounded_overflow_right" >:: wrap reverse_range_bounded_overflow_right;
+  "fringe_lower" >:: wrap fringe_lower;
+  "fringe_upper" >:: wrap fringe_upper
 ]

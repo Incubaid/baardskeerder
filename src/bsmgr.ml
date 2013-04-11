@@ -67,6 +67,7 @@ let () =
   let list_test() = command:=ListTest in
   let hudson () = command := Hudson in
   let only_test () = command := OnlyTest in
+  let benchmark () = command := Bench in
   let n  = ref 1_000_000 in
   let m  = ref 100 in
   let vs = ref 2_000 in
@@ -94,8 +95,9 @@ let () =
       ("--info", Unit info, Printf.sprintf "returns information about the file (%s)" !fn);
       ("--list-test", Unit list_test, Printf.sprintf "lists tests");
       ("--only-test", Tuple[Unit only_test; Arg.String (fun str -> test_refs := str :: ! test_refs)], "runs some tests");
-      ("--test", Unit test, Printf.sprintf "runs testsuite");
-      ("--hudson", Unit hudson, Printf.sprintf "runs testsuite with output suitable for hudson");
+      ("--test", Unit test, "runs testsuite");
+      ("--hudson", Unit hudson, "runs testsuite with output suitable for hudson");
+      ("--benchmark",Unit benchmark, "runs benchmark");
     ]
   in
   let usage_msg = "simple baardskeerder tester driver and benchmark" in

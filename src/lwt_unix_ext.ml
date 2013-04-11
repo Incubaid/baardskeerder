@@ -33,16 +33,24 @@ let pread ch buf pos len offset =
   if pos < 0 || len < 0 || pos > String.length buf - len then
     invalid_arg "Lwt_unix_ext.pread"
   else
-    Lwt_unix.blocking ch >>= function
+    let ch' = Lwt_unix.unix_file_descr ch in
+    (*Lwt_unix.blocking ch >>= function
       | true ->
           Lwt_unix.wait_read ch >>= fun () ->
+          let job =  pread_job ch' len offset in
+          let result =  (fun job -> pread_result job buf pos) in
+          let  free = pread_free in
+          (* let async_method = Lwt_unix.Async_switch in *)
           Lwt_unix.execute_job
-            (pread_job (Lwt_unix.unix_file_descr ch) len offset)
-            (fun job -> pread_result job buf pos)
-            pread_free
+          (* ~async_method (* SEGVs *) *)
+            job
+            result
+            free
       | false ->
+          Lwt.fail (Failure "not here") >>= fun () ->
+    *)
           wrap_syscall Lwt_unix.Read ch
-            (fun () -> stub_pread (Lwt_unix.unix_file_descr ch) buf pos len offset)
+            (fun () -> stub_pread ch' buf pos len offset)
 
 
 external stub_pwrite : Unix.file_descr -> string -> int -> int -> int -> int =

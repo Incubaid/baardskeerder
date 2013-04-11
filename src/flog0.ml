@@ -42,8 +42,7 @@ let time_to b (t:Time.t) =
   let (x,y,g) = t in
   Pack.vint64_to b x;
   Pack.vint_to b y;
-  let c = if g then '\x01' else '\x00' in
-  Buffer.add_char b c
+  Pack.bool_to b g
     
 
 let input_kp input =
@@ -65,12 +64,7 @@ let kp_to b (k,p) =
 let input_time input =
   let x = Pack.input_vint64 input in
   let y = Pack.input_vint input in
-  let c = Pack.input_char input in
-  let g = match c with 
-    | '\x00' -> false
-    | '\x01' -> true
-    | _ -> failwith "not a bool"
-  in
+  let g = Pack.input_bool input in
   Time.make x y g
 
 
@@ -406,16 +400,59 @@ let _read_entry_s fd pos =
   let l = size_from ls 0 in
   S.read fd (pos + 4) l
 
+(*
+module C = Map.Make(struct 
+  type t = (int*int)
+  let compare = Pervasives.compare
+ 
+end)
+module Cache = struct
+  let _cache = ref C.empty
+  let _size = ref 0
+ 
+  let add so e = 
+    let () = 
+      if !_size = 1000
+      then
+        begin
+          let k,_ = C.min_binding !_cache in
+          _cache := C.remove k !_cache;
+          decr _size
+        end
+    in
+    _cache := C.add so e !_cache;
+    incr _size 
+  
+  let find so = 
+    try 
+      let e = C.find so !_cache in 
+      (* let () = Printf.eprintf "." in *)
+      Some e 
+
+    with 
+      | Not_found -> None
+end
+*)
+
 let read t pos = 
   match pos with
     | Outer (Spindle s, Offset o) ->
-      if ((s = 0) && (o = 0)) then return NIL
+      if ((s = 0) && (o = 0)) 
+      then return NIL
       else
-	begin
-          let sp = Array.get t.spindles s in
-	  _read_entry_s sp o >>= fun es ->
-	  return (inflate_entry es)
-	end
+	    begin
+          (*let so = (s,o) in
+          match Cache.find so with
+            | Some e -> return e
+            | None ->*)
+                begin 
+                  let sp = Array.get t.spindles s in
+	              _read_entry_s sp o >>= fun es ->
+                  let entry = inflate_entry es in  
+                  (* let () = Cache.add so entry in *)
+	              return entry
+                end
+	    end
     | Inner _ -> failwith "cannot read inner"
 
 
