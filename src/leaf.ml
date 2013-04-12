@@ -31,16 +31,15 @@ let leaf_mergeable d t = length t <= d
 
 let leaf_borrow_right left right = match right with
   | [] -> failwith "leaf_borrow_right"
-  | (k,_) as h ::t -> let rev = List.rev left in
-                      let left' = List.rev (h :: rev) in
-                      left',k, t
+  | (k,_) as h ::t -> (left @ [h]), k, t
+
 
 let leaf_borrow_left left right =
   let rev = List.rev left in
   match rev with
-    | h0 :: ((k1,_) as h1) :: t ->
+    | h0 :: ((k1,_) :: t as left'rev) ->
         let right' = h0 :: right in
-        let left' = List.rev (h1 :: t) in
+        let left' = List.rev left'rev in
         left' , k1, right'
     | [] | [_] -> failwith "leaf_borrow_left"
 
@@ -75,7 +74,7 @@ let leaf_min_key = function
 
 let leaf_merge left right =
   let leaf = left @ right in
-  let m = leaf_max_key leaf in
+  let m = leaf_max_key right in
   leaf, Some m
 
 
