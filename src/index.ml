@@ -36,9 +36,10 @@ let index2s (p0,rest) =
 let index_merge (pl,kps_left) sep  (p2, kps_right) =
   let rec check = function
     | [] -> ()
-    | [k,_] -> if k = sep then
-        let s = Printf.sprintf "can't merge:(%s) %S (%s)" (index2s (pl,kps_left)) sep (index2s (p2, kps_right)) in
-        failwith s
+    | [k,_] ->
+        if k = sep then
+          let s = Printf.sprintf "can't merge:(%s) %S (%s)" (index2s (pl,kps_left)) sep (index2s (p2, kps_right)) in
+          failwith s
     | _ :: t -> check t
   in
   let () = check kps_left in

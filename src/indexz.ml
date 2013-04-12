@@ -57,7 +57,7 @@ let pos = function
 let replace pos z =
   match z with
     | Top (_, kps)                -> (pos,kps)
-    | Loc ((p0, (k,_) :: c ), t ) -> (p0, (List.rev ((k,pos) :: c)) @ t)
+    | Loc ((p0, (k,_) :: c ), t ) -> (p0, List.rev_append c ((k,pos) :: t))
     | Loc ((_,[]),_) -> failwith "illegal Loc"
 
 
