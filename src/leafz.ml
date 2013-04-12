@@ -33,16 +33,17 @@ let find_delete leaf k =
   loop ([],leaf)
 
 let delete = function
-  | c,_:: t -> let leaf = ((List.rev c) @ t) in
-               let sep_c =
-                 if t = []
-                 then
-                   match c with
-                     | [] -> None
-                     | (k,_) :: _ -> Some k
-                 else None
+  | c,_:: t ->
+      let leaf = List.rev_append c t in
+      let sep_c =
+        if t = []
+        then
+          match c with
+            | [] -> None
+            | (k,_) :: _ -> Some k
+        else None
 
-               in leaf, sep_c
+      in leaf, sep_c
   | _ -> failwith "leafz_delete"
 
 
@@ -59,7 +60,7 @@ let right (c,t) =
     | h :: c' -> c', (h:: t)
     | _ -> failwith "right?"
 
-let close (c,t) = (List.rev c) @ t
+let close (c,t) = List.rev_append c t
 
 
 let balance d ((c,_) as z) =
@@ -83,4 +84,4 @@ let split d k pos (c,t) =
   let lift = List.hd l in
   List.rev l, lift, r
 
-let insert k p (c,t) = (List.rev c) @ (k,p) :: t
+let insert k p (c,t) = List.rev_append c ((k,p) :: t)
