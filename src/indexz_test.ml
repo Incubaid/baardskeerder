@@ -21,15 +21,15 @@ open Indexz
 open OUnit
 open Pos
 
-let assert_balanced z = 
+let assert_balanced z =
   let m = Printf.sprintf "not balanced: %s" (iz2s z) in
   match z with
-  | Loc ((_,l),r) -> 
-    let ls = List.length l in
-    let rs = List.length r in
-    let b = (ls = rs + 1) in
-    OUnit.assert_bool m b
-  | Top _ -> OUnit.assert_bool m false
+    | Loc ((_,l),r) ->
+        let ls = List.length l in
+        let rs = List.length r in
+        let b = (ls = rs + 1) in
+        OUnit.assert_bool m b
+    | Top _ -> OUnit.assert_bool m false
 
 let t_balance() =
   let d = 2 in
@@ -46,36 +46,36 @@ let t_balance2 () =
 
 let t_balance3 () =
   let d = 3 in
-  let z = Top (out 0 0,["d", out 0 1; 
-		      "j", out 0 2; 
-		      "q", out 0 3; 
-		      "t", out 0 4; 
-		      "w", out 0 5]) 
+  let z = Top (out 0 0,["d", out 0 1;
+                        "j", out 0 2;
+                        "q", out 0 3;
+                        "t", out 0 4;
+                        "w", out 0 5])
   in
   let z' = Indexz.balance d z in
   assert_balanced z'
 
 let t_balance4() =
   let d = 3 in
-  let z = Loc ((out 0 16,["key_93", out 0 43; 
-			"key_90", out 0 56; 
-			"key_87", out 0 69; 
-			"key_102", out 0 68]),
-	       ["key_96",out 0 30]) in
+  let z = Loc ((out 0 16,["key_93", out 0 43;
+                          "key_90", out 0 56;
+                          "key_87", out 0 69;
+                          "key_102", out 0 68]),
+               ["key_96",out 0 30]) in
   let z' = Indexz.balance d z in
   assert_balanced z'
 
-let t_balance5() = 
+let t_balance5() =
   let d = 3 in
   let z = Loc
-    ((out 0 74, [("key_63", out 0 271); 
-	       ("key_109", out 0 270)]),
-     [("key_72", out 0 222); 
-      ("key_81", out 0 173); 
+    ((out 0 74, [("key_63", out 0 271);
+                 ("key_109", out 0 270)]),
+     [("key_72", out 0 222);
+      ("key_81", out 0 173);
       ("key_90", out 0 124)]) in
   let z' = Indexz.balance d z in
   assert_balanced z'
-    
+
 let suite = "Indexz" >::: [
   "balance"    >:: t_balance;
   "balance2"   >:: t_balance2;

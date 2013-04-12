@@ -21,13 +21,13 @@ open Lwt
 open Lwt_unix
 
 external stub_pread : Unix.file_descr -> string -> int -> int -> int -> int =
-  "lwt_unix_ext_pread"
+    "lwt_unix_ext_pread"
 external pread_job : Unix.file_descr -> int -> int -> [ `unix_pread ] job =
-  "lwt_unix_ext_pread_job"
+    "lwt_unix_ext_pread_job"
 external pread_result : [ `unix_pread ] job -> string -> int -> int =
-  "lwt_unix_ext_pread_result"
+    "lwt_unix_ext_pread_result"
 external pread_free : [ `unix_pread ] job -> unit =
-  "lwt_unix_ext_pread_free" "noalloc"
+    "lwt_unix_ext_pread_free" "noalloc"
 
 let pread ch buf pos len offset =
   if pos < 0 || len < 0 || pos > String.length buf - len then
@@ -36,31 +36,31 @@ let pread ch buf pos len offset =
     let ch' = Lwt_unix.unix_file_descr ch in
     (*Lwt_unix.blocking ch >>= function
       | true ->
-          Lwt_unix.wait_read ch >>= fun () ->
-          let job =  pread_job ch' len offset in
-          let result =  (fun job -> pread_result job buf pos) in
-          let  free = pread_free in
-          (* let async_method = Lwt_unix.Async_switch in *)
-          Lwt_unix.execute_job
-          (* ~async_method (* SEGVs *) *)
-            job
-            result
-            free
+      Lwt_unix.wait_read ch >>= fun () ->
+      let job =  pread_job ch' len offset in
+      let result =  (fun job -> pread_result job buf pos) in
+      let  free = pread_free in
+    (* let async_method = Lwt_unix.Async_switch in *)
+      Lwt_unix.execute_job
+    (* ~async_method (* SEGVs *) *)
+      job
+      result
+      free
       | false ->
-          Lwt.fail (Failure "not here") >>= fun () ->
+      Lwt.fail (Failure "not here") >>= fun () ->
     *)
-          wrap_syscall Lwt_unix.Read ch
-            (fun () -> stub_pread ch' buf pos len offset)
+    wrap_syscall Lwt_unix.Read ch
+      (fun () -> stub_pread ch' buf pos len offset)
 
 
 external stub_pwrite : Unix.file_descr -> string -> int -> int -> int -> int =
-  "lwt_unix_ext_pwrite"
+        "lwt_unix_ext_pwrite"
 external pwrite_job : Unix.file_descr -> string -> int -> int -> int -> [ `unix_pwrite ] job =
-  "lwt_unix_ext_pwrite_job"
+        "lwt_unix_ext_pwrite_job"
 external pwrite_result : [ `unix_pwrite ] job -> int =
-  "lwt_unix_ext_pwrite_result"
+        "lwt_unix_ext_pwrite_result"
 external pwrite_free : [ `unix_pwrite ] job -> unit =
-  "lwt_unix_ext_pwrite_free" "noalloc"
+        "lwt_unix_ext_pwrite_free" "noalloc"
 
 let pwrite ch buf pos len offset =
   if pos < 0 || len < 0 || pos > String.length buf - len then

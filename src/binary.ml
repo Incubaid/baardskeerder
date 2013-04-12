@@ -62,8 +62,8 @@ and read_char8: char reader =
 let write_uint32_to_buffer: Buffer.t -> int -> unit =
   fun b v ->
     if (v < 0 || v >= 0x100000000)
-      then invalid_arg "Binary.write_uint32_to_buffer: out of range"
-      else ();
+    then invalid_arg "Binary.write_uint32_to_buffer: out of range"
+    else ();
 
     Buffer.add_char b (uchr ((v lsr  0) land 0xFF));
     Buffer.add_char b (uchr ((v lsr  8) land 0xFF));
@@ -92,8 +92,8 @@ and write_uint64: ('a -> int) -> 'a writer =
     let v = f a in
 
     if (v < 0 || v >= 0X3FFFFFFFFFFFFFFF)
-      then invalid_arg "Binary.write_uint64: out of range"
-      else ();
+    then invalid_arg "Binary.write_uint64: out of range"
+    else ();
 
     Buffer.add_char b (uchr ((v lsr  0) land 0xFF));
     Buffer.add_char b (uchr ((v lsr  8) land 0xFF));
@@ -117,7 +117,7 @@ and read_uint64: int reader =
     and i7 = ord (uget s (o + 7)) in
 
     (i0 + (i1 lsl 8) + (i2 lsl 16) + (i3 lsl 24) + (i4 lsl 32) + (i5 lsl 40)
-      + (i6 lsl 48) + (i7 lsl 56), o + 8)
+     + (i6 lsl 48) + (i7 lsl 56), o + 8)
 
 let const: (('a -> 'b) -> 'a writer) -> 'b -> 'a writer =
   fun w v -> w (fun _ -> v)
@@ -132,8 +132,8 @@ and read_literal: string -> unit reader =
 
       let s' = String.sub i o l in
       if s' <> s
-        then failwith "Binary.read_const: unexpected value"
-        else ();
+      then failwith "Binary.read_const: unexpected value"
+      else ();
 
       ((), o + l)
 

@@ -38,15 +38,15 @@ let _ = dispatch & function
           A"-ccopt"; A"-Werror";
           A"-ccopt"; A"-O3";
         ]);
-      flag ["ocaml"; "use_libbaardskeerder"; "link"; "library"; "byte"] & 
+      flag ["ocaml"; "use_libbaardskeerder"; "link"; "library"; "byte"] &
         S[A"-cclib"; A"-lbaardskeerder_c";];
 
-      flag ["c"; "use_libbaardskeerder"; "ocamlmklib"] & 
+      flag ["c"; "use_libbaardskeerder"; "ocamlmklib"] &
         S[ A"-lbaardskeerder_c";];
 
-      dep ["link"; "ocaml"; "link_libbaardskeerder"] 
+      dep ["link"; "ocaml"; "link_libbaardskeerder"]
         ["libbaardskeerder_c.a"];
-        
+
       flag ["compile"; "c"]
         (S[A"-ccopt"; A"-I.."; A"-ccopt"; A"-msse4.2";
            A"-I";A(ocamlfind_query "lwt")]);

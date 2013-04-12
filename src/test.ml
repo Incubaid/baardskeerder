@@ -24,8 +24,8 @@ open Entry
 open Base
 open Index
 
-let suite = 
-  "correctness" >::: 
+let suite =
+  "correctness" >:::
     [ Index_test.suite;
       Indexz_test.suite;
       Tree_test.suite;
@@ -41,4 +41,3 @@ let suite =
       Pack_test.suite;
       Prefix_test.suite;
     ]
-

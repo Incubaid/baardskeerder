@@ -31,7 +31,7 @@ let kps = ["xxxyyyzzz-123", out 0 1100;
 open Flog0
 module MF = Flog0(Store.Sync)
 
-let pu_leaf () = 
+let pu_leaf () =
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
   let _ = MF.deflate_leaf b h kps in
@@ -43,7 +43,7 @@ let pu_leaf () =
   let leaf = kps in
   let () = OUnit.assert_equal ~printer:Leaf.leaf2s leaf leaf' in
   ()
-              
+
 
 let pu_index () =
   let b = Buffer.create 128 in
@@ -58,7 +58,7 @@ let pu_index () =
   let () = OUnit.assert_equal ~printer:Index.index2s i0 i1 in
   ()
 
-let pu_vint () = 
+let pu_vint () =
   let do_one i =
     let b = Buffer.create 128 in
     let () = Pack.vint_to b i in
@@ -71,7 +71,7 @@ let pu_vint () =
   List.iter do_one [0;1;255;12345]
 
 
-let pu_vint64 () = 
+let pu_vint64 () =
   let do_one i =
     let b = Buffer.create 128 in
     let () = Pack.vint64_to b i in
@@ -84,10 +84,10 @@ let pu_vint64 () =
   List.iter do_one [0L;1L;126L;127L;128L;4096L;12345L]
 
 
-let pu_commit() = 
+let pu_commit() =
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
-  let pos = out 0 0 
+  let pos = out 0 0
   and actions = [Commit.CSet ("set0", Outer (Spindle 0, Offset 0));
                  Commit.CSet ("set1", Outer (Spindle 0, Offset 1));
                  Commit.CDelete "delete0" ]
@@ -100,7 +100,7 @@ let pu_commit() =
   let bs = Buffer.contents b in
   let () = Printf.printf "\n%S\n" bs in
   let () = Printf.printf "bs:%i bytes\n" (String.length bs) in
-  let input = Pack.make_input bs 5 in (* only commit part *) 
+  let input = Pack.make_input bs 5 in (* only commit part *)
   let c1 = MF.inflate_commit input in
   let () = OUnit.assert_equal ~printer:Commit.commit2s c0 c1 in
   ()
@@ -111,28 +111,28 @@ let test_metadata () =
   match MF.get_metadata db with
     | Some _ -> OUnit.assert_failure "Found metadata"
     | None -> ();
-  let md = "metadata, oh metadata!" in
-  MF.set_metadata db md;
+        let md = "metadata, oh metadata!" in
+        MF.set_metadata db md;
 
-  MF.close db;
+        MF.close db;
 
-  let db = MF.make "test_metadata.db" in
-  match MF.get_metadata db with
-    | None -> OUnit.assert_failure "Didn't find metadata"
-    | Some v -> OUnit.assert_equal v md;
+        let db = MF.make "test_metadata.db" in
+        match MF.get_metadata db with
+          | None -> OUnit.assert_failure "Didn't find metadata"
+          | Some v -> OUnit.assert_equal v md;
 
-  MF.unset_metadata db;
+              MF.unset_metadata db;
 
-  match MF.get_metadata db with
-    | Some _ -> OUnit.assert_failure "Found metadata after unset"
-    | None -> ();
+              match MF.get_metadata db with
+                | Some _ -> OUnit.assert_failure "Found metadata after unset"
+                | None -> ();
 
-  MF.close db;
+                    MF.close db;
 
-  Unix.unlink "test_metadata.db"
+                    Unix.unlink "test_metadata.db"
 
 
-let test_remake () = 
+let test_remake () =
   let fn = "test_remake.db" in
   MF.init fn Time.zero;
   let log = MF.make fn in
@@ -152,7 +152,7 @@ let test_remake () =
   Unix.unlink fn
 
 
-let suite = 
+let suite =
   "Flog0" >::: [
     "pu_vint" >:: pu_vint;
     "pu_vint64">:: pu_vint64;

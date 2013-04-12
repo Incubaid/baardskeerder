@@ -20,11 +20,11 @@
 let string_of_list f l = Printf.sprintf "[%s]"
   (String.concat "; " (List.map f l))
 
-let string_of_array f a = 
+let string_of_array f a =
   let b = Buffer.create 128 in
   let s = Array.length a in
   Buffer.add_string b "[|";
-  Array.iteri (fun i e -> 
+  Array.iteri (fun i e ->
     Buffer.add_string b (f e);
     if i < s-1 then Buffer.add_char b ';'
   ) a;

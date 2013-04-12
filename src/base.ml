@@ -27,18 +27,18 @@ type k = string
 
 type v = string
 
-type action = 
+type action =
   |Set of k * v
   |Delete of k
 
 
-type ('a,'b) result = 
+type ('a,'b) result =
   | OK of 'a
   | NOK of 'b
 
 type kp = k * pos
 
-let kpl2s l = 
+let kpl2s l =
   let b = Buffer.create 128 in
   let add_s s = Buffer.add_string b s in
   let add_p p = Buffer.add_string b (pos2s p) in
@@ -52,5 +52,3 @@ let kpl2s l =
   loop l ;
   add_s "]";
   Buffer.contents b
-
-

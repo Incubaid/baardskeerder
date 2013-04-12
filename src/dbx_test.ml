@@ -28,7 +28,7 @@ open Base
 
 let (>>=) = Mlog.bind
 
-let _setup () = 
+let _setup () =
   let fn = "bla" in
   let () = Mlog.init ~d:2 Time.zero fn in
   Mlog.make2 ~n_spindles:1 fn Time.zero
@@ -37,28 +37,28 @@ let _ok_set tx k v =
   MDBX.set tx k v >>= fun () ->
   Mlog.return (OK ())
 
-let get_after_delete () = 
+let get_after_delete () =
   let mlog = _setup() in
   let r0 = MDBX.with_tx mlog (fun tx -> _ok_set tx "a" "A") in
-  let test tx = 
+  let test tx =
     MDBX.delete tx "a" >>= fun (OK ()) ->
     MDBX.get tx "a" >>= fun r ->
     Mlog.return r
   in
   let v2 = MDBX.with_tx mlog test in
-  OUnit.assert_equal (NOK "a") v2 
-    
+  OUnit.assert_equal (NOK "a") v2
+
 
 
 let get_after_log_update () =
   let mlog = _setup () in
-  let k = "a" 
+  let k = "a"
   and v = "A" in
   let r0 = MDBX.log_update mlog (fun tx -> _ok_set tx k v) in
   let test = MDB.get mlog k in
   OUnit.assert_equal (NOK k) test
 
-let get_after_log_updates() = 
+let get_after_log_updates() =
   let mlog = _setup() in
   let k = "a"
   and v = "A" in
@@ -79,7 +79,7 @@ let update_commit_get() =
   MDB.get mlog k >>= fun vo2 ->
   OUnit.assert_equal vo2 (OK v)
 
-let delete_empty () = 
+let delete_empty () =
   let mlog = _setup() in
   let k = "non-existing" in
   OUnit.assert_equal (Base.NOK k) (MDBX.with_tx mlog (fun tx -> MDBX.delete tx k))
@@ -87,7 +87,7 @@ let delete_empty () =
 
 let delete_prefix () =
   let mlog = _setup () in
-  MDBX.with_tx mlog 
+  MDBX.with_tx mlog
     (fun tx ->
       let rec loop i =
         if i = 16
@@ -101,16 +101,16 @@ let delete_prefix () =
       loop 0
     );
   let prefix = "a00" in
-  MDBX.with_tx mlog (fun tx -> 
-    MDBX.delete_prefix tx prefix 
-    >>= fun c -> Mlog.return (OK c)) 
-  >>= function 
-  | OK c -> OUnit.assert_equal ~printer:string_of_int 10 c
-  | NOK _ -> failwith "can't happen"
-  ()
+  MDBX.with_tx mlog (fun tx ->
+    MDBX.delete_prefix tx prefix
+    >>= fun c -> Mlog.return (OK c))
+  >>= function
+    | OK c -> OUnit.assert_equal ~printer:string_of_int 10 c
+    | NOK _ -> failwith "can't happen"
+        ()
 
-  
-let log_nothing () = 
+
+let log_nothing () =
   let mlog = _setup() in
   let ok = OK () in
   let x = MDBX.log_update mlog (fun tx -> Mlog.return ok) in
@@ -134,7 +134,7 @@ let log_bug3() =
   MDB.get mlog "x" >>= fun r ->
   OUnit.assert_equal r (OK "X");
   ()
-                         
+
 
 let suite = "DBX" >::: [
   "get_after_delete" >:: get_after_delete;

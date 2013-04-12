@@ -1,10 +1,10 @@
 open OUnit
 
 open Pack
-let k = 1000 
-let m = k * k 
+let k = 1000
+let m = k * k
 
-let sample = [| 
+let sample = [|
   1;2;3;4;5;6;7;8;9;
   12;13;15;42;
   123;124;
@@ -17,8 +17,8 @@ let sample = [|
   40 * m; 60 * m; 100 * m;
   1000 * m;
              |]
- 
-let measure f = 
+
+let measure f =
   let a0 = Gc.allocated_bytes () in
   let t0 = Unix.gettimeofday () in
   let () = f () in
@@ -28,8 +28,8 @@ let measure f =
   let da = a1 -. a0 in
   dt,da
 
-let vint_to_performance () = 
-  let rec loop i = 
+let vint_to_performance () =
+  let rec loop i =
     if i = 0 then ()
     else
       let b = Pack.make_output 64 in
@@ -43,16 +43,16 @@ let vint_to_performance () =
   let mega_da = da /. (1024.0 *. 1024.0) in
   Printf.printf "\nn=%i;dt=%fs;da=%fMB\n" n dt mega_da
 
-let size_performance() = 
+let size_performance() =
   let s = "xxxxxxxx" in
-  let rec loop i = 
+  let rec loop i =
     if i = 0 then ()
     else
-      let () = Array.iter 
+      let () = Array.iter
         (fun v ->
           set_size s v;
           let v' = size_from s 0 in
-          (* OUnit.assert_equal ~printer:string_of_int v v'; *)
+            (* OUnit.assert_equal ~printer:string_of_int v v'; *)
           assert (v' = v);
           ()
         ) sample
@@ -65,13 +65,13 @@ let size_performance() =
   Printf.printf "\nn=%i;dt=%fs;da=%fMB\n" n dt mega_da
 
 
-let size2_correctness () = 
+let size2_correctness () =
   let s = "xxxxxxxx" in
-  let () = Array.iter 
+  let () = Array.iter
     (fun v ->
       Cpack.set_size_unsafe s v;
       let v_ocaml = size_from s 0 in
-      let () = Printf.printf "%08i:%S\n%!" v_ocaml s in    
+      let () = Printf.printf "%08i:%S\n%!" v_ocaml s in
       let v_c  = Cpack.size_from_unsafe s 0 in
       OUnit.assert_equal ~printer:string_of_int v_ocaml v_c ~msg:(Printf.sprintf "%S: " s);
       OUnit.assert_equal ~printer:string_of_int v v_c       ~msg:(Printf.sprintf "%S: " s)
@@ -79,16 +79,16 @@ let size2_correctness () =
   in
   ()
 
-let size2_performance() = 
+let size2_performance() =
   let s = "xxxxxxxx" in
-  let rec loop i = 
+  let rec loop i =
     if i = 0 then ()
     else
       let () = Array.iter
         (fun v ->
           Cpack.set_size_unsafe s v;
           let v' = Cpack.size_from_unsafe s 0 in
-          (*OUnit.assert_equal ~printer:string_of_int v v';*)
+            (*OUnit.assert_equal ~printer:string_of_int v v';*)
           assert (v = v');
           ()
         ) sample
@@ -110,7 +110,7 @@ let list_correctness () =
   let xs' = Pack.input_list input Pack.input_vint in
   OUnit.assert_equal xs xs'
 
-let suite = 
+let suite =
   "Pack">:::[
     "vint_to_performance" >:: vint_to_performance;
     "size_performance" >:: size_performance;

@@ -31,7 +31,7 @@ module Sync (L:LOG) = struct
   module M = Monad(L)
 
   let fold_actions t0 (f:'a -> Time.t -> caction -> 'a) a0 log =
-    let read_commit p = 
+    let read_commit p =
       L.read log p >>= function
         | Commit c -> return c
         | _ -> failwith "not a commit node"
@@ -40,25 +40,25 @@ module Sync (L:LOG) = struct
     let rec build ps p =
       read_commit p >>= fun c ->
       let tc = Commit.get_time c in
-      if tc =>: t0 then 
+      if tc =>: t0 then
         let p' = Commit.get_previous c in
         let ps' = p :: ps in
-        if p' = no_prev 
+        if p' = no_prev
         then return ps'
         else
           build ps' p'
       else
-        return ps 
+        return ps
     in
     let p0 = L.last log in
     build [] p0 >>= fun rps ->
-    M.fold_left 
-      (fun acc p -> 
+    M.fold_left
+      (fun acc p ->
         read_commit p >>= fun c ->
         let actions = Commit.get_cactions c in
         let t = Commit.get_time c in
         let f' acc a = f acc t a in
         return (List.fold_left f' acc actions))
       a0 rps
-                      
+
 end

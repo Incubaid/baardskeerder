@@ -23,7 +23,7 @@ type leaf_z = leaf * leaf
 
 let lz2s (c,t) = Printf.sprintf "(%s,%s)" (leaf2s c) (leaf2s t)
 
-let find_delete leaf k = 
+let find_delete leaf k =
   let rec loop z = match z with
     | _, [] -> None
     | _, (k0,_)   :: _    when k < k0 ->  None
@@ -34,38 +34,38 @@ let find_delete leaf k =
 
 let delete = function
   | c,_:: t -> let leaf = ((List.rev c) @ t) in
-	       let sep_c = 
-		 if t = [] 
-		 then 
-		   match c with
-		     | [] -> None
-		     | (k,_) :: _ -> Some k
-		 else None
+               let sep_c =
+                 if t = []
+                 then
+                   match c with
+                     | [] -> None
+                     | (k,_) :: _ -> Some k
+                 else None
 
-	       in leaf, sep_c 
+               in leaf, sep_c
   | _ -> failwith "leafz_delete"
 
 
 let max d (c,t) = List.length c + List.length t = 2 * d - 1
 let min d (c,t) = List.length c + List.length t = d
 
-let left (c,t) = 
-  match t with 
-  | h :: t' -> (h::c, t') 
-  | _ -> failwith "left?"
+let left (c,t) =
+  match t with
+    | h :: t' -> (h::c, t')
+    | _ -> failwith "left?"
 
-let right (c,t) = 
+let right (c,t) =
   match c with
-  | h :: c' -> c', (h:: t)
-  | _ -> failwith "right?"
+    | h :: c' -> c', (h:: t)
+    | _ -> failwith "right?"
 
 let close (c,t) = (List.rev c) @ t
 
 
-let balance d ((c,_) as z) = 
+let balance d ((c,_) as z) =
   let ls = List.length  c in
-  let n,move = 
-    if ls > d 
+  let n,move =
+    if ls > d
     then
       ls - d, right
     else
@@ -78,7 +78,7 @@ let balance d ((c,_) as z) =
   loop z n
 
 
-let split d k pos (c,t) = 
+let split d k pos (c,t) =
   let l,r = balance d (c, (k,pos)::t) in
   let lift = List.hd l in
   List.rev l, lift, r

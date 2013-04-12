@@ -51,5 +51,5 @@ module Monad(M:MONAD) = struct
           loop acc' xs
     in
     loop acc0
-       
+
 end

@@ -27,43 +27,43 @@ let leaf2s l = kpl2s l
 let length t = List.length t
 let leaf_min d t = length t = d
 let leaf_mergeable d t = length t <= d
-  
+
 
 let leaf_borrow_right left right = match right with
   | [] -> failwith "leaf_borrow_right"
-  | (k,_) as h ::t -> let rev = List.rev left in 
-	    let left' = List.rev (h :: rev) in
-	    left',k, t
+  | (k,_) as h ::t -> let rev = List.rev left in
+                      let left' = List.rev (h :: rev) in
+                      left',k, t
 
-let leaf_borrow_left left right = 
+let leaf_borrow_left left right =
   let rev = List.rev left in
   match rev with
-    | h0 :: ((k1,_) as h1) :: t -> 
-      let right' = h0 :: right in
-      let left' = List.rev (h1 :: t) in
-      left' , k1, right'
+    | h0 :: ((k1,_) as h1) :: t ->
+        let right' = h0 :: right in
+        let left' = List.rev (h1 :: t) in
+        left' , k1, right'
     | [] | [_] -> failwith "leaf_borrow_left"
 
 
 let shared_prefix = function
   | [] -> ""
   | (k0,_) :: t ->
-    let shared k0 k1 m =
-      let rec loop i = 
-	if i = m 
-	then m
-	else 
-	  if k0.[i] = k1.[i]
-	  then loop (i+1)
-	  else i
+      let shared k0 k1 m =
+        let rec loop i =
+          if i = m
+          then m
+          else
+            if k0.[i] = k1.[i]
+            then loop (i+1)
+            else i
+        in
+        loop 0
       in
-      loop 0
-    in
-    let m0 = String.length k0 in
-    let m = List.fold_left (fun m (k,_) -> shared k0 k m) m0 t in
-    String.sub k0 0 m
+      let m0 = String.length k0 in
+      let m = List.fold_left (fun m (k,_) -> shared k0 k m) m0 t in
+      String.sub k0 0 m
 
-  
+
 let rec leaf_max_key = function
   | [] -> failwith "empty"
   | [k,_] -> k
@@ -73,18 +73,16 @@ let leaf_min_key = function
   | [] -> failwith "empty"
   | (k,_):: _ -> k
 
-let leaf_merge left right = 
+let leaf_merge left right =
   let leaf = left @ right in
   let m = leaf_max_key leaf in
   leaf, Some m
 
 
-let leaf_find_set leaf k = 
+let leaf_find_set leaf k =
   let rec loop z = match z with
     | c, ((k0,_) as h) :: t when k0 < k -> loop (h::c, t)
-    | c, (k0,_ ) :: t when k0 = k -> c,t 
+    | c, (k0,_ ) :: t when k0 = k -> c,t
     | z -> z
   in
   loop ([],leaf)
-
-

@@ -69,64 +69,64 @@ let base_serialization =
   ]
 
 (* TODO Functions are hidden now... Move into parent module?
-let test_metadata_serialization () =
-  let from_some = function
-    | Some x -> x
-    | _ -> invalid_arg "test_metadata_serialization: from_some"
-  in
+   let test_metadata_serialization () =
+   let from_some = function
+   | Some x -> x
+   | _ -> invalid_arg "test_metadata_serialization: from_some"
+   in
 
-  let b = 4096 in
-  let md1 = { md_blocksize=b; md_spindle=0; md_offset=0; md_count=0 } in
-  let md2 = { md1 with md_spindle=1; md_offset=654321; md_count=456789 } in
+   let b = 4096 in
+   let md1 = { md_blocksize=b; md_spindle=0; md_offset=0; md_count=0 } in
+   let md2 = { md1 with md_spindle=1; md_offset=654321; md_count=456789 } in
 
-  let s1, b1 = serialize_metadata md1
-  and s2, b2 = serialize_metadata md2 in
+   let s1, b1 = serialize_metadata md1
+   and s2, b2 = serialize_metadata md2 in
 
-  OUnit.assert_equal ~printer:string_of_int b b1;
-  OUnit.assert_equal ~printer:string_of_int b b2;
+   OUnit.assert_equal ~printer:string_of_int b b1;
+   OUnit.assert_equal ~printer:string_of_int b b2;
 
-  let md1' = from_some (deserialize_metadata s1)
-  and md2' = from_some (deserialize_metadata s2) in
+   let md1' = from_some (deserialize_metadata s1)
+   and md2' = from_some (deserialize_metadata s2) in
 
-  OUnit.assert_equal md1 md1';
-  OUnit.assert_equal md2 md2'
+   OUnit.assert_equal md1 md1';
+   OUnit.assert_equal md2 md2'
 
-let metadata =
-  "metadata" >::: [
-    "serialization" >:: test_metadata_serialization;
-  ]
+   let metadata =
+   "metadata" >::: [
+   "serialization" >:: test_metadata_serialization;
+   ]
 
-let test_serialize_deserialize_entries () =
-  (* TODO This isn't a nice unit-test, since it tests multiple types/functions.
+   let test_serialize_deserialize_entries () =
+(* TODO This isn't a nice unit-test, since it tests multiple types/functions.
    * Some QuickCheck-like mechanism generating nodes at random, then performing
    * a comparison after serialization/deserialization might be useful.
-   *)
-  let kps = [("a", 1); ("b", 2); ("c", 0xFFFFFFFF); ("def", max_int)] in
+*)
+   let kps = [("a", 1); ("b", 2); ("c", 0xFFFFFFFF); ("def", max_int)] in
 
-  let leaf = kps
-  and index = (54321, kps)
-  and value = Value "This is a test value"
-  and commit = Commit 54321 in
+   let leaf = kps
+   and index = (54321, kps)
+   and value = Value "This is a test value"
+   and commit = Commit 54321 in
 
-  let sl = Flog.serialize_leaf leaf
-  and si = Flog.serialize_index index
-  and sv = Flog.serialize_value value
-  and sc = Flog.serialize_commit commit in
+   let sl = Flog.serialize_leaf leaf
+   and si = Flog.serialize_index index
+   and sv = Flog.serialize_value value
+   and sc = Flog.serialize_commit commit in
 
-  let leaf' = Flog.deserialize_leaf sl 5
-  and index' = Flog.deserialize_index si 5
-  and value' = Flog.deserialize_value sv 5
-  and commit' = Flog.deserialize_commit sc 5 in
+   let leaf' = Flog.deserialize_leaf sl 5
+   and index' = Flog.deserialize_index si 5
+   and value' = Flog.deserialize_value sv 5
+   and commit' = Flog.deserialize_commit sc 5 in
 
-  OUnit.assert_equal ~printer:Entry.entry2s (Entry.Leaf leaf) leaf';
-  OUnit.assert_equal ~printer:Entry.entry2s (Entry.Index index) index';
-  OUnit.assert_equal ~printer:Entry.entry2s value value';
-  OUnit.assert_equal ~printer:commit2s commit commit'
+   OUnit.assert_equal ~printer:Entry.entry2s (Entry.Leaf leaf) leaf';
+   OUnit.assert_equal ~printer:Entry.entry2s (Entry.Index index) index';
+   OUnit.assert_equal ~printer:Entry.entry2s value value';
+   OUnit.assert_equal ~printer:commit2s commit commit'
 
-let entries =
-  "entries" >::: [
-    "serialization" >:: test_serialize_deserialize_entries;
-  ]
+   let entries =
+   "entries" >::: [
+   "serialization" >:: test_serialize_deserialize_entries;
+   ]
 *)
 
 let with_tempfile f = fun () ->
@@ -137,7 +137,7 @@ let with_tempfile f = fun () ->
     try
       Unix.unlink fn
     with
-      Unix.Unix_error (Unix.ENOENT, _, _) -> ()
+        Unix.Unix_error (Unix.ENOENT, _, _) -> ()
   in
 
   try
@@ -391,8 +391,8 @@ let compaction =
 let suite =
   "Flog" >::: [
     base_serialization;
-(*    metadata;
-    entries; *)
+    (*    metadata;
+          entries; *)
     database;
     compaction;
   ]

@@ -23,34 +23,34 @@ module MDB = DB(Mlog)
 
 let printer r = Pretty.string_of_list (fun s -> s) r
 
-let setup () = 
+let setup () =
   let log = Mlog.make "mlog" in
   List.iter (fun k -> MDB.set log k (String.uppercase k)) ["a";"b";"c";"d";"e";"f";"g"];
   log
-  
+
 let teardown _ = ()
 
-let range_all log = 
+let range_all log =
   let r = MDB.range log None true None true None in
   OUnit.assert_equal ~printer ["a";"b";"c";"d";"e";"f";"g"] r;;
 
-let range_some log = 
-    let r = MDB.range log None true None true (Some 5) in
+let range_some log =
+  let r = MDB.range log None true None true (Some 5) in
   OUnit.assert_equal ~printer ["a";"b";"c";"d";"e"] r
 
-let range_first log = 
+let range_first log =
   let r = MDB.range log (Some "b") true None true None in
   OUnit.assert_equal ~printer ["b";"c";"d";"e";"f";"g"] r
 
-let range_first_exc log = 
+let range_first_exc log =
   let r = MDB.range log (Some "b") false None true None in
   OUnit.assert_equal ~printer ["c";"d";"e";"f";"g"] r
 
-let range_last log = 
+let range_last log =
   let r = MDB.range log None true (Some "d") true None in
   OUnit.assert_equal ~printer ["a";"b";"c";"d"] r
 
-let range_last_exc log = 
+let range_last_exc log =
   let r = MDB.range log None true (Some "d") false None in
   OUnit.assert_equal ~printer ["a";"b";"c";] r
 
@@ -81,7 +81,7 @@ let reverse_range_all log =
   OUnit.assert_equal ~printer ["g";"f";"e";"d";"c";"b";"a"] r;;
 
 let reverse_range_some log =
-    let r = MDB.reverse_range log None true None true (Some 5) in
+  let r = MDB.reverse_range log None true None true (Some 5) in
   OUnit.assert_equal ~printer ["g";"f";"e";"d";"c"] r
 
 let reverse_range_first log =
@@ -120,7 +120,7 @@ let reverse_range_bounded_overflow_right log =
   let r = MDB.reverse_range log (Some "f") false (Some "0") false None in
   OUnit.assert_equal ~printer ["e";"d";"c";"b";"a"] r
 
-let last ks = 
+let last ks =
   let rec _loop = function
     | [] -> failwith "Empty"
     | [k] -> k
@@ -128,46 +128,46 @@ let last ks =
   in
   _loop ks
 
-let fringe_lower log = 
+let fringe_lower log =
   let boundary = Some "d" in
   let size = Some 3 in
   let limit = 100 in
   let (>>=) = Mlog.bind in
   let return = Mlog.return in
   MDB.set log "\xff" "omega" >>= fun () ->
-  let rec loop start mem acc = 
+  let rec loop start mem acc =
     MDB.rev_range_entries log start false boundary false size >>= fun kvs_rev ->
     let len = List.length kvs_rev in
     if len = 0
-    then return (List.rev acc, mem) 
+    then return (List.rev acc, mem)
     else
       let acc' = acc @ kvs_rev in
       let (lk,_) = last kvs_rev in
       let start' = Some lk in
-      let mem' = List.fold_left 
+      let mem' = List.fold_left
         (fun mem (k,v) ->
-          mem + String.length k + String.length v) mem kvs_rev 
+          mem + String.length k + String.length v) mem kvs_rev
       in
       if mem' < limit
       then loop start' mem' acc'
       else return (acc', mem')
   in
   let start = None (* Some "\xff\xff" *) in
-  loop start 0 [] >>= fun x -> 
+  loop start 0 [] >>= fun x ->
   let (ks,_) = x in
   print_newline();
   List.iter (fun (k,_) -> Printf.printf "k:%S\n" k ) ks;
   ()
 
-let fringe_upper log = 
+let fringe_upper log =
   let boundary = Some "e" in
   let size = Some 2 in
   let (>>=) = Mlog.bind in
   let return = Mlog.return in
-  let rec loop start acc = 
+  let rec loop start acc =
     MDB.range log start false boundary false size >>= fun ks ->
     let len = List.length ks in
-    if len = 0 
+    if len = 0
     then return acc
     else
       let acc' = acc @ ks in
@@ -178,7 +178,7 @@ let fringe_upper log =
   print_newline();
   List.iter (fun k -> Printf.printf "k:%s\n" k) ks;
   ()
-    
+
 let wrap t = OUnit.bracket setup t teardown
 
 let suite = "Range" >::: [

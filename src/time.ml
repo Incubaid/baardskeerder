@@ -30,11 +30,11 @@ let get_minor (_,f,_) = f
 
 let make (x:major) y g = (x,y, g)
 
-let zero :t = ( 0L, 0, false) 
+let zero :t = ( 0L, 0, false)
 
 let next_major (x,_,_) = (Int64.succ x, 0,false)
-let next_minor (x,y,g) = 
-  if g 
+let next_minor (x,y,g) =
+  if g
   then (x,y+1,true)
   else failwith (Printf.sprintf "next minor for %s" (time2s (x,y,g)))
 
@@ -46,24 +46,21 @@ let same_major (x0,_,_) (x1,_,_) = x0 = x1
 
 
 
-let (=>:) (x0,y0,_) (x1,y1,_) = 
-  if x0 < x1 
+let (=>:) (x0,y0,_) (x1,y1,_) =
+  if x0 < x1
   then false
-  else 
-    if x0 > x1 
+  else
+    if x0 > x1
     then true
-    else 
-      if y0 < y1 
+    else
+      if y0 < y1
       then false
       else true
 
-let (>:) (x0,y0,_) (x1,y1,_) = 
-  if x0 > x1 
+let (>:) (x0,y0,_) (x1,y1,_) =
+  if x0 > x1
   then true
-  else 
-    if x0 = x1 && y0 > y1 
+  else
+    if x0 = x1 && y0 > y1
     then true
     else false
-        
-
-

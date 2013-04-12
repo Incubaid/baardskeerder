@@ -35,7 +35,7 @@ type 'a m = 'a
 let bind a f = f a
 let return v = v
 
-let _d = ref 2 
+let _d = ref 2
 
 let init ?(d=2) _ _ = _d := d
 
@@ -61,16 +61,16 @@ let write (t:t) (slab:Slab.t) =
     | (Outer _) as p -> p
     | Inner i -> Outer (sp, (Offset (i + off)))
   in
-  let externalize_cactions xs = 
+  let externalize_cactions xs =
     let externalize_caction = function
-      | Commit.CSet (k,p) -> Commit.CSet (k, externalize_pos p) 
+      | Commit.CSet (k,p) -> Commit.CSet (k, externalize_pos p)
       | (Commit.CDelete _) as x-> x
     in
     List.fold_left (fun acc a -> externalize_caction a :: acc) [] xs
   in
   let externalize_leaf  l = List.map (function (k,p) -> (k,externalize_pos p)) l in
   let externalize_index (p0, l) = (externalize_pos p0, externalize_leaf l) in
-  let externalize_commit c = 
+  let externalize_commit c =
     let pos = externalize_pos (Commit.get_pos c) in
     let actions = externalize_cactions (Commit.get_cactions c) in
     let time = Commit.get_time c in
@@ -104,38 +104,38 @@ let write (t:t) (slab:Slab.t) =
   Slab.iteri slab do_one ;
   t.now <- Slab.time slab;
   t.current_spindle <- ((t.current_spindle + 1) mod (Array.length t.spindles))
-    
+
 let last t =
   let i =
     let j = t.current_spindle - 1 in
-      if j < 0
-      then j + Array.length t.spindles
-      else j
+    if j < 0
+    then j + Array.length t.spindles
+    else j
   in
   let s = Array.get t.spindles i in
   Outer (Pos.Spindle i, Offset (s.next - 1))
 
 
-            
+
 let size (_:entry) = 1
 
 let read t = function
   | Outer (Spindle s, Offset o) ->
       if o < 0
-        then NIL
-        else Array.get (Array.get t.spindles s).es o
+      then NIL
+      else Array.get (Array.get t.spindles s).es o
   | Inner _ -> failwith "can't read inner"
 
 
-let lookup (t:t) = 
+let lookup (t:t) =
   let (p0:pos) = last t in
   match p0 with
     | Inner _ -> failwith "can't do inner"
-    | p0 -> bind (read t p0) 
-      (function 
-        | Commit c -> Commit.get_lookup c
-        | e -> failwith "no commit"
-      )
+    | p0 -> bind (read t p0)
+        (function
+          | Commit c -> Commit.get_lookup c
+          | e -> failwith "no commit"
+        )
 
 let dump ?out:(o=stdout) (t:t) =
   Printf.fprintf o "Next = %d %d\n" t.current_spindle
@@ -150,7 +150,7 @@ let dump ?out:(o=stdout) (t:t) =
         (fun i' a ->
           let s' = Entry.entry2s a in
           Printf.fprintf o "%2i: %s\n" i' s')
-      s.es)
+        s.es)
     t.spindles
 
 let clear (t:t) =
@@ -158,7 +158,7 @@ let clear (t:t) =
     (fun i s ->
       s.next <- 0;
       Array.fill s.es 0 (Array.length s.es) NIL)
-  t.spindles;
+    t.spindles;
   t.current_spindle <- 0
 
 let compact ?(min_blocks=1) ?(progress_cb=None) (_:t) =
@@ -168,9 +168,9 @@ let compact ?(min_blocks=1) ?(progress_cb=None) (_:t) =
 
 let set_metadata t s =
   t.meta <- Some s
-  
+
 let get_metadata t =
   t.meta
-  
+
 let unset_metadata t =
-  t.meta <- None     
+  t.meta <- None

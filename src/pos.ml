@@ -20,7 +20,7 @@
 type spindle = Spindle of int
 type offset = Offset of int
 
-type pos = 
+type pos =
   | Outer of spindle * offset
   | Inner of int
 

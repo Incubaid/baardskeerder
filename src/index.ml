@@ -21,7 +21,7 @@ open Base
 
 type index = pos * (kp list)
 
-let index2s (p0,rest) = 
+let index2s (p0,rest) =
   let b= Buffer.create 128 in
   Buffer.add_string b (pos2s p0);
   Buffer.add_string b ", ";
@@ -33,22 +33,22 @@ let index2s (p0,rest) =
 
 
 
-let index_merge (pl,kps_left) sep  (p2, kps_right) = 
+let index_merge (pl,kps_left) sep  (p2, kps_right) =
   let rec check = function
     | [] -> ()
-    | [k,_] -> if k = sep then 
-	let s = Printf.sprintf "can't merge:(%s) %S (%s)" (index2s (pl,kps_left)) sep (index2s (p2, kps_right)) in
-	failwith s
+    | [k,_] -> if k = sep then
+        let s = Printf.sprintf "can't merge:(%s) %S (%s)" (index2s (pl,kps_left)) sep (index2s (p2, kps_right)) in
+        failwith s
     | _ :: t -> check t
-  in 
-  let () = check kps_left in 
+  in
+  let () = check kps_left in
   let r = (kps_left @ ((sep,p2) :: kps_right)) in
   pl, r
 
 let index_below_min d (_,t) = List.length t < d
 let index_mergeable d (_,t)  = List.length t <= d
 
-let index_borrow_left (pl,kpsl) psep (pr,kpsr) = 
+let index_borrow_left (pl,kpsl) psep (pr,kpsr) =
   let rec split_last acc = function
     | [] -> failwith "xxx"
     | [x] -> x , (List.rev acc)
@@ -60,21 +60,18 @@ let index_borrow_left (pl,kpsl) psep (pr,kpsr) =
   let new_right = lmp, (psep,pr):: kpsr in
   new_left, new_sep, new_right
 
-let index_borrow_right (pl, kps_l) sep_o (pr, kps_r) = 
-  
+let index_borrow_right (pl, kps_l) sep_o (pr, kps_r) =
+
   match kps_r with
     | [] -> failwith "cannot borrow from empty index"
     | (kr0,pr0)::r -> let lrev = List.rev kps_l in
-		      let sep = match sep_o with | None -> kr0 | Some sep -> sep in
-		      let left' =   pl, List.rev ((sep,pr):: lrev) in
-		      let right' =  pr0, r in
-		      left', right'
+                      let sep = match sep_o with | None -> kr0 | Some sep -> sep in
+                      let left' =   pl, List.rev ((sep,pr):: lrev) in
+                      let right' =  pr0, r in
+                      left', right'
 
 
-let index_min_key (_,kps) = 
+let index_min_key (_,kps) =
   match kps with
     | [] -> failwith "empty?"
     | (k,_)::_ -> k
-
-
-

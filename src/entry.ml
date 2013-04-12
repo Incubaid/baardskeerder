@@ -26,14 +26,14 @@ open Commit
 open Leafz
 
 
-type entry = 
+type entry =
   | NIL
   | Value of v
   | Leaf of leaf
   | Index of index
   | Commit of commit
 
-type dir = 
+type dir =
   | Leaf_down of leaf_z
   | Index_down of index_z
 

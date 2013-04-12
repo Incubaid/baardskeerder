@@ -10,15 +10,15 @@ let (>>=) = Mlog.bind
 
 let ok_set tx ki vi = MDBX.set tx ki vi >>= fun () -> return (Base.OK ())
 
-let ok_unit x = match x with 
+let ok_unit x = match x with
   | Base.OK () -> Mlog.return ()
   | Base.NOK _ -> failwith "should not happen"
 
-let catchup1 () = 
+let catchup1 () =
   let fn = "mlog" in
   let () = Mlog.init ~d:2 Time.zero fn in
   let mlog = Mlog.make2 ~n_spindles:1 fn Time.zero in
-  let rec loop i = 
+  let rec loop i =
     if i = 0 then ()
     else
       begin
@@ -35,9 +35,9 @@ let catchup1 () =
   let i0 = 0L in
   let result = MCatchup.catchup i0 (fun acc i actions -> actions :: acc) [] mlog in
   ()
-    
 
-let catchup2 () = 
+
+let catchup2 () =
   let fn = "mlog" in
   let () = Mlog.init ~d:2 Time.zero fn in
   let mlog = Mlog.make2 ~n_spindles:1 fn Time.zero in
@@ -47,8 +47,8 @@ let catchup2 () =
   MCatchup.catchup 0L (fun acc i actions -> (actions,i) :: acc) [] mlog >>= fun result ->
   OUnit.assert_equal ~printer:string_of_int 1 (List.length result);
   ()
-  
-let catchup_doubles () = 
+
+let catchup_doubles () =
   let fn = "mlog" in
   let () = Mlog.init ~d:2 Time.zero fn in
   let mlog = Mlog.make2 ~n_spindles:1 fn Time.zero in
@@ -64,7 +64,7 @@ let catchup_doubles () =
     | _ -> "todo"
   in
   print_newline();
-  List.iter (fun (al,i) -> 
+  List.iter (fun (al,i) ->
     let als = String.concat ";" (List.map action2s al) in
     Printf.printf "%Li:%s\n" i als
   ) rresult;

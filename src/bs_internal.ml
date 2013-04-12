@@ -23,28 +23,26 @@ type store_offset = offset
 type length = int
 
 module type STORE =
-  sig
-    type t
-    type 'a m
+sig
+  type t
+  type 'a m
 
-    val bind : 'a m -> ('a -> 'b m) -> 'b m
-    val return : 'a -> 'a m
+  val bind : 'a m -> ('a -> 'b m) -> 'b m
+  val return : 'a -> 'a m
 
-    val init : string -> t m
-    val close : t -> unit m
+  val init : string -> t m
+  val close : t -> unit m
 
-    val next : t -> int
+  val next : t -> int
 
-    (* This will result in a string of *at least* the given length *)
-    val read : t -> store_offset -> length -> string m
-    val write : t -> string -> string_offset -> length -> store_offset -> unit m
-    val append : t -> string -> string_offset -> length -> store_offset m
+  (* This will result in a string of *at least* the given length *)
+  val read : t -> store_offset -> length -> string m
+  val write : t -> string -> string_offset -> length -> store_offset -> unit m
+  val append : t -> string -> string_offset -> length -> store_offset m
 
-    val fsync : t -> unit m
+  val fsync : t -> unit m
 
-    val with_fd : t -> (Unix.file_descr -> 'a) -> 'a m
+  val with_fd : t -> (Unix.file_descr -> 'a) -> 'a m
 
-    val run : 'a m -> 'a
-  end
-
-
+  val run : 'a m -> 'a
+end

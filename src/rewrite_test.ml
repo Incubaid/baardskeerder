@@ -30,16 +30,16 @@ module M = Monad.Monad(Store.Memory)
 
 let test_presence () =
   let (>>=) = Store.Memory.bind
-  and return = Store.Memory.return in 
+  and return = Store.Memory.return in
 
-  let kvs = 
-    let rec loop acc = function 
+  let kvs =
+    let rec loop acc = function
       | 26 -> acc
-      | i  -> 
-	let c0 = Char.chr (65 + i) in
-	let c1 = Char.chr (97 + i) in
-	let kv = (Printf.sprintf "%c" c0, Printf.sprintf "%c" c1) in
-	     loop (kv :: acc) (i+1)
+      | i  ->
+          let c0 = Char.chr (65 + i) in
+          let c1 = Char.chr (97 + i) in
+          let kv = (Printf.sprintf "%c" c0, Printf.sprintf "%c" c1) in
+          loop (kv :: acc) (i+1)
     in
     loop [] 0
   in
@@ -53,9 +53,9 @@ let test_presence () =
   MMRewrite.rewrite m0 root0 m1 >>= fun (Base.OK()) ->
   let now = LLog.now m0 in
   let fut = Time.next_major now in
-  let empty = Slab.make fut in 
+  let empty = Slab.make fut in
   M.iter
-    (fun (k,v) -> 
+    (fun (k,v) ->
       let vo = Base.OK v in
       MDB._get m1 empty k >>= fun vo' -> return (OUnit.assert_equal vo' vo))
     kvs >>= fun () ->

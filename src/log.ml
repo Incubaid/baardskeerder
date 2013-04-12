@@ -42,7 +42,7 @@ module type LOG = sig
   val dump: ?out:Pervasives.out_channel -> t -> unit m
   val compact: ?min_blocks:int ->
     ?progress_cb:(offset -> offset -> unit) option -> t -> unit m
-    
+
   val set_metadata: t -> string -> unit m
   val get_metadata: t -> string option m
   val unset_metadata: t -> unit m

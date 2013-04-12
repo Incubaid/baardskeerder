@@ -19,7 +19,7 @@
 
 open Base
 
-type caction = 
+type caction =
   | CSet of (k * pos)
   | CDelete of k
 
@@ -29,10 +29,10 @@ let caction2s = function
 
 
 
-type commit = { pos: pos ; 
-                previous: pos; 
+type commit = { pos: pos ;
+                previous: pos;
                 lookup: pos;
-                time:Time.t; 
+                time:Time.t;
                 cactions: caction list;
                 explicit: bool; (* this commit explicitly validates the previous update *)
               }
@@ -51,7 +51,7 @@ let get_previous t = t.previous
 
 let is_explicit t = t.explicit
 
-let commit2s t = Printf.sprintf "{pos=%s; previous = %s; lookup=%s;time=%s; cactions=%s; explicit=%b}" 
+let commit2s t = Printf.sprintf "{pos=%s; previous = %s; lookup=%s;time=%s; cactions=%s; explicit=%b}"
   (pos2s t.pos) (pos2s t.previous)  (pos2s t.lookup)
   (Time.time2s t.time)
   (Pretty.string_of_list caction2s t.cactions) t.explicit

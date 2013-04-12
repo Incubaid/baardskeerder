@@ -44,7 +44,7 @@ module Make (E:Element) = struct
     if t.w = 0 then t.f <- true else ()
 
   let get t k =
-    let (i, j) = 
+    let (i, j) =
       if t.f = false
       then
         (* Loop from 0 to (w - 1) *)
@@ -61,27 +61,27 @@ module Make (E:Element) = struct
       then failwith "i = j"
       else
         let rec loop e =
-        let (k', v) = Array.get t.b e in
-        if k' = k
-        then Some v
-        else
-          let n = (e + 1) mod t.s in
-          if n = i
-          then None
-          else loop n
+          let (k', v) = Array.get t.b e in
+          if k' = k
+          then Some v
+          else
+            let n = (e + 1) mod t.s in
+            if n = i
+            then None
+            else loop n
 
-      in loop i
+        in loop i
 end
 
 (*
-module IntStringBuffer = Make(
+  module IntStringBuffer = Make(
   struct
-    type k = int
-    type v = string
-    let create _ = (0, "")
+  type k = int
+  type v = string
+  let create _ = (0, "")
   end)
 
-let test () =
+  let test () =
   let b = IntStringBuffer.create 5 in
   IntStringBuffer.add b 0 "0";
   IntStringBuffer.add b 1 "1";
