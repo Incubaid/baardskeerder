@@ -223,7 +223,7 @@ let () =
         begin
           MyLog.make !fn >>= fun log ->
           let f () t a =
-            Printf.printf "%s\t: %s\n" (Time.time2s t) (Commit.caction2s a) ;
+            Printf.printf "%s\t: %s\n%!" (Time.time2s t) (Commit.caction2s a) ;
             ()
           in
           let t0 = Time.zero in
