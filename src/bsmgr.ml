@@ -79,6 +79,7 @@ let () =
   let log_name = ref "Flog0" in
   let store_name = ref "Sync" in
   let mb = ref 1 in
+  let buckets = ref 0 in
   let test_refs = ref [] in
   let spec = [
     ("--value-size",Set_int vs, Printf.sprintf "size of the values in bytes (%i)" !vs);
@@ -92,7 +93,7 @@ let () =
     ("--dump", Unit dump, Printf.sprintf "doesn't run a benchmark, but dumps file's contents");
     ("--dump-stream", Unit dump_stream, Printf.sprintf "dumps the stream of updates");
     ("--rewrite", Unit rewrite, "rewrite the log into another file");
-    ("--inspect-storage", Unit inspect_storage, "inspect the storage consumption by key range");
+    ("--inspect-storage", Tuple[Unit inspect_storage; Arg.Int (fun i -> buckets := i)], "<number_of_buckets> : inspect the storage consumption by key range");
     ("--punch", Unit punch, "compact the log file through hole punching");
     ("--file2" , Set_string fn2, Printf.sprintf "name of the compacted log file (%s)" !fn2);
     ("--info", Unit info, Printf.sprintf "returns information about the file (%s)" !fn);
@@ -293,9 +294,11 @@ let () =
     | InspectStorage ->
       let t =
         begin
+          let module MyInspect_storage = Inspect_storage.Inspect_storage(MyF)(MyStore) in
           MyLog.make !fn >>= fun l0 ->
-          MyDB.inspect_storage l0 >>= fun storage ->
-          MyDB.print storage string_of_int;
+          MyInspect_storage.inspect_storage l0 >>= fun storage ->
+          let buckets = MyInspect_storage.bucketize storage (fun vs va -> vs) !buckets in
+          MyInspect_storage.print_buckets buckets;
           MyLog.close l0
         end
       in
