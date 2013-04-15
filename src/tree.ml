@@ -515,8 +515,7 @@ module DB = functor (L:LOG ) -> struct
       | NIL  -> return 0
       | Commit c ->
           begin
-            let lookup = Commit.get_lookup c in
-            let root = lookup in
+            let root = Commit.get_lookup c in
             let t_left k = match first with
               | None -> true
               | Some k_f -> if finc then k_f <= k else k_f < k
@@ -534,14 +533,7 @@ module DB = functor (L:LOG ) -> struct
                   | None -> true
                   | Some m -> count < m
             in
-            let rec walk count pos =
-              L.read t pos >>= function
-                | NIL     -> return count
-                | Value _ -> return count
-                | Leaf leaf -> walk_leaf count leaf
-                | Index index -> walk_index count index
-                | Commit c -> let lookup = Commit.get_lookup c in walk count lookup
-            and walk_leaf count leaf =
+            let walk_leaf count leaf =
               let rec loop count = function
                 | [] -> return count
                 | (k,vpos) :: t ->
@@ -553,14 +545,21 @@ module DB = functor (L:LOG ) -> struct
                           if t_right k
                           then
                             f k vpos >>= fun () ->
-                        loop (count + 1) t
+                            loop (count + 1) t
                           else return count
                         else
                           loop count t
                       end
                     else return count
               in
-              loop count leaf
+              loop count leaf in
+            let rec walk count pos =
+              L.read t pos >>= function
+                | NIL     -> return count
+                | Value _ -> return count
+                | Leaf leaf -> walk_leaf count leaf
+                | Index index -> walk_index count index
+                | Commit c -> let lookup = Commit.get_lookup c in walk count lookup
             and walk_index count (p,kps) =
               let rec loop count p  = function
                 | [] -> walk count p
@@ -720,6 +719,83 @@ module DB = functor (L:LOG ) -> struct
     in
     _fold_reverse_range_while t first finc last linc f (0, []) >>= fun (_, res) ->
     return (List.rev res)
+
+  type 'a prefix_tree =
+      PNode of 'a * (char, 'a prefix_tree) Hashtbl.t
+
+  let walk pt f =
+    let rec loop pt pre depth =
+      let pre' = String.create (depth + 1) in
+      let () = String.blit pre 0 pre' 0 depth in
+      match pt with
+        | PNode (s, htbl) ->
+            Hashtbl.iter
+              (fun c pt ->
+                pre'.[depth] <- c;
+                let () = f pt pre' depth in
+                loop pt pre' (depth + 1)) htbl in
+    loop pt "" 0
+
+  let get_value = function
+    | PNode (value, htbl) -> !value
+
+  let print pt to_string =
+    walk pt (fun pt pre depth -> print_endline (pre ^ " : " ^ (to_string (get_value pt))))
+
+  let find_prefix ?f:(f = fun a -> ()) pt k =
+    let length = String.length k in
+    let rec loop pt offset =
+      if offset = length
+      then (pt, offset)
+      else
+        match pt with
+          | PNode (s, htbl) ->
+              f s;
+              let c = k.[offset] in
+              try
+                let pt' = Hashtbl.find htbl c in
+                loop pt' (offset + 1)
+              with Not_found -> (pt, offset) in
+    loop pt 0
+
+  let add pt default k f =
+    let (PNode (s, htbl) as p), offset = find_prefix ~f pt k in
+    let length = String.length k in
+    if offset < length
+    then
+      let rec add_nodes (PNode (s, htbl)) k offset =
+        if offset < length then
+          let c = k.[offset] in
+          let s = default () in
+          let pt = PNode (s, Hashtbl.create 10) in
+          f s;
+          Hashtbl.add htbl c pt;
+          add_nodes pt k (offset + 1)
+        else
+          f s
+      in
+      add_nodes p k offset
+    else
+      f s
+
+(*
+let a = PNode(ref 0, Hashtbl.create 10);;
+print a string_of_int;;
+add a (fun () -> (ref 0)) "fdsaffs" 9;;
+add a (fun () -> (ref 0)) "fdsaffsfdsa" 7;;
+add a (fun () -> (ref 0)) "fdffs" 8;;
+*)
+
+  let inspect_storage t =
+    let f acc k o =
+      L.read t o >>= (fun entry -> match entry with
+        | Entry.Value v ->
+            add acc (fun () -> (ref 0)) k (fun s -> s:= !s + (String.length v));
+            return (true, acc)
+        | _ -> failwith "no value!")
+    in
+    _fold_reverse_range_while t None false None false f (PNode (ref 0, Hashtbl.create 10)) >>= fun (pt) ->
+    return pt
 
   let confirm (t:L.t) (s:Slab.t) k v =
     let set_needed () =

@@ -38,6 +38,7 @@ type command =
   | Test
   | ListTest
   | OnlyTest
+  | InspectStorage
   | Hudson
   | Help
 
@@ -61,6 +62,7 @@ let () =
   let dump () = command := Dump in
   let dump_stream () = command := DumpStream in
   let rewrite () = command := Rewrite in
+  let inspect_storage () = command := InspectStorage in
   let punch () = command:= Punch in
   let info () = command:= Info in
   let test () = command:= Test in
@@ -90,6 +92,7 @@ let () =
     ("--dump", Unit dump, Printf.sprintf "doesn't run a benchmark, but dumps file's contents");
     ("--dump-stream", Unit dump_stream, Printf.sprintf "dumps the stream of updates");
     ("--rewrite", Unit rewrite, "rewrite the log into another file");
+    ("--inspect-storage", Unit inspect_storage, "inspect the storage consumption by key range");
     ("--punch", Unit punch, "compact the log file through hole punching");
     ("--file2" , Set_string fn2, Printf.sprintf "name of the compacted log file (%s)" !fn2);
     ("--info", Unit info, Printf.sprintf "returns information about the file (%s)" !fn);
@@ -283,6 +286,16 @@ let () =
                 ()
           in
           MyLog.compact ~min_blocks:!mb ~progress_cb:(Some cb) l0 >>= fun () ->
+          MyLog.close l0
+        end
+      in
+      run t
+    | InspectStorage ->
+      let t =
+        begin
+          MyLog.make !fn >>= fun l0 ->
+          MyDB.inspect_storage l0 >>= fun storage ->
+          MyDB.print storage string_of_int;
           MyLog.close l0
         end
       in
