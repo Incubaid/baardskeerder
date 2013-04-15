@@ -487,24 +487,36 @@ struct
     _read_metadata sp0 >>= fun m ->
     let next_free = S.next sp0 in
     let d = m.td in
+    let _try_read_entry sp0 tbr =
+      try
+        _read_entry_s sp0 tbr >>= fun es ->
+        return (Some es)
+      with End_of_file -> return None
+    in
     let rec _scan_forward lt (tbr:int) =
-      if tbr = next_free then
+      if tbr = next_free 
+      then
         S.return lt
       else
         begin
-          try
-            _read_entry_s sp0 tbr >>= fun es ->
-            let input = make_input es 0 in
-            let e = input_entry input in
-            let next = tbr + 4 + String.length es in
-            match e with
-              | Commit c ->
-                  let time = Commit.get_time c in
-                  let lt' = (Spindle 0, Offset tbr), time in
-                  _scan_forward lt'   next
-              | e -> _scan_forward lt next
-          with End_of_file ->
-            S.return lt
+          _try_read_entry sp0 tbr >>= fun eso ->
+          match eso with
+            | Some es ->
+                begin
+                  let input = make_input es 0 in
+                  let e = input_entry input in
+                  let next = tbr + 4 + String.length es in
+                  let lt' = 
+                    match e with
+                      | Commit c ->
+                        let time = Commit.get_time c in
+                        (Spindle 0, Offset tbr), time
+                      | e -> lt
+                  in
+                  _scan_forward lt' next
+
+                end
+            | None -> S.return lt
         end
     in
     let (_,Offset tbr) = m.commit in
