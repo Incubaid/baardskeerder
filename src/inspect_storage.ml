@@ -32,19 +32,19 @@ struct
   and return = IO.return
 
   type 'a prefix_tree =
-      PNode of 'a * (char, 'a prefix_tree) Hashtbl.t
+      PNode of 'a * (char * 'a prefix_tree) list ref
 
   let walk pt f =
     let rec loop pt pre depth =
       let pre' = String.create (depth + 1) in
       let () = String.blit pre 0 pre' 0 depth in
       match pt with
-        | PNode (s, htbl) ->
-            Hashtbl.iter
-              (fun c pt ->
+        | PNode (s, reflist) ->
+            List.iter
+              (fun (c, pt) ->
                 pre'.[depth] <- c;
                 let () = f pt pre' depth in
-                loop pt pre' (depth + 1)) htbl in
+                loop pt pre' (depth + 1)) !reflist in
     loop pt "" 0
 
   let get_value = function
@@ -53,70 +53,65 @@ struct
   let print pt to_string =
     walk pt (fun pt pre depth -> print_endline (pre ^ " : " ^ (to_string (get_value pt))))
 
-  let find_prefix ?f:(f = fun a -> ()) pt k =
-    let length = String.length k in
-    let rec loop pt offset =
-      if offset = length
-      then (pt, offset)
-      else
-        match pt with
-          | PNode (s, htbl) ->
-              f s;
-              let c = k.[offset] in
-              try
-                let pt' = Hashtbl.find htbl c in
-                loop pt' (offset + 1)
-              with Not_found -> (pt, offset) in
-    loop pt 0
 
-  let add pt default k f =
-    let (PNode (s, htbl) as p), offset = find_prefix ~f pt k in
-    let length = String.length k in
-    if offset < length
-    then
-      let rec add_nodes (PNode (s, htbl)) k offset =
-        if offset < length then
-          let c = k.[offset] in
-          let s = default () in
-          let pt = PNode (s, Hashtbl.create 10) in
-          Hashtbl.add htbl c pt;
-          add_nodes pt k (offset + 1)
-        else
-          f s
-      in
-      add_nodes p k offset
-    else
-      f s
+  let add current_prefix pt_zipper k apply_v default =
+    let current_prefix_length = String.length current_prefix
+    and key_length = String.length k in
+    let common_prefix_length =
+      try
+        let rec inner i = if current_prefix.[i] = k.[i] then inner (i + 1) else i in
+        inner 0
+      with Invalid_argument _ -> min current_prefix_length key_length in
+    let rec ntl l n =
+      if n = 0 then l else (ntl (List.tl l) (n - 1)) in
+    let current_pt_zipper = ntl pt_zipper (current_prefix_length - common_prefix_length) in
+    let rec add_nodes pt_zipper offset = match pt_zipper with
+      | [] -> failwith "wrong invocation"
+      | PNode (_, listref)::_ ->
+          if offset < key_length
+          then
+            let pt' = PNode(default (), ref []) in
+            listref := (k.[offset], pt') :: !listref;
+            add_nodes (pt' :: pt_zipper)  (offset + 1)
+          else
+            pt_zipper in
+    let pt_zipper' = add_nodes current_pt_zipper common_prefix_length in
+    List.iter (fun (PNode(s, _)) -> apply_v s) pt_zipper';
+    (pt_zipper', k)
+
 
   let inspect_storage t =
-    let f acc k o =
+    let f (pt_zipper, current_prefix) k o =
       L.read t o >>= (fun entry -> match entry with
         | Entry.Value v ->
-            add
-              acc
-              (fun () -> (ref (0,0)))
+            let acc = add
+              current_prefix
+              pt_zipper
               k
-              (fun s ->
-                let vs, va = !s in
-                s:= (vs + (String.length v), va + 1));
+              (fun s -> let vs, va = !s in s := (vs + String.length v , va + 1))
+              (fun () -> ref (0, 0)) in
             return (true, acc)
         | _ -> failwith "no value!")
     in
-    DBL._fold_reverse_range_while t None false None false f (PNode (ref (0,0), Hashtbl.create 10)) >>= fun (pt) ->
-    return pt
+    DBL._fold_reverse_range_while t None false None false f ([PNode (ref (0,0), ref [])], "") >>= fun (ptz, _) ->
+    let rec last = function
+      | [] -> failwith "empty list"
+      | [i] -> i
+      | hd::tl -> last tl in
+    return (last ptz)
+
 
   let _print_bucket b =
     let (pre, vs, va, w, _) = b in
     Printf.printf "%s\t%i\t%i\n" pre vs va
 
   let bucketize pt weight n =
-    let to_list (PNode (_, htbl)) pre =
-      Hashtbl.fold
-        (fun c (PNode (s, _) as pt') acc ->
+    let to_list (PNode (_, listref)) pre =
+      List.map
+        (fun (c, (PNode (s, _) as pt')) ->
           let vs, va = !s in
-          (pre ^ Char.escaped c, vs, va, weight vs va, pt') :: acc)
-        htbl
-        [] in
+          (pre ^ Char.escaped c, vs, va, weight vs va, pt'))
+        !listref in
     let rec inner buckets count =
       if count >= n
       then
