@@ -40,4 +40,5 @@ let suite =
       Catchup_test.suite;
       Pack_test.suite;
       Prefix_test.suite;
+      Inspect_storage_test.suite;
     ]

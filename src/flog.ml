@@ -558,6 +558,41 @@ struct
                 | _ -> failwith "Flog.read: unknown node type"
             end
 
+  let read_length t pos =
+    let raise_not_a_value () =
+      failwith "can't read length of entries that aren't a Value" in
+    if pos = Outer (Spindle 0, Offset 0) then raise_not_a_value ()
+    else
+      match OffsetEntryCache.get t.cache pos with
+        | Some e ->
+            begin match e with
+              | Entry.Value v -> return $ String.length v
+              | _ -> raise_not_a_value ()
+            end
+        | None ->
+            begin
+        (* TODO Not multi-spindle compatible! *)
+              let pos' = match pos with
+                | Inner _ -> failwith "Flog.read_length: Inner"
+                | Outer (Spindle 0, Offset o) -> o
+                | Outer (Spindle _ , Offset _) -> failwith "Flog.read_length: Invalid spindle"
+              in
+
+              S.read t.fd pos' 9 >>= fun s ->
+
+              let m = fst $ Binary.read_uint32 s 0
+              and l = fst $ Binary.read_uint32 s 4 in
+              assert (m = marker);
+
+              let c = fst $ Binary.read_char8 s 8 in
+
+              if c = SerDes.value_tag
+              then
+                return (l - 2 - 4 - 4)
+              else
+                raise_not_a_value ()
+            end
+
 
   let lookup t =
     let p = last t in

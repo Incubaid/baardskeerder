@@ -14,6 +14,7 @@ let write = wrap2 Mlog.write
 let last = Mlog.last
 let lookup = wrap1 Mlog.lookup
 let read = wrap2 Mlog.read
+let read_length = wrap2 Mlog.read_length
 let sync = wrap1 Mlog.sync
 let close = wrap1 Mlog.close
 let clear = wrap1 Mlog.clear

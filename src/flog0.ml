@@ -455,6 +455,31 @@ struct
             end
       | Inner _ -> failwith "cannot read inner"
 
+  let read_length t pos =
+    let raise_no_value () = failwith "can't read length of entries that aren't a Value" in
+    match pos with
+      | Outer (Spindle s, Offset o) ->
+          if ((s = 0) && (o = 0))
+          then raise_no_value ()
+          else
+            begin
+              (*let so = (s,o) in
+                match Cache.find so with
+                | Some e -> match e with | Value v -> return String.length v
+                | None ->*)
+              begin
+                let sp = Array.get t.spindles s in
+                let max_vint_bytes = 9 in
+                let tag_bytes = 1 in
+                S.read sp (o + 4) (tag_bytes + max_vint_bytes) >>= fun partial_es ->
+                let input = make_input partial_es 0 in
+                match input_tag input with
+                  | VALUE -> return (input_vint input)
+                  | _ -> raise_no_value ()
+              end
+            end
+      | Inner _ -> failwith "cannot read inner"
+
 
   let lookup t =
     let p = last t in

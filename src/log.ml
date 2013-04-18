@@ -33,6 +33,7 @@ module type LOG = sig
   val last  : t -> pos
   val lookup: t -> pos m
   val read  : t -> pos -> entry m
+  val read_length : t -> pos -> int m
   val sync  : t -> unit m
   val make  : string -> t m
   val close : t -> unit m
