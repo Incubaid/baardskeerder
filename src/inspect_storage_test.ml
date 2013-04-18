@@ -13,7 +13,7 @@ let test_inspect_storage () =
   let t =
     MyLog.init fn Time.zero >>= fun () ->
     MyLog.make fn >>= fun log ->
-    let keysizes = [1; 4; 256; 2048; 65535; 65539; 67108864] in
+    let keysizes = [1; 4; 256; 2048; 65535; 65539; 67108864; 4294967296] in
     let rec loop i = function
       | [] -> MyLog.sync log
       | keysize::t ->

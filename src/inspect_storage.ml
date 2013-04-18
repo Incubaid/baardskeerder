@@ -103,7 +103,7 @@ struct
 
   let _print_bucket b =
     let (pre, vs, va, w, _) = b in
-    Printf.printf "%s\t%i\t%i\n" pre vs va
+    Printf.printf "%s\t%i\t%i\t%i\n" pre vs va w
 
   let bucketize pt weight n =
     let to_list (PNode (_, listref)) pre =
@@ -130,7 +130,7 @@ struct
 
   let print_buckets buckets =
     let sorted = List.sort (fun b1 b2 -> let (pre1, _, _, _, _), (pre2, _, _, _, _) = (b1, b2) in String.compare pre1 pre2) buckets in
-    print_endline "prefix\tTotal size\tNumber of values";
+    print_endline "Prefix\t\tTotal size\tNumber of values\tTotal estimated size";
     List.iter _print_bucket sorted
 
 end
