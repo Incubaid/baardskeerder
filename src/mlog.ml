@@ -126,6 +126,9 @@ let read t = function
       else Array.get (Array.get t.spindles s).es o
   | Inner _ -> failwith "can't read inner"
 
+let read_length t pos = match (read t pos) with
+  | Entry.Value v -> String.length v
+  | _ -> failwith "can't read length of entries that aren't a Value"
 
 let lookup (t:t) =
   let (p0:pos) = last t in

@@ -5,5 +5,4 @@ _build
 
 *.native
 *.byte
-src/test.db
-src/test.db.[012]
+src/*.db

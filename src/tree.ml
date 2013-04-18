@@ -515,8 +515,7 @@ module DB = functor (L:LOG ) -> struct
       | NIL  -> return 0
       | Commit c ->
           begin
-            let lookup = Commit.get_lookup c in
-            let root = lookup in
+            let root = Commit.get_lookup c in
             let t_left k = match first with
               | None -> true
               | Some k_f -> if finc then k_f <= k else k_f < k
@@ -534,14 +533,7 @@ module DB = functor (L:LOG ) -> struct
                   | None -> true
                   | Some m -> count < m
             in
-            let rec walk count pos =
-              L.read t pos >>= function
-                | NIL     -> return count
-                | Value _ -> return count
-                | Leaf leaf -> walk_leaf count leaf
-                | Index index -> walk_index count index
-                | Commit c -> let lookup = Commit.get_lookup c in walk count lookup
-            and walk_leaf count leaf =
+            let walk_leaf count leaf =
               let rec loop count = function
                 | [] -> return count
                 | (k,vpos) :: t ->
@@ -553,14 +545,21 @@ module DB = functor (L:LOG ) -> struct
                           if t_right k
                           then
                             f k vpos >>= fun () ->
-                        loop (count + 1) t
+                            loop (count + 1) t
                           else return count
                         else
                           loop count t
                       end
                     else return count
               in
-              loop count leaf
+              loop count leaf in
+            let rec walk count pos =
+              L.read t pos >>= function
+                | NIL     -> return count
+                | Value _ -> return count
+                | Leaf leaf -> walk_leaf count leaf
+                | Index index -> walk_index count index
+                | Commit c -> let lookup = Commit.get_lookup c in walk count lookup
             and walk_index count (p,kps) =
               let rec loop count p  = function
                 | [] -> walk count p
@@ -720,6 +719,7 @@ module DB = functor (L:LOG ) -> struct
     in
     _fold_reverse_range_while t first finc last linc f (0, []) >>= fun (_, res) ->
     return (List.rev res)
+
 
   let confirm (t:L.t) (s:Slab.t) k v =
     let set_needed () =

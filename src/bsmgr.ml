@@ -38,6 +38,7 @@ type command =
   | Test
   | ListTest
   | OnlyTest
+  | InspectStorage
   | Hudson
   | Help
 
@@ -61,6 +62,7 @@ let () =
   let dump () = command := Dump in
   let dump_stream () = command := DumpStream in
   let rewrite () = command := Rewrite in
+  let inspect_storage () = command := InspectStorage in
   let punch () = command:= Punch in
   let info () = command:= Info in
   let test () = command:= Test in
@@ -77,6 +79,8 @@ let () =
   let log_name = ref "Flog0" in
   let store_name = ref "Sync" in
   let mb = ref 1 in
+  let buckets = ref 0 in
+  let value_weight = ref 700 in
   let test_refs = ref [] in
   let spec = [
     ("--value-size",Set_int vs, Printf.sprintf "size of the values in bytes (%i)" !vs);
@@ -90,6 +94,8 @@ let () =
     ("--dump", Unit dump, Printf.sprintf "doesn't run a benchmark, but dumps file's contents");
     ("--dump-stream", Unit dump_stream, Printf.sprintf "dumps the stream of updates");
     ("--rewrite", Unit rewrite, "rewrite the log into another file");
+    ("--inspect-storage", Tuple[Unit inspect_storage; Arg.Int (fun i -> buckets := i)], "<minimum_number_of_buckets> : inspect the storage consumption by key prefix buckets, this is a IO intensive operation");
+    ("--inspect-value-weight", Set_int value_weight, Printf.sprintf "<value_weight> : the average amount of bytes overhead for each value (%i)" !value_weight);
     ("--punch", Unit punch, "compact the log file through hole punching");
     ("--file2" , Set_string fn2, Printf.sprintf "name of the compacted log file (%s)" !fn2);
     ("--info", Unit info, Printf.sprintf "returns information about the file (%s)" !fn);
@@ -283,6 +289,21 @@ let () =
                 ()
           in
           MyLog.compact ~min_blocks:!mb ~progress_cb:(Some cb) l0 >>= fun () ->
+          MyLog.close l0
+        end
+      in
+      run t
+    | InspectStorage ->
+      let t =
+        begin
+          let module MyInspect_storage = Inspect_storage.Inspect_storage(MyF)(MyStore) in
+          MyLog.make !fn >>= fun l0 ->
+          MyInspect_storage.inspect_storage l0 >>= fun storage ->
+          let buckets = MyInspect_storage.bucketize
+            storage
+            (fun vs vn -> vs + (!value_weight * vn))
+            !buckets in
+          MyInspect_storage.print_buckets buckets;
           MyLog.close l0
         end
       in
