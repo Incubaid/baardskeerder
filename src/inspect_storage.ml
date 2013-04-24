@@ -32,23 +32,25 @@ struct
   and return = IO.return
 
   type 'a prefix_tree =
-      PNode of 'a * (char * 'a prefix_tree) list ref
+      { value : 'a;
+        children : (char * 'a prefix_tree) list ref; }
+
+  let create_prefix_tree a = { value = a ; children = ref [] }
+  let get_value pt = !(pt.value)
+  let get_children pt = !(pt.children)
+
 
   let walk pt f =
     let rec loop pt pre depth =
       let pre' = String.create (depth + 1) in
       let () = String.blit pre 0 pre' 0 depth in
-      match pt with
-        | PNode (s, reflist) ->
-            List.iter
-              (fun (c, pt) ->
-                pre'.[depth] <- c;
-                let () = f pt pre' depth in
-                loop pt pre' (depth + 1)) !reflist in
+      List.iter
+        (fun (c, pt) ->
+          pre'.[depth] <- c;
+          let () = f pt pre' depth in
+          loop pt pre' (depth + 1)) !(pt.children) in
     loop pt "" 0
 
-  let get_value = function
-    | PNode (value, htbl) -> !value
 
   let print pt to_string =
     walk pt (fun pt pre depth -> print_endline (pre ^ " : " ^ (to_string (get_value pt))))
@@ -67,16 +69,16 @@ struct
     let current_pt_zipper = ntl pt_zipper (current_prefix_length - common_prefix_length) in
     let rec add_nodes pt_zipper offset = match pt_zipper with
       | [] -> failwith "wrong invocation"
-      | PNode (_, listref)::_ ->
+      | pt::_ ->
           if offset < key_length
           then
-            let pt' = PNode(default (), ref []) in
-            listref := (k.[offset], pt') :: !listref;
+            let pt' = create_prefix_tree (default ()) in
+            pt.children := (k.[offset], pt') :: (get_children pt);
             add_nodes (pt' :: pt_zipper)  (offset + 1)
           else
             pt_zipper in
     let pt_zipper' = add_nodes current_pt_zipper common_prefix_length in
-    List.iter (fun (PNode(s, _)) -> apply_v s) pt_zipper';
+    List.iter (fun pt -> apply_v pt.value) pt_zipper';
     (pt_zipper', k)
 
 
@@ -93,7 +95,7 @@ struct
             return (true, acc)
         | _ -> failwith "no value!")
     in
-    DBL._fold_reverse_range_while t None false None false f ([PNode (ref (0,0), ref [])], "") >>= fun (ptz, _) ->
+    DBL._fold_reverse_range_while t None false None false f ([create_prefix_tree (ref (0,0))], "") >>= fun (ptz, _) ->
     let rec last = function
       | [] -> failwith "empty list"
       | [i] -> i
@@ -106,12 +108,12 @@ struct
     Printf.printf "%s\t%i\t%i\t%i\n" pre vs va w
 
   let bucketize pt weight n =
-    let to_list (PNode (_, listref)) pre =
+    let to_list pt pre =
       List.map
-        (fun (c, (PNode (s, _) as pt')) ->
-          let vs, va = !s in
+        (fun (c, pt') ->
+          let vs, va = get_value pt' in
           (pre ^ Char.escaped c, vs, va, weight vs va, pt'))
-        !listref in
+        (get_children pt) in
     let rec inner buckets count =
       if count >= n
       then
