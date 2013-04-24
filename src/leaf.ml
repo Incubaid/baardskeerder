@@ -48,12 +48,11 @@ let shared_prefix = function
   | [] -> ""
   | (k0,_) :: t ->
       let shared k0 k1 m =
-        let l0 = String.length k0
-        and l1 = String.length k1 in
-        let l = min m (min l0 l1) in
+        let l1 = String.length k1 in
+        let l = min m l1 in
         let rec loop i =
           if i = l
-          then l
+          then i
           else
             if k0.[i] = k1.[i]
             then loop (i+1)
