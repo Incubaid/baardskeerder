@@ -44,12 +44,15 @@ let leaf_borrow_left left right =
     | [] | [_] -> failwith "leaf_borrow_left"
 
 
-let shared_prefix = function
-  | [] -> ""
+let shared_prefix_length = function
+  | [] -> 0
   | (k0,_) :: t ->
       let shared k0 k1 m =
+        let l0 = String.length k0
+        and l1 = String.length k1 in
+        let l = min m (min l0 l1) in
         let rec loop i =
-          if i = m
+          if i = l
           then m
           else
             if k0.[i] = k1.[i]
@@ -59,7 +62,12 @@ let shared_prefix = function
         loop 0
       in
       let m0 = String.length k0 in
-      let m = List.fold_left (fun m (k,_) -> shared k0 k m) m0 t in
+      List.fold_left (fun m (k,_) -> shared k0 k m) m0 t
+
+let shared_prefix = function
+  | [] -> ""
+  | (k0,_)::t as l ->
+      let m = shared_prefix_length l in
       String.sub k0 0 m
 
 

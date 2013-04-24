@@ -94,6 +94,10 @@ module Pack = struct
     vint_to b l;
     Buffer.add_string b s
 
+  let substring_to b s offset len =
+    vint_to b len;
+    Buffer.add_substring b s offset len
+
   let option_to b a_to = function
     | None   -> bool_to b false
     | Some a -> let () = bool_to b true in

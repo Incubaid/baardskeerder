@@ -20,15 +20,29 @@
 type 'a writer = Buffer.t -> 'a -> unit
 type 'a reader = string -> int -> ('a * int)
 
+type 'a diff_writer = 'a -> Buffer.t -> 'a -> unit
+type 'a diff_reader = 'a -> string -> int -> ('a * int)
+
 let (>>) (f: 'a writer) (g: 'a writer): 'a writer = fun b a ->
   f b a;
+  g b a
+
+let (>>.) (f: 'a diff_writer) (g: 'a writer): 'a diff_writer = fun p b a ->
+  f p b a;
   g b a
 
 let (>>=) (f: 'a reader) (g: 'a -> 'b reader): 'b reader = fun b o ->
   let (v, o') = f b o in
   g v b o'
 
+let (>>=.) (f: 'a diff_reader) (g: 'a -> 'b reader): 'b diff_reader = fun p b o ->
+  let (v, o') = f p b o in
+  g v b o'
+
 let return (a: 'a): 'a reader = fun _ o ->
+  (a, o)
+
+let return' (a: 'a): 'a diff_reader = fun _ _ o ->
   (a, o)
 
 let run_writer ?buffer_size:(bs=64): ('a writer) -> 'a -> (string * int) =
@@ -149,6 +163,32 @@ and read_string: string reader =
     let s' = String.sub s o' l in
     (s', o' + l)
 
+let write_diff_string : ('a -> string) -> 'a -> 'a writer =
+  fun f -> fun previous -> fun b a ->
+    let s = f a in
+    let ps = f previous in
+    let ls = String.length s in
+    let common_prefix_length =
+      let lp = String.length ps in
+      let min_l = min ls lp in
+      let rec inner c =
+        if c < min_l && s.[c] = ps.[c]
+        then
+          inner (c + 1)
+        else
+          c in
+      inner 0 in
+    let len = ls - common_prefix_length in
+    write_uint32_to_buffer b common_prefix_length;
+    write_uint32_to_buffer b len;
+    Buffer.add_substring b s common_prefix_length len
+and read_diff_string previous : string reader =
+  fun s o ->
+    let pl, o' = read_uint32 s o in
+    let l, o'' = read_uint32 s o' in
+    let s' = String.sub previous 0 pl ^ String.sub s o'' l in
+    (s', o'' + l)
+
 let size_crc32 = 4
 and write_crc32: int -> int option -> 'a writer =
   fun s l -> fun b _ ->
@@ -179,6 +219,29 @@ and calc_crc32: int -> int option -> int reader =
     let crc32 = Int32.to_int (Crc32c.calculate_crc32c i s l') in
 
     (crc32, o)
+
+let write_diff_list8 initial : ('a -> 'a writer) -> ('b -> 'a list) -> ('b writer) =
+  fun w -> fun f -> fun b a ->
+    let os = f a
+    and b' = Buffer.create 255
+    and c = ref 0 in
+
+    List.fold_left (fun p e -> w p b' e; incr c; e) initial os;
+
+    assert ((!c) <= 0xFF);
+
+    const write_uint8 (!c) b ();
+    Buffer.add_buffer b b'
+and read_diff_list8 initial : ('a -> 'a reader) -> ('a list reader) =
+  fun r -> fun s o ->
+    let c = Char.code (String.get s o) in
+    let rec loop acc previous o' = function
+      | 0 -> (List.rev acc, o')
+      | n ->
+          let (v, o'') = r previous s o' in
+          loop (v :: acc) v o'' (pred n)
+    in
+    loop [] initial (succ o) c
 
 let write_list8: ('a writer) -> ('b -> 'a list) -> ('b writer) =
   fun w -> fun f -> fun b a ->

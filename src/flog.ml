@@ -54,12 +54,14 @@ let chr4 = '\004'
 
 let ($) a b = a b
 let id = fun x -> x
-let dot f g = fun x -> f $ g x
+let compose f g = fun x -> f $ g x
 
 module SerDes = struct
 
   let (>>) = Binary.(>>)
+  let (>>.) = Binary.(>>.)
   let (>>=) = Binary.(>>=)
+  let (>>=.) = Binary.(>>=.)
 
   (* Entry handling helpers *)
   let reader_envelope: ('a Binary.reader) -> ('a Binary.reader) =
@@ -176,14 +178,14 @@ module SerDes = struct
       Binary.const Binary.write_uint8 0 >>
 
       let item_writer =
-        Binary.write_string fst >>
-          write_pos (fun (_, p) -> pos_remap h p)
+        Binary.write_diff_string fst >>.
+        write_pos (fun (_, p) -> pos_remap h p)
       in
 
-      Binary.write_list8 item_writer id
+      Binary.write_diff_list8 ("", Inner 0) item_writer id
   and leaf_reader =
-    let item_reader =
-      Binary.read_string >>= fun k ->
+    let item_reader previous =
+      Binary.read_diff_string (fst previous) >>= fun k ->
       read_pos >>= fun p ->
       Binary.return (k, p)
     in
@@ -192,20 +194,20 @@ module SerDes = struct
     assert (t = leaf_tag);
     Binary.read_uint8 >>= fun o ->
     assert (o = 0);
-    Binary.read_list8 item_reader >>= fun kps ->
+    Binary.read_diff_list8 ("", Inner 0) item_reader >>= fun kps ->
     Binary.return $ Leaf kps
 
 
   let index_writer h =
     let item_writer =
       Binary.write_string fst >>
-        write_pos (dot (pos_remap h) snd)
+        write_pos (compose (pos_remap h) snd)
     in
 
     Binary.const Binary.write_char8 index_tag >>
       Binary.const Binary.write_uint8 0 >>
 
-      write_pos (dot (pos_remap h) fst) >>
+      write_pos (compose (pos_remap h) fst) >>
 
       Binary.write_list8 item_writer snd >>
       Binary.write_crc32 0 None
@@ -707,7 +709,7 @@ struct
           | Outer (Spindle 0, o) -> o
           | Outer (Spindle _, _) -> failwith "Non-0 spindle"
         in
-        let osnd = dot unpack_offset snd in
+        let osnd = compose unpack_offset snd in
         match e with
           | Value v -> (h'' + value_size v + 4, os')
           | Leaf rs ->

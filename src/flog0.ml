@@ -208,13 +208,30 @@ struct
     let kps = List.map (fun (s,p) -> (prefix ^s, p)) suffixes in
     kps
 
-  let inflate_leaf input = input_suffix_list input
+  let input_diff_list input =
+    let l = input_vint input in
+    if l = 0
+    then []
+    else
+      let kp0 = input_kp input in
+      let diffcodeds = input_list input (fun input ->
+        let prefix_length = input_vint input in
+        let k, p = input_kp input in
+        (prefix_length, k, p)) in
+      List.rev
+        (List.fold_left
+           (fun acc (shared, k,p) ->
+             let pk, _ = List.hd acc in
+             (String.sub pk 0 shared ^ k, p) :: acc) [kp0] diffcodeds)
+
+
+  let inflate_leaf input = input_diff_list input
 
 
   let inflate_index input =
     let s0 = input_vint input in
     let p0 = input_vint input in
-    let kps = input_suffix_list input in
+    let kps = input_diff_list input in
     Outer (Spindle s0, Offset p0), kps
 
   let input_entry input =
@@ -292,19 +309,43 @@ struct
       pos_remap mb h p)
       kps
 
+  let kps_to_diff mb h = function
+    | [] ->
+        vint_to mb 0;
+        ()
+    | (((k,p) as head)::t as kps) ->
+        let l = List.length kps in
+        vint_to mb l;
+        string_to mb k;
+        pos_remap mb h p;
+        (* TEMP *)
+        vint_to mb (l - 1);
+        ignore
+          (List.fold_left
+             (fun acc ((k,p) as kp) ->
+               let common_prefix_length = Leaf.shared_prefix_length [acc; kp] in
+               let kl = String.length k in
+               let len = kl - common_prefix_length in
+               vint_to mb common_prefix_length;
+               substring_to mb k common_prefix_length len;
+               pos_remap mb h p;
+               kp)
+             head
+             t);
+        ()
 
   let deflate_index b h (p0, kps) =
     let mb = Buffer.create 128 in
     tag_to mb INDEX;
     pos_remap mb h p0;
-    kps_to mb h kps;
+    kps_to_diff mb h kps;
     _add_buffer b mb
 
 
   let deflate_leaf b h kps =
     let mb = Buffer.create 128 in
     tag_to mb LEAF;
-    kps_to mb h kps;
+    kps_to_diff mb h kps;
     _add_buffer b mb
 
 
