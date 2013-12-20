@@ -2,7 +2,6 @@ open Lwt
 open OUnit
 
 open Tree
-open Test_helper
 open Base
 
 module MDB = DB(Mlog_lwt)

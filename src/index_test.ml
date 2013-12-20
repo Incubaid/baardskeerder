@@ -45,7 +45,9 @@ let t_suppress () =
     | NL (Outer (Spindle 0, Offset 14)) ->
         let z2 = Indexz.suppress L (out 0 17) None z in
         Printf.printf "z2= %s\n" (iz2s z2)
-    | _ -> failwith "should be NL 14"
+    | NL _
+    | NR _
+    | N2 _ -> failwith "should be NL 14"
 
 let t_suppress2 () =
   let z = (out 0 7,["d", out 0 8],[]) in
@@ -54,7 +56,8 @@ let t_suppress2 () =
     | NL (Outer (Spindle 0, Offset 7)) ->
         let z2 = Indexz.suppress L (out 0 17) None z in
         Printf.printf "index = %s\n" (iz2s z2)
-    | _ -> failwith "should be NL 7"
+    | NL _
+    | NR _ | N2 _ -> failwith "should be NL 7"
 
 let t_suppress3 () =
   let z = (out 0 0,["m", out 0 1; "g", out 0 2],["t", out 0 3]) in

@@ -33,8 +33,8 @@ let catchup1 () =
   in
   loop 11;
   let i0 = 0L in
-  let result = MCatchup.catchup i0 (fun acc i actions -> actions :: acc) [] mlog in
-  ()
+  let result = MCatchup.catchup i0 (fun acc _ actions -> actions :: acc) [] mlog in
+  ignore result
 
 
 let catchup2 () =
@@ -60,8 +60,8 @@ let catchup_doubles () =
   MCatchup.catchup 0L (fun acc i actions -> (actions,i)::acc) [] mlog >>= fun result ->
   let rresult = List.rev result in
   let action2s = function
-    | Base.Set(k,v) -> Printf.sprintf "SET(%S,%s)" k v
-    | _ -> "todo"
+    | Base.Set(k,v) -> Printf.sprintf "SET(%S,%S)" k v
+    | Base.Delete k -> Printf.sprintf "DELETE(%S)" k
   in
   print_newline();
   List.iter (fun (al,i) ->

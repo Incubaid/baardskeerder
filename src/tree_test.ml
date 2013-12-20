@@ -18,30 +18,27 @@
  *)
 
 open OUnit
-open QuickCheck
-
 open Tree
-open Base
 open Leaf
 open Entry
 
 module MDB = DB(Mlog)
 
-
-type 'a q = {
-  log:'a;
-  last:  'a  -> pos;
-  read:  'a  -> pos -> entry;
-  clear: 'a  -> unit;
-  set:   'a  -> k -> v -> unit;
-  get:   'a  -> k -> (v,k) result;
-  delete :'a -> k -> (unit,k) result;
-  dump   :?out:out_channel -> 'a -> unit;
+type 'a q =
+    {
+      log:'a;
+      last:  'a  -> Base.pos;
+      read:  'a  -> Base.pos -> entry;
+      clear: 'a  -> unit;
+      set:   'a  -> Base.k -> Base.v -> unit;
+      get:   'a  -> Base.k -> (Base.v,Base.k) Base.result;
+      delete :'a -> Base.k -> (unit,Base.k) Base.result;
+      dump   :?out:out_channel -> 'a -> unit;
 }
 
 let _ok_delete q a =
   let r = q.delete q.log a in
-  assert (r = OK ());
+  assert (r = Base.OK ());
   ()
 
 let mem_setup () =
@@ -67,7 +64,7 @@ let mem_wrap t = OUnit.bracket mem_setup t mem_teardown
 let check q kvs =
   List.iter (fun k ->
     let v = String.uppercase k in
-    let vo = OK v in
+    let vo = Base.OK v in
     OUnit.assert_equal vo (q.get q.log k)) kvs
 
 let check_empty q =
@@ -78,15 +75,16 @@ let check_empty q =
         let pos = Commit.get_pos c in
         let e = q.read q.log pos in
         OUnit.assert_equal e (Leaf [])
-    | _ -> failwith "last is not a commit entry"
+    | NIL | Value _ | Leaf _ | Index _ -> failwith "last is not a commit entry"
 
 
 let check_invariants (q: 'a q) =
   let rec max_key i =
     let n = q.read q.log i in
     match n with
-      | NIL           -> failwith "corrupt"
-      | Value _       -> failwith "corrupt"
+      | NIL
+      | Value _
+      | Commit _      -> failwith "corrupt"
       | Leaf leaf     -> leaf_max_key leaf
       | Index (p0,kps) ->
           let p =
@@ -104,6 +102,7 @@ let check_invariants (q: 'a q) =
     match n with
       | NIL -> ()
       | Value _ -> failwith "corrupt"
+      | Commit _ -> failwith "corrupt"
       | Leaf _ -> ()
       | Index (p0,kps) ->
           let rec loop p = function
@@ -122,11 +121,14 @@ let check_invariants (q: 'a q) =
   match n with
     | Commit c -> let pos = Commit.get_pos c in walk pos
     | NIL -> ()
-    | e -> let s = Printf.sprintf "did not expect:%s" (Entry.entry2s e) in
-           failwith s
+    | Leaf _
+    | Value _
+    | Index _
+      -> let s = Printf.sprintf "did not expect:%s" (Entry.entry2s n) in
+         failwith s
 
 let check_not q kvs =
-  List.iter (fun k -> OUnit.assert_equal (NOK k) (q.get q.log k)) kvs
+  List.iter (fun k -> OUnit.assert_equal (Base.NOK k) (q.get q.log k)) kvs
 
 
 
@@ -211,7 +213,7 @@ let insert_delete_bug2 q =
   List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs;
   _ok_delete q "a";
   let kvs' = List.filter ( (<>) "a") kvs in
-  List.iter (fun k -> let vo = OK (String.uppercase k) in
+  List.iter (fun k -> let vo = Base.OK (String.uppercase k) in
                       let vo2 = q.get q.log k in
                       OUnit.assert_equal vo vo2) kvs'
 
@@ -451,7 +453,7 @@ let qc_insert_lookup log = fun kvs ->
       then
         (a, ks)
       else
-        let vo = OK v in
+        let vo = Base.OK v in
         let vo' = MDB.get log k in
         (a && (vo' = vo), k :: ks)
     )
@@ -466,7 +468,7 @@ let qc_insert_delete log = fun kvs ->
       if List.mem k ks
       then ks
       else let r = MDB.delete log k in
-           assert (r = OK ());
+           assert (r = Base.OK ());
            k :: ks
     )
     kvs []
@@ -478,13 +480,15 @@ let qc_replace log = fun (k, vs) ->
   match vs with
     | [] -> begin
       let vo = MDB.get log k in
+      let open Base in
       match vo with
         | OK _  -> false
         | NOK _ -> true
     end
-    | _ -> MDB.get log k = OK (List.nth vs (List.length vs - 1))
+    | _ -> MDB.get log k = Base.OK (List.nth vs (List.length vs - 1))
 
 let qc_key_value_list =
+  let open QuickCheck in
   let ak = arbitrary_string
   and sk = show_string
   and av = arbitrary_string
@@ -497,17 +501,18 @@ let qc_key_value_list =
   testable_fun akvl skvl testable_bool
 
 let qc_key_value_list_tuple =
+  let open QuickCheck in
   testable_fun
     (arbitrary_pair arbitrary_string (arbitrary_list arbitrary_string))
     (show_pair show_string (show_list show_string))
     testable_bool
 
 let qc_wrap r t () =
-  match (quickCheck r) (fun a -> t (Mlog.make "mlog") a) with
-    | Success -> ()
-    | Failure n ->
+  match (QuickCheck.quickCheck r) (fun a -> t (Mlog.make "mlog") a) with
+    | QuickCheck.Success -> ()
+    | QuickCheck.Failure n ->
         assert_failure (Printf.sprintf "QuickCheck failed after %d tests" n)
-    | Exhausted n ->
+    | QuickCheck.Exhausted n ->
         skip_if true (Printf.sprintf "QuickCheck exhausted after %d runs" n)
 
 let qc_suite = "QuickCheck" >::: [

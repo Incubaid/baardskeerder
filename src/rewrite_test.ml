@@ -21,6 +21,7 @@ open Flog0
 open Rewrite
 open Tree
 open OUnit
+open Base_test
 
 module MMRewrite = Rewrite (Flog0) (Flog0) (Store.Memory)
 module LLog = Flog0(Store.Memory)
@@ -50,20 +51,20 @@ let test_presence () =
   let root0 = LLog.last m0 in
   LLog.init "m1" m0t >>= fun () ->
   LLog.make "m1" >>= fun m1 ->
-  MMRewrite.rewrite m0 root0 m1 >>= fun (Base.OK()) ->
+  MMRewrite.rewrite m0 root0 m1
+  >>= ok_or_fail >>= fun () ->
   let now = LLog.now m0 in
   let fut = Time.next_major now in
   let empty = Slab.make fut in
   M.iter
     (fun (k,v) ->
-      let vo = Base.OK v in
-      MDB._get m1 empty k >>= fun vo' -> return (OUnit.assert_equal vo' vo))
+     let vo = Base.OK v in
+     MDB._get m1 empty k >>= fun vo' -> return (OUnit.assert_equal vo' vo))
     kvs >>= fun () ->
   let m1t = LLog.now m1 in
   let s = Printf.sprintf "%s <> %s" (Time.time2s m0t) (Time.time2s m1t) in
   OUnit.assert_bool s (Time.same_major m0t m1t);
   return ()
-
 
 let suite = "Rewrite" >::: [
   "presence" >:: fun () -> test_presence ()

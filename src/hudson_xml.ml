@@ -96,6 +96,6 @@ let process result =
 
 
 let run_test suite =
-  let cb _ _ = () in
+  let cb _ = () in
   let result = OUnit.perform_test cb suite in
   process result

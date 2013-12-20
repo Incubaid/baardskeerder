@@ -8,6 +8,7 @@ module MDBX = DBX(Mlog)
 module MPrefix = Prefix(Mlog)
 
 open Base
+open Base_test
 
 let (>>=) = Mlog.bind
 let printer r = Pretty.string_of_list (fun s -> s) r
@@ -30,7 +31,8 @@ let prefix_keys () =
           else
             let k = Printf.sprintf "a%03i" i in
             let v = "x" in
-            _ok_set tx k v >>= fun (OK()) ->
+            _ok_set tx k v
+            >>= ok_or_fail >>= fun () ->
             loop (i+1)
         in
         loop 0)

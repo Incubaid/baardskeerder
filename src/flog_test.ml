@@ -27,7 +27,7 @@ open Base
 
 module MyFlog = Flog(Store.Sync)
 
-open MyFlog
+
 
 let test_uintN wf rf l n () =
   let m = 0x40000000 - 1 in
@@ -148,28 +148,28 @@ let with_tempfile f = fun () ->
     raise e
 
 let test_database_create fn =
-  init fn Time.zero;
+  MyFlog.init fn Time.zero;
   let s = Unix.stat fn in
   OUnit.assert_equal (s.st_size = 2 * 4096)
 
 let test_database_make fn =
-  let () = init fn Time.zero in
-  let db = make fn in
-  close db
+  let () = MyFlog.init fn Time.zero in
+  let db = MyFlog.make fn in
+  MyFlog.close db
 
 
 module FDB = DB(MyFlog)
 
 let with_database f =
   let f' fn =
-    init fn Time.zero;
-    let db = make fn in
+    MyFlog.init fn Time.zero;
+    let db = MyFlog.make fn in
 
     try
       f fn db;
-      close db
+      MyFlog.close db
     with e ->
-      close db;
+      MyFlog.close db;
       raise e
   in
   with_tempfile f'
@@ -218,7 +218,7 @@ let test_database_reopen fn db =
 
   MyFlog.close db;
 
-  let db' = make fn in
+  let db' = MyFlog.make fn in
   let my_get k = FDB.get db'  k in
   let vo1' = my_get k1
   and vo2' = my_get k2 in
@@ -226,7 +226,7 @@ let test_database_reopen fn db =
   OUnit.assert_equal (OK v1) vo1';
   OUnit.assert_equal (OK v2) vo2';
 
-  close db'
+  MyFlog.close db'
 
 let test_database_sync fn db =
   let k = "foo"
@@ -241,12 +241,12 @@ let test_database_sync fn db =
   let vo = OK v in
   OUnit.assert_equal (my_get k) vo;
 
-  close db;
+  MyFlog.close db;
 
-  let db' = make fn in
+  let db' = MyFlog.make fn in
   OUnit.assert_equal (FDB.get db' k) vo;
 
-  close db'
+  MyFlog.close db'
 
 let database =
   "database" >::: [
@@ -286,12 +286,12 @@ let test_compaction_basic fn db =
 
   MyFlog.compact ~min_blocks:1 db;
 
-  close db;
+  MyFlog.close db;
 
-  let db' = make fn in
+  let db' = MyFlog.make fn in
   let my_get k = FDB.get db' k in
   OUnit.assert_equal (my_get "foo") (OK "bal");
-  close db';
+  MyFlog.close db';
 
   dump_fiemap fn
 

@@ -25,8 +25,10 @@ module MDBX = DBX(Mlog)
 module MDB = DB(Mlog)
 module MPR = Prefix(Mlog)
 open Base
+open Base_test
 
 let (>>=) = Mlog.bind
+
 
 let _setup () =
   let fn = "bla" in
@@ -39,9 +41,10 @@ let _ok_set tx k v =
 
 let get_after_delete () =
   let mlog = _setup() in
-  let r0 = MDBX.with_tx mlog (fun tx -> _ok_set tx "a" "A") in
+  let _ = MDBX.with_tx mlog (fun tx -> _ok_set tx "a" "A") in
   let test tx =
-    MDBX.delete tx "a" >>= fun (OK ()) ->
+    MDBX.delete tx "a"
+    >>= ok_or_fail >>= fun () ->
     MDBX.get tx "a" >>= fun r ->
     Mlog.return r
   in
@@ -54,7 +57,7 @@ let get_after_log_update () =
   let mlog = _setup () in
   let k = "a"
   and v = "A" in
-  let r0 = MDBX.log_update mlog (fun tx -> _ok_set tx k v) in
+  let _ = MDBX.log_update mlog (fun tx -> _ok_set tx k v) in
   let test = MDB.get mlog k in
   OUnit.assert_equal (NOK k) test
 
@@ -62,9 +65,12 @@ let get_after_log_updates() =
   let mlog = _setup() in
   let k = "a"
   and v = "A" in
-  MDBX.log_update mlog (fun tx-> _ok_set tx k v) >>= fun (OK()) ->
-  MDBX.log_update mlog ~diff:false (fun tx -> _ok_set tx "a" "v1") >>= fun (OK())->
-  MDBX.log_update mlog ~diff:false (fun tx -> _ok_set tx "a" "v2") >>= fun (OK())->
+  MDBX.log_update mlog (fun tx-> _ok_set tx k v)
+  >>= ok_or_fail >>= fun () ->
+  MDBX.log_update mlog ~diff:false (fun tx -> _ok_set tx "a" "v1")
+  >>= ok_or_fail >>= fun () ->
+  MDBX.log_update mlog ~diff:false (fun tx -> _ok_set tx "a" "v2")
+  >>= ok_or_fail >>= fun () ->
   let test = MDB.get mlog k in
   Mlog.dump mlog;
   OUnit.assert_equal (NOK k) test
@@ -73,7 +79,8 @@ let update_commit_get() =
   let mlog = _setup() in
   let k = "a" in
   let v = "A" in
-  MDBX.log_update mlog (fun tx -> _ok_set tx k v) >>= fun (OK()) ->
+  MDBX.log_update mlog (fun tx -> _ok_set tx k v)
+  >>= ok_or_fail >>= fun () ->
   MDBX.commit_last mlog >>= fun () ->
   Mlog.dump mlog;
   MDB.get mlog k >>= fun vo2 ->
@@ -87,7 +94,7 @@ let delete_empty () =
 
 let delete_prefix () =
   let mlog = _setup () in
-  MDBX.with_tx mlog
+  let _ = MDBX.with_tx mlog
     (fun tx ->
       let rec loop i =
         if i = 16
@@ -95,11 +102,13 @@ let delete_prefix () =
         else
           let k = Printf.sprintf "a%03i" i in
           let v = "X" in
-          _ok_set tx k v >>= fun (OK()) ->
+          _ok_set tx k v
+          >>= ok_or_fail >>= fun () ->
           loop (i+1)
       in
       loop 0
-    );
+    )
+  in
   let prefix = "a00" in
   MDBX.with_tx mlog (fun tx ->
     MDBX.delete_prefix tx prefix
@@ -107,13 +116,13 @@ let delete_prefix () =
   >>= function
     | OK c -> OUnit.assert_equal ~printer:string_of_int 10 c
     | NOK _ -> failwith "can't happen"
-        ()
+
 
 
 let log_nothing () =
   let mlog = _setup() in
   let ok = OK () in
-  let x = MDBX.log_update mlog (fun tx -> Mlog.return ok) in
+  let x = MDBX.log_update mlog (fun _ -> Mlog.return ok) in
   OUnit.assert_equal ok x;
   ()
 
@@ -122,13 +131,13 @@ let log_bug2() =
   let mlog = _setup() in
   let _ = MDBX.log_update mlog (fun tx -> _ok_set tx "k" "v") in
   let ok = OK () in
-  let ok2 = MDBX.log_update mlog (fun tx -> Mlog.return ok) in
+  let _ = MDBX.log_update mlog (fun _ -> Mlog.return ok) in
   ()
 
 let log_bug3() =
   let mlog = _setup () in
   let _ = MDBX.log_update mlog ~diff:true (fun tx -> _ok_set tx "x" "X") in
-  let _ = MDBX.log_update mlog ~diff:true (fun tx -> Mlog.return (OK ())) in
+  let _ = MDBX.log_update mlog ~diff:true (fun _  -> Mlog.return (OK ())) in
   MDBX.commit_last mlog >>= fun () ->
   Mlog.dump mlog;
   MDB.get mlog "x" >>= fun r ->
