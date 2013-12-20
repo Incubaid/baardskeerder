@@ -53,13 +53,13 @@ let make2 ?(n_spindles = 4) (_:string) now = { spindles=make_spindles n_spindles
 let make (s:string) = make2 s Time.zero
 
 let write (t:t) (slab:Slab.t) =
-  let sp = Spindle t.current_spindle
+  let sp = t.current_spindle
   and s = Array.get t.spindles t.current_spindle in
 
   let off = s.next in
   let externalize_pos = function
     | (Outer _) as p -> p
-    | Inner i -> Outer (sp, (Offset (i + off)))
+    | Inner i -> Outer (sp, i + off)
   in
   let externalize_cactions xs =
     let externalize_caction = function
@@ -113,14 +113,14 @@ let last t =
     else j
   in
   let s = Array.get t.spindles i in
-  Outer (Pos.Spindle i, Offset (s.next - 1))
+  Outer (i, s.next - 1)
 
 
 
 let size (_:entry) = 1
 
 let read t = function
-  | Outer (Spindle s, Offset o) ->
+  | Outer (s, o) ->
       if o < 0
       then NIL
       else Array.get (Array.get t.spindles s).es o

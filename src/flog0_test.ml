@@ -88,11 +88,11 @@ let pu_commit() =
   let b = Buffer.create 128 in
   let h = Hashtbl.create 7 in
   let pos = out 0 0
-  and actions = [Commit.CSet ("set0", Outer (Spindle 0, Offset 0));
-                 Commit.CSet ("set1", Outer (Spindle 0, Offset 1));
+  and actions = [Commit.CSet ("set0", Outer (0, 0));
+                 Commit.CSet ("set1", Outer (0, 1));
                  Commit.CDelete "delete0" ]
   and now = Time.make 1L 2 false in
-  let previous = Outer (Spindle 0, Offset 0) in
+  let previous = Outer (0, 0) in
   let lookup = pos in
   let c0 = Commit.make_commit ~pos ~previous ~lookup now actions true in
   let () = Printf.printf "com=%s\n" (Commit.commit2s c0) in
@@ -113,23 +113,17 @@ let test_metadata () =
     | None -> ();
         let md = "metadata, oh metadata!" in
         MF.set_metadata db md;
-
         MF.close db;
-
         let db = MF.make "test_metadata.db" in
         match MF.get_metadata db with
           | None -> OUnit.assert_failure "Didn't find metadata"
           | Some v -> OUnit.assert_equal v md;
-
               MF.unset_metadata db;
-
               match MF.get_metadata db with
                 | Some _ -> OUnit.assert_failure "Found metadata after unset"
                 | None -> ();
-
-                    MF.close db;
-
-                    Unix.unlink "test_metadata.db"
+                          MF.close db;
+                          Unix.unlink "test_metadata.db"
 
 
 let test_remake () =
@@ -139,7 +133,7 @@ let test_remake () =
   let slab = Slab.make Time.zero in
   let p0 = Slab.add_value slab "value0" in
   let p1 = Slab.add_leaf  slab  ["key0", p0] in
-  let nil = Outer (Spindle 0, Offset 0) in
+  let nil = Outer (0, 0) in
   let commit = Commit.make_commit
     ~pos:p1 ~previous:nil ~lookup:nil Time.zero [Commit.CSet ("key0", Inner 0)] false
   in
@@ -148,7 +142,8 @@ let test_remake () =
   (* deliberately don't close: metadata is out of date *)
   let log2 = MF.make fn in
   let last = MF.last log2 in
-  OUnit.assert_bool "last should not point to beginning of log" (last <> Outer (Spindle 0, Offset 0));
+  OUnit.assert_bool "last should not point to beginning of log"
+                    (last <> Outer (0, 0));
   Unix.unlink fn
 
 

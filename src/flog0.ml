@@ -49,11 +49,11 @@ struct
     let k = Pack.input_string input in
     let s = Pack.input_vint input in
     let p = Pack.input_vint input in
-    k, Outer (Spindle s, Offset p)
+    k, Outer (s, p)
 
 
   let pos_to b = function
-    | Outer (Spindle s, Offset o) -> Pack.vint_to b s; Pack.vint_to b o
+    | Outer (s, o) -> Pack.vint_to b s; Pack.vint_to b o
     | Inner _ -> failwith "cannot serialize inner pos"
 
   let kp_to b (k,p) =
@@ -76,14 +76,14 @@ struct
   }
 
   let metadata2s m =
-    let (Spindle s, Offset o) = m.commit in
+    let (s, o) = m.commit in
     Printf.sprintf "{commit=(%i,%i);td=%i;t0=%s}" s o m.td (Time.time2s m.t0)
 
 
 
   let _write_metadata fd m =
     let b = Buffer.create 128 in
-    let (Spindle s, Offset o) = m.commit in
+    let s, o = m.commit in
     let () = Pack.vint_to b s in
     let () = Pack.vint_to b o in
     let () = Pack.vint_to b m.td in
@@ -99,7 +99,7 @@ struct
     let input = Pack.make_input m 0 in
     let s = Pack.input_vint input in
     let o = Pack.input_vint input in
-    let commit = (Spindle s, Offset o) in
+    let commit = s, o in
     let td = Pack.input_vint input in
     let t0 = input_time input in
     return {commit; td;t0}
@@ -117,24 +117,21 @@ struct
   let get_d t = t.d
 
   let t2s t =
-    let (Spindle ls, Offset lo) = t.last in
+    let ls, lo = t.last in
     let sp = Array.get t.spindles t.next_spindle in
     Printf.sprintf "{...;last=(%i,%i); next=(%i,%i);now=%s}" ls lo t.next_spindle (S.next sp)
       (Time.time2s t.now)
 
-  let last t = let s, o = t.last in Outer (s, o)
-
-
+  let last t = let s, o = t.last in Outer (s,o)
 
   let now t = t.now
-
 
   let close t =
     let meta = {commit = t.last; td = t.d; t0 = t.start} in
     M.iter_array (fun s -> _write_metadata s meta >>= fun () -> S.close s) t.spindles
 
   let clear t =
-    let commit = (Spindle 0, Offset 0) in
+    let commit = (0, 0) in
     let meta = {commit;
                 td = t.d;
                 t0 = Time.zero;
@@ -180,7 +177,7 @@ struct
       | 'S' -> let k = input_string input in
                let s = input_vint input in
                let p = input_vint input in
-               Commit.CSet (k, Outer (Spindle s, Offset p))
+               Commit.CSet (k, Outer (s, p))
       | t   -> let s = Printf.sprintf "%C action?" t in failwith s
 
 
@@ -188,7 +185,7 @@ struct
   let inflate_pos input =
     let s = Pack.input_vint input in
     let p = Pack.input_vint input in
-    Outer (Spindle s, Offset p)
+    Outer (s, p)
 
   let inflate_commit input =
     let pos = inflate_pos input in
@@ -212,10 +209,10 @@ struct
 
 
   let inflate_index input =
-    let s0 = input_vint input in
+    let _ = input_vint input in (* spindle *)
     let p0 = input_vint input in
     let kps = input_suffix_list input in
-    Outer (Spindle s0, Offset p0), kps
+    Outer (0, p0), kps
 
   let input_entry input =
     match input_tag input with
@@ -271,11 +268,9 @@ struct
 
   let pos_remap mb h p =
     let (s, o) = match p with
-      | Outer (Spindle s, Offset o) -> (s, o)
+      | Outer (s, o) -> (s, o)
       | Inner x when x = -1-> (0,0) (* TODO: don't special case with -1 *)
-      | Inner x ->
-          let (Spindle s, Offset o) = Hashtbl.find h x in
-          (s, o)
+      | Inner x -> Hashtbl.find h x
     in
     vint_to mb s;
     vint_to mb o
@@ -359,7 +354,7 @@ struct
       let start = Array.get starts sid' in
 
       let size = deflate_entry (Array.get buffers sid') h e in
-      let () = Hashtbl.replace h i (Spindle sid', Offset !start) in
+      let () = Hashtbl.replace h i (sid', !start) in
 
       let () = start := !start + size in
 
@@ -436,7 +431,7 @@ struct
 
   let read t pos =
     match pos with
-      | Outer (Spindle s, Offset o) ->
+      | Outer (s, o) ->
           if ((s = 0) && (o = 0))
           then return NIL
           else
@@ -467,7 +462,7 @@ struct
     S.init fn >>= fun s ->
     if S.next s = 0
     then
-      let commit = (Spindle 0, Offset 0) in
+      let commit = (0, 0) in
       _write_metadata s {commit;td = d; t0} >>= fun () ->
       S.close s
     else
@@ -494,7 +489,7 @@ struct
       with End_of_file -> return None
     in
     let rec _scan_forward lt (tbr:int) =
-      if tbr = next_free 
+      if tbr = next_free
       then
         S.return lt
       else
@@ -506,11 +501,11 @@ struct
                   let input = make_input es 0 in
                   let e = input_entry input in
                   let next = tbr + 4 + String.length es in
-                  let lt' = 
+                  let lt' =
                     match e with
                       | Commit c ->
                         let time = Commit.get_time c in
-                        (Spindle 0, Offset tbr), time
+                        (0, tbr), time
                       | e -> lt
                   in
                   _scan_forward lt' next
@@ -519,10 +514,10 @@ struct
             | None -> S.return lt
         end
     in
-    let (_,Offset tbr) = m.commit in
+    let (_,tbr) = m.commit in
     let corrected_tbr = max _METADATA_SIZE tbr in
 
-    _scan_forward ((Spindle 0, Offset 0),m.t0) corrected_tbr >>= fun (last, now) ->
+    _scan_forward ((0, 0),m.t0) corrected_tbr >>= fun (last, now) ->
     let flog0 = { spindles=spindles;
                   last=last;
                   next_spindle=0;

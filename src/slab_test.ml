@@ -25,7 +25,7 @@ open Pos
 let es =
   let pos = Inner 25 in
   let t0 = Time.make 1L 2 false in
-  let previous = Outer (Spindle 0, Offset (-1)) in
+  let previous = Outer (0, (-1)) in
   let lookup = pos in
   [|
     Value "xxxxx";

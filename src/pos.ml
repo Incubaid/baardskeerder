@@ -17,17 +17,17 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-type spindle = Spindle of int
-type offset = Offset of int
+type spindle = int
+type offset = int
 
 type pos =
   | Outer of spindle * offset
   | Inner of int
 
-let out s o = Outer (Spindle s, Offset o)
+let out s o = Outer (s, o)
 
 let pos2s = function
-  | Outer (Spindle s, Offset o) -> Printf.sprintf "Outer (%d, %d)" s o
+  | Outer (s, o) -> Printf.sprintf "Outer (%d, %d)" s o
   | Inner p -> Printf.sprintf "Inner %i" p
 
 let next = function

@@ -271,7 +271,7 @@ let () =
           MyLog.make !fn >>= fun l0 ->
           let cb =
             let l = ref 0 in
-            fun (Pos.Offset t) (Pos.Offset d) ->
+            fun t d ->
               if !l = 0 then (l := t) else ();
               if (!l - d) >= (t / 20)
               then begin

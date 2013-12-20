@@ -28,7 +28,7 @@ module OffsetEntryCache = Entrycache.Make(
     type k = Pos.pos
     type v = Entry.entry
 
-    let create _ = (Outer (Spindle 0, Offset 0), NIL)
+    let create _ = (Outer (0, 0), NIL)
   end)
 
 
@@ -89,8 +89,8 @@ module SerDes = struct
     Binary.write_literal metadata_prefix >>
       Binary.const Binary.write_uint8 metadata_version >>
       Binary.write_uint32 (fun md -> md.md_blocksize) >>
-      Binary.write_uint8 (fun md -> let (Spindle s) = md.md_spindle in s) >>
-      Binary.write_uint64 (fun md -> let (Offset o) = md.md_offset in o) >>
+      Binary.write_uint8  (fun md -> md.md_spindle) >>
+      Binary.write_uint64 (fun md -> md.md_offset) >>
       Binary.write_uint32 (fun md -> md.md_count) >>
       Binary.write_uint32 (fun md -> md.md_d) >>
       Binary.write_literal metadata_suffix >>
@@ -111,11 +111,11 @@ module SerDes = struct
     Binary.read_crc32 >>= fun crc32' ->
     if crc32' <> crc32
     then Binary.return None
-    else Binary.return $ Some { md_blocksize=md_blocksize;
-                                md_spindle=Spindle md_spindle;
-                                md_offset=Offset md_offset;
-                                md_count=md_count;
-                                md_d=md_d;
+    else Binary.return $ Some { md_blocksize;
+                                md_spindle;
+                                md_offset;
+                                md_count;
+                                md_d;
                               }
 
 
@@ -123,13 +123,13 @@ module SerDes = struct
     fun f -> fun b a ->
       match f a with
         | Inner _ -> failwith "Flog.write_pos: Inner"
-        | Outer (Spindle s, Offset o) ->
+        | Outer (s, o) ->
             Binary.write_uint8 (fun () -> s) b ();
             Binary.write_uint64 (fun () -> o) b ()
   and read_pos =
     Binary.read_uint8 >>= fun s ->
     Binary.read_uint64 >>= fun o ->
-    Binary.return $ Outer (Spindle s, Offset o)
+    Binary.return $ Outer (s,o)
 
   (* Entry handling *)
   let value_tag = chr1
@@ -148,7 +148,7 @@ module SerDes = struct
     read_pos >>= fun pos ->
     let i = Time.zero
     and a = []
-    and previous = Outer (Spindle 0, Offset (-2)) in
+    and previous = Outer (0, (-2)) in
     let lookup = pos in
     let explicit = false in
     let c = Commit.make_commit ~pos ~previous ~lookup i a explicit in
@@ -280,9 +280,9 @@ struct
     S.with_fd fd Posix.fstat_blksize >>= fun b ->
 
     let metadata1, b1 = serialize_metadata
-      { md_blocksize=b; md_spindle=Spindle 0; md_offset=Offset 0; md_count=0; md_d = d }
+      { md_blocksize=b; md_spindle=0; md_offset= 0; md_count=0; md_d = d }
     and metadata2, b2 = serialize_metadata
-      { md_blocksize=b; md_spindle=Spindle 0; md_offset=Offset 0; md_count=1; md_d = d }
+      { md_blocksize=b; md_spindle=0; md_offset= 0; md_count=1; md_d = d }
     in
 
     S.with_fd fd
@@ -365,7 +365,7 @@ struct
     let ks = Posix.fallocate_FALLOC_FL_KEEP_SIZE ()
     and extent = 1024 * 1024 * 512 (* 512 MB *) in
 
-    fun fd (Offset offset) ->
+    fun fd offset ->
       S.with_fd fd
         (fun fd ->
           Posix.fallocate fd ks offset extent;
@@ -420,9 +420,9 @@ struct
         offset
       ) >>= fun offset ->
 
-    extend_file fd (Offset offset) >>= fun extent ->
+    extend_file fd offset >>= fun extent ->
 
-    let (Offset s) =
+    let s =
       if md1.md_count > md2.md_count
       then md1.md_offset
       else md2.md_offset
@@ -435,13 +435,14 @@ struct
 
     let cache = OffsetEntryCache.create 32 in
 
-    return { fd=fd;
-             offset=Offset offset; commit_offset=Offset last;
+    return { fd;
+             offset;
+             commit_offset=last;
              closed=false;
              last_metadata=0; metadata=(md1, md2); space_left=extent;
              d = md1.md_d;
-             cache=cache;
-             now = now;
+             cache;
+             now;
            }
 
   let get_d (t:t) = t.d
@@ -469,7 +470,7 @@ struct
     let b = Buffer.create 1024 in
     let sl = Slab.length slab in
     let h = Hashtbl.create sl in
-    let start = ref (let Offset o = t.offset in o) in
+    let start = ref t.offset in
     let rec do_one i e =
       begin
         let s = serialize_entry h e in
@@ -477,7 +478,7 @@ struct
         let () = Buffer.add_string b marker' in
         let () = Buffer.add_string b s in
           (* TODO Not multi-spindle compatible! *)
-        let pos = Outer (Spindle 0, Offset !start) in
+        let pos = Outer (0, !start) in
         let () = Hashtbl.replace h i pos in
         let () = start := !start + size in
         ()
@@ -500,13 +501,13 @@ struct
 (* TODO Not multi-spindle compatible! *)
     let co = match cp with
       | Inner _ -> failwith "Flog.write: Inner"
-      | Outer (Spindle 0, Offset o) -> Offset o
-      | Outer (Spindle _, Offset _) -> failwith "Flog.write: Invalid spindle"
+      | Outer (0, off) -> off
+      | Outer (_,_) -> failwith "Flog.write: Invalid spindle"
     in
 
     S.append t.fd s 0 l >>= fun _ ->
     t.commit_offset <- co;
-    t.offset <- Offset (let Offset o = t.offset in o + l);
+    t.offset <- t.offset + l;
     t.space_left <- t.space_left - l;
 
 (* TODO We might want to List.rev slab.es, if slabs get > cache.s big *)
@@ -517,11 +518,11 @@ struct
     return ()
 
 (* TODO Not multi-spindle compatible! *)
-  let last t = Outer (Spindle 0, t.commit_offset)
+  let last t = Outer (0, t.commit_offset)
 
 
   let read t pos =
-    if pos = Outer (Spindle 0, Offset 0) then return NIL
+    if pos = Outer (0, 0) then return NIL
     else
       match OffsetEntryCache.get t.cache pos with
         | Some e -> return e
@@ -530,8 +531,8 @@ struct
         (* TODO Not multi-spindle compatible! *)
               let pos' = match pos with
                 | Inner _ -> failwith "Flog.read: Inner"
-                | Outer (Spindle 0, Offset o) -> o
-                | Outer (Spindle _ , Offset _) -> failwith "Flog.read: Invalid spindle"
+                | Outer (0, off) -> off
+                | Outer (_ , _) -> failwith "Flog.read: Invalid spindle"
               in
 
               S.read t.fd pos' 9 >>= fun s ->
@@ -605,7 +606,7 @@ struct
     then return ()
     else begin
       S.fsync db.fd >>= fun () ->
-      S.with_fd db.fd (fun fd -> Unix.ftruncate fd (let Offset o = db.offset in o))
+      S.with_fd db.fd (fun fd -> Unix.ftruncate fd db.offset )
       >>= fun () ->
       S.close db.fd >>= fun () ->
       db.closed <- true;
@@ -686,14 +687,13 @@ struct
 
       let os = s.cs_entries
       and n = s.cs_offset in
-      let n' = (let Offset o = n in o) in
-
+      let n' = n in
       let h' = OffsetSet.max_elt os in
-      let h'' = (let Offset o = h' in o) in
+      let h'' = h'  in
       let os' = OffsetSet.remove h' os in
 
     (* TODO This is not multi-spindle compatible! *)
-      read l (Outer (Spindle 0, h')) >>= fun e ->
+      read l (Outer (0, h')) >>= fun e ->
 
       let do_punch =
         if mb = 0 then do_punch_always
@@ -704,8 +704,8 @@ struct
       let (e', os'') =
         let unpack_offset = function
           | Inner _ -> failwith "Inner"
-          | Outer (Spindle 0, o) -> o
-          | Outer (Spindle _, _) -> failwith "Non-0 spindle"
+          | Outer (0, off) -> off
+          | Outer (_, _) -> failwith "Non-0 spindle"
         in
         let osnd = dot unpack_offset snd in
         match e with
@@ -724,7 +724,7 @@ struct
       let cb i =
         match pc with
           | None -> ()
-          | Some fn -> fn (l.offset) (Offset i)
+          | Some fn -> fn (l.offset) i
       in
 
       cb e';
@@ -748,16 +748,16 @@ struct
     and o = t.commit_offset in
 
   (* TODO This is not multi-spindle compatible! *)
-    read t (Outer (Spindle 0, o)) >>= function
+    read t (Outer (0, o)) >>= function
       | Commit c ->
           let r = Commit.get_pos c in
     (* TODO This is not multi-spindle compatible! *)
           let p = match r with
             | Inner _ -> failwith "Flog.compact: Inner"
-            | Outer (Spindle 0, Offset o) -> o
-            | Outer (Spindle _, Offset _) -> failwith "Flog.compact: Invalid spindle"
+            | Outer (0, off) -> off
+            | Outer (_, _) -> failwith "Flog.compact: Invalid spindle"
           in
-          compact' t pc mb b' { cs_offset=o; cs_entries=OffsetSet.singleton $ Offset p; }
+          compact' t pc mb b' { cs_offset=o; cs_entries=OffsetSet.singleton p; }
       | NIL ->
           failwith "Flog.compact: read NIL iso commit entry"
       | Leaf _ | Value _ | Index _ ->
