@@ -35,7 +35,7 @@ let _ = dispatch & function
         (S[
           A"-ccopt"; A"-Wall";
           A"-ccopt"; A"-Wextra";
-          A"-ccopt"; A"-Werror";
+          (*A"-ccopt"; A"-Werror";*)
           A"-ccopt"; A"-O3";
         ]);
       flag ["ocaml"; "use_libbaardskeerder"; "link"; "library"; "byte"] &
