@@ -59,7 +59,7 @@ struct
     let s' =
       if o + l < sl
       then s
-      else s ^ (String.create (o + l - sl))
+      else s ^ (Bytes.create (o + l - sl))
     in
 
     String.blit d p s' o l;
@@ -110,7 +110,7 @@ struct
   let next (T (_, o)) = !o
 
   let read (T (fd, _)) o l =
-    let s = String.create l in
+    let s = Bytes.create l in
     Posix.pread_into_exactly fd s l o;
     return s
 
@@ -182,7 +182,7 @@ struct
   let next (T (_, o)) = !o
 
   let read (T (fd, _)) o l =
-    let s = String.create l in
+    let s = Bytes.create l in
 
     let rec loop o' = function
       | 0 -> return ()
@@ -207,7 +207,7 @@ struct
     in
     loop p o l
 
-  let append (T (fd, o) as t) d p l =
+  let append (T (_fd, o) as t) d p l =
     let o' = !o in
 
     write t d p l o' >>= fun () ->

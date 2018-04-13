@@ -1,18 +1,8 @@
-let size_from s pos =
-  let byte_of i= Char.code s.[pos + i] in
-  let b0 = byte_of 0
-  and b1 = byte_of 1
-  and b2 = byte_of 2
-  and b3 = byte_of 3 in
-  let result = b0 lor (b1 lsl 8) lor (b2 lsl 16) lor (b3 lsl 24)
-  in result
+external _set32_prim : string -> int -> int32 -> unit = "%caml_string_set32"
+external _get32_prim : string -> int -> int32 = "%caml_string_get32"
 
-let set_size s size =
-  s.[0] <- Char.unsafe_chr  (size land 0xff);
-  s.[1] <- Char.unsafe_chr ((size land 0xff00) lsr    8);
-  s.[2] <- Char.unsafe_chr ((size land 0xff0000) lsr 16);
-  s.[3] <- Char.unsafe_chr ((size land 0xff000000) lsr 24)
-
+let size_from s pos = _get32_prim s pos |> Int32.to_int
+let set_size (b:Bytes.t) size = Int32.of_int size |>_set32_prim b 0
 
 module Pack = struct
 

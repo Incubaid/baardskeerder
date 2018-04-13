@@ -25,7 +25,6 @@ open Entry
 open Base
 open Leaf
 open Index
-open Slab
 
 module DB = functor (L:LOG ) -> struct
 
@@ -40,18 +39,18 @@ module DB = functor (L:LOG ) -> struct
     let rec descend pos =
       _read pos >>= fun e ->
       match e with
-        | NIL -> return (NOK k)
-        | Value v -> return (OK v)
+        | NIL -> return (Error k)
+        | Value v -> return (Ok v)
         | Leaf l -> descend_leaf l
         | Index i -> descend_index i
         | Commit _ -> let msg = Printf.sprintf "descend reached a second commit %s" (Pos.pos2s pos) in
                       failwith msg
     and descend_leaf = function
-      | [] -> return (NOK k)
+      | [] -> return (Error k)
       | (k0,p0) :: t ->
           if k= k0 then descend p0 else
             if k > k0 then descend_leaf t
-            else return (NOK k)
+            else return (Error k)
     and descend_index (p0, kps) =
       let rec loop pi = function
         | []                       -> pi
@@ -68,7 +67,7 @@ module DB = functor (L:LOG ) -> struct
         L.read t pos >>= fun e ->
         match e with
           | Commit c -> descend (Commit.get_lookup c)
-          | NIL -> return (NOK k)
+          | NIL -> return (Error k)
           | Index _ | Leaf _ | Value _ -> failwith "descend_root does not start at appropriate level"
       else
         let pos = Slab.last slab in
@@ -483,10 +482,10 @@ module DB = functor (L:LOG ) -> struct
     in
     descend_root () >>= fun trail_o ->
     match trail_o with
-      | None       -> return (NOK k)
+      | None       -> return (Error k)
       | Some trail -> let start = Slab.next slab in
                       delete_start slab start trail >>= fun (rp':pos) ->
-                      return (OK rp')
+                      return (Ok rp')
 
 
   let delete (t:L.t) k =
@@ -494,15 +493,15 @@ module DB = functor (L:LOG ) -> struct
     let fut = Time.next_major now in
     let slab = Slab.make fut in
     _delete t slab k >>= function
-      | OK (pos:pos) ->
+      | Ok (pos:pos) ->
           let caction = Commit.CDelete k in
           let previous = L.last t in
           let lookup = pos in
           let commit = Commit.make_commit ~pos ~previous ~lookup fut [caction] false in
           let _ = Slab.add_commit slab commit in
           L.write t slab >>= fun () ->
-          return (OK ())
-      | NOK k -> return (NOK k)
+          return (Ok ())
+      | Error k -> return (Error k)
 
 
   let _range t
@@ -603,9 +602,10 @@ module DB = functor (L:LOG ) -> struct
   let range_entries (t:L.t) (first: k option) (finc:bool) (last:k option) (linc:bool) (max:int option) =
     let acc = ref [] in
     let f k vpos =
-      L.read t vpos >>= function
-        | Value v -> let () = acc := (k,v)::!acc in return ()
-        | _ -> failwith "should be value"
+      L.read t vpos >>= fun e ->
+      let v = get_value e in
+      let () = acc := (k,v)::!acc in
+      return ()
     in
     _range t first finc last linc max f >>= fun _ ->
     return (List.rev !acc)
@@ -711,10 +711,7 @@ module DB = functor (L:LOG ) -> struct
           | Some c -> count' < c
         in
         L.read t o >>= fun entry ->
-        let v = match entry with
-          | Entry.Value v -> v
-          | _ -> failwith "Not a value"
-        in
+        let v = get_value entry in
         return (cont, (count', (k,v)::acc))
       end
     in
@@ -724,8 +721,8 @@ module DB = functor (L:LOG ) -> struct
   let confirm (t:L.t) (s:Slab.t) k v =
     let set_needed () =
       _get t s k >>= function
-        | NOK _   -> return true
-        | OK vc   -> return (vc <> v)
+        | Error _   -> return true
+        | Ok vc   -> return (vc <> v)
     in
     set_needed () >>= fun sn ->
     if sn

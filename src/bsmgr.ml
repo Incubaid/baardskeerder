@@ -152,8 +152,8 @@ let () =
       else
         let key = make_key i in
         delete key >>= function
-        | Base.OK () -> loop (i+1)
-        | Base.NOK k -> failwith (Printf.sprintf "%s not found" k)
+        | Ok () -> loop (i+1)
+        | Error k -> failwith (Printf.sprintf "%s not found" k)
     in
     loop 0
   in
@@ -165,7 +165,7 @@ let () =
         let rec loop i =
           let kn = b+ i in
           if i = m || kn >= n
-          then return (Base.OK ())
+          then return (Ok ())
           else
             let k = make_key kn in
             MyDBX.set tx k v >>= fun () ->
@@ -181,8 +181,8 @@ let () =
       then MyLog.sync db
       else
         set_tx i >>= function
-        | Base.OK () -> loop (i+m)
-        | Base.NOK k -> failwith (Printf.sprintf "NOK %s" k)
+        | Ok ()   -> loop (i+m)
+        | Error k -> failwith (Printf.sprintf "Error %s" k)
     in
     loop 0
   in

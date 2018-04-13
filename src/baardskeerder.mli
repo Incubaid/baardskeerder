@@ -25,8 +25,6 @@ type action =
   | Set of k * v
   | Delete of k
 
-type ('a,'b) result = | OK of 'a | NOK of 'b
-
 val init : string -> unit
 val make : string -> t
 val close : t -> unit

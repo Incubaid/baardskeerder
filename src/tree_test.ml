@@ -31,14 +31,14 @@ type 'a q =
       read:  'a  -> Base.pos -> entry;
       clear: 'a  -> unit;
       set:   'a  -> Base.k -> Base.v -> unit;
-      get:   'a  -> Base.k -> (Base.v,Base.k) Base.result;
-      delete :'a -> Base.k -> (unit,Base.k) Base.result;
+      get:   'a  -> Base.k -> (Base.v,Base.k) result;
+      delete :'a -> Base.k -> (unit,Base.k) result;
       dump   :?out:out_channel -> 'a -> unit;
 }
 
 let _ok_delete q a =
   let r = q.delete q.log a in
-  assert (r = Base.OK ());
+  assert (r = Ok ());
   ()
 
 let mem_setup () =
@@ -64,7 +64,7 @@ let mem_wrap t = OUnit.bracket mem_setup t mem_teardown
 let check q kvs =
   List.iter (fun k ->
     let v = String.uppercase_ascii k in
-    let vo = Base.OK v in
+    let vo = Ok v in
     OUnit.assert_equal vo (q.get q.log k)) kvs
 
 let check_empty q =
@@ -128,7 +128,7 @@ let check_invariants (q: 'a q) =
          failwith s
 
 let check_not q kvs =
-  List.iter (fun k -> OUnit.assert_equal (Base.NOK k) (q.get q.log k)) kvs
+  List.iter (fun k -> OUnit.assert_equal (Error k) (q.get q.log k)) kvs
 
 
 
@@ -213,7 +213,7 @@ let insert_delete_bug2 q =
   List.iter (fun k -> let v = String.uppercase_ascii k in q.set q.log k v) kvs;
   _ok_delete q "a";
   let kvs' = List.filter ( (<>) "a") kvs in
-  List.iter (fun k -> let vo = Base.OK (String.uppercase_ascii k) in
+  List.iter (fun k -> let vo = Ok (String.uppercase_ascii k) in
                       let vo2 = q.get q.log k in
                       OUnit.assert_equal vo vo2) kvs'
 
@@ -453,7 +453,7 @@ let qc_insert_lookup log = fun kvs ->
       then
         (a, ks)
       else
-        let vo = Base.OK v in
+        let vo = Ok v in
         let vo' = MDB.get log k in
         (a && (vo' = vo), k :: ks)
     )
@@ -468,7 +468,7 @@ let qc_insert_delete log = fun kvs ->
       if List.mem k ks
       then ks
       else let r = MDB.delete log k in
-           assert (r = Base.OK ());
+           assert (r = Ok ());
            k :: ks
     )
     kvs []
@@ -480,12 +480,11 @@ let qc_replace log = fun (k, vs) ->
   match vs with
     | [] -> begin
       let vo = MDB.get log k in
-      let open Base in
       match vo with
-        | OK _  -> false
-        | NOK _ -> true
+        | Ok _    -> false
+        | Error _ -> true
     end
-    | _ -> MDB.get log k = Base.OK (List.nth vs (List.length vs - 1))
+    | _ -> MDB.get log k = Ok (List.nth vs (List.length vs - 1))
 
 let qc_key_value_list =
   let open QuickCheck in

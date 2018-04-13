@@ -8,11 +8,11 @@ module MDBX = DBX(Mlog)
 
 let (>>=) = Mlog.bind
 
-let ok_set tx ki vi = MDBX.set tx ki vi >>= fun () -> return (Base.OK ())
+let ok_set tx ki vi = MDBX.set tx ki vi >>= fun () -> return (Ok ())
 
 let ok_unit x = match x with
-  | Base.OK () -> Mlog.return ()
-  | Base.NOK _ -> failwith "should not happen"
+  | Ok () -> Mlog.return ()
+  | Error _ -> failwith "should not happen"
 
 let catchup1 () =
   let fn = "mlog" in

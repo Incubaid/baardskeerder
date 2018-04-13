@@ -7,7 +7,6 @@ module MDB = DB(Mlog)
 module MDBX = DBX(Mlog)
 module MPrefix = Prefix(Mlog)
 
-open Base
 open Base_test
 
 let (>>=) = Mlog.bind
@@ -15,7 +14,7 @@ let printer r = Pretty.string_of_list (fun s -> s) r
 
 let _ok_set tx k v =
   MDBX.set tx k v >>= fun () ->
-  Mlog.return (OK ())
+  Mlog.return (Ok ())
 
 let prefix_keys () =
   let fn = "bla" in
@@ -27,7 +26,7 @@ let prefix_keys () =
       (fun tx ->
         let rec loop i =
           if i = 16
-          then Mlog.return (OK())
+          then Mlog.return (Ok())
           else
             let k = Printf.sprintf "a%03i" i in
             let v = "x" in
@@ -47,14 +46,14 @@ let prefix_keys () =
 
 let prefix_keys_latest () =
   let log = Mlog.make "mlog" in
-  List.iter (fun k -> MDB.set log k (String.uppercase k))
+  List.iter (fun k -> MDB.set log k (String.uppercase_ascii k))
     ["a";"b";"b";"c";"d_0";"d_1"; "d_2";"e";"f";"g"];
   let r = MPrefix.prefix_keys_latest log "d" None in
   OUnit.assert_equal ~printer ["d_0";"d_1";"d_2"] r
 
 let prefix_keys_latest_max () =
   let log = Mlog.make "mlog" in
-  List.iter (fun k -> MDB.set log k (String.uppercase k))
+  List.iter (fun k -> MDB.set log k (String.uppercase_ascii k))
     ["a";"b";"b";"c";"d_0";"d_1"; "d_2";"e";"f";"g"];
   let r = MPrefix.prefix_keys_latest log "d" (Some 2) in
   OUnit.assert_equal ~printer ["d_0";"d_1";] r

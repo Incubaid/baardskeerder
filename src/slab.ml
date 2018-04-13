@@ -77,10 +77,9 @@ let iteri_rev slab f =
   loop (slab.nes -1)
 
 
-let read slab pos = match pos with
-  | Inner x -> slab.es.(x)
-  | Outer _ -> failwith "can't read outer"
-
+let read slab pos =
+  let x = get_in pos in
+  slab.es.(x)
 
 let dump s =
   let do_one i e = Printf.printf "%i:%s\n%!" i (entry2s e) in
@@ -94,7 +93,7 @@ let mark slab =
     | Inner x -> if x >=0 then r.(x) <- true
   in
   let maybe_mark2 (_,p) = maybe_mark p in
-  let mark (i:int) e =
+  let mark (_i:int) e =
     match e with
       | NIL | Value _ -> ()
       | Commit c ->
@@ -151,7 +150,7 @@ let compact s =
   in
   let esa = s.es in
   let size = s.nes in
-  let r = Array.create size NIL in
+  let r = Array.make size NIL in
   let rec loop c i =
     if i = size
     then { es = r; nes = c; time = s.time}

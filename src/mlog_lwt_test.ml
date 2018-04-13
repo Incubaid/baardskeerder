@@ -1,8 +1,7 @@
-open Lwt
+open Lwt.Infix
 open OUnit
 
 open Tree
-open Base
 
 module MDB = DB(Mlog_lwt)
 
@@ -18,8 +17,8 @@ let test_set db =
 let test_set_get db =
   MDB.set db "key" "value" >>= fun () ->
   MDB.get db "key" >>= fun vo ->
-  OUnit.assert_equal vo (OK "value");
-  return ()
+  OUnit.assert_equal vo (Ok "value");
+  Lwt.return_unit
 
 let basic =
   "basic" >::: [
