@@ -88,7 +88,7 @@ struct
     let () = Pack.vint_to b o in
     let () = Pack.vint_to b m.td in
     let () = time_to b m.t0 in
-    let block = String.create _METADATA_SIZE in
+    let block = Bytes.create _METADATA_SIZE in
 
     let () = Buffer.blit b 0 block 0 (Buffer.length b) in
 

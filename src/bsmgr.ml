@@ -17,10 +17,8 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-open Unix
 open Tree
 open Arg
-open Log
 open Dbx
 open Sync
 
@@ -56,7 +54,7 @@ let get_store = function
   | _ -> invalid_arg "get_store"
 
 let () =
-  let command = ref Help in
+  let command = ref (Help:command) in
 
   let dump () = command := Dump in
   let dump_stream () = command := DumpStream in
@@ -139,7 +137,7 @@ let () =
       then return ()
       else
         let key = make_key i in
-        get key >>= fun v ->
+        get key >>= fun _v ->
         loop (i+1)
     in
     loop 0
@@ -255,7 +253,7 @@ let () =
           let module MyRewrite = Rewrite.Rewrite(MyF)(MyF)(MyStore) in
           MyLog.make !fn >>= fun l0 ->
           let now0 = MyLog.now l0 in
-          let (x0,y0,g0) = now0 in
+          let (x0,y0,_g0) = now0 in
           let now0' = Time.make x0 y0 true in
           MyLog.init !fn2 now0' >>= fun () ->
           MyLog.make !fn2 >>= fun l1 ->

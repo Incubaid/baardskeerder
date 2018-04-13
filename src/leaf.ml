@@ -37,7 +37,7 @@ let leaf_borrow_right left right = match right with
 let leaf_borrow_left left right =
   let rev = List.rev left in
   match rev with
-    | h0 :: ((k1,_) :: t as left'rev) ->
+    | h0 :: ((k1,_) :: _t as left'rev) ->
         let right' = h0 :: right in
         let left' = List.rev left'rev in
         left' , k1, right'

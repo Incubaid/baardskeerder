@@ -19,7 +19,7 @@
 
 open Entry
 open Base
-open Slab
+
 
 module type LOG = sig
   type t

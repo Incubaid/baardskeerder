@@ -19,7 +19,6 @@
 
 open Entry
 open Base
-open Slab
 
 
 type s = { mutable es: entry array;

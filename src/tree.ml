@@ -61,7 +61,7 @@ module DB = functor (L:LOG ) -> struct
       let pos' = loop p0 kps in
       descend pos'
     in
-    let rec descend_root () =
+    let descend_root () =
       if Slab.is_empty slab
       then
         let pos = L.last t in
@@ -593,7 +593,7 @@ module DB = functor (L:LOG ) -> struct
 
   let range (t:L.t) (first:k option) (finc:bool) (last:k option) (linc:bool) (max:int option) =
     let acc = ref [] in
-    let f k vpos =
+    let f k _vpos =
       let () = acc := k :: !acc in
       return ()
     in
@@ -637,7 +637,7 @@ module DB = functor (L:LOG ) -> struct
                 | Value _ -> failwith "Tree._fold_reverse_range_while: unexpected entry Value"
                 | Leaf leaf -> walk_leaf s leaf
                 | Index index -> walk_index s index
-                | Commit c -> failwith "Tree._fold_reverse_range_while: unexpected entry Commit"
+                | Commit _c -> failwith "Tree._fold_reverse_range_while: unexpected entry Commit"
             and walk_leaf s leaf =
               let rec loop s' = function
                 | [] -> return (true, s')
@@ -657,13 +657,13 @@ module DB = functor (L:LOG ) -> struct
             and walk_index s (p, kps) =
               let rec loop s' = function
                 | [] -> walk s' p
-                | (k, p') :: kps when left_of_range k ->
+                | (k, p') :: _kps when left_of_range k ->
               (* Need to check one index entry left of the lowest 'valid'
                * entry, since it might point to some more valid keys *)
                     walk s' p'
-                | (k, p') :: kps when right_of_range k ->
+                | (k, _p') :: kps when right_of_range k ->
                     loop s' kps
-                | (k, p') :: kps ->
+                | (_k, p') :: kps ->
                     walk s' p' >>= fun (cont, s'') ->
                     if cont
                     then
@@ -786,7 +786,7 @@ module DB = functor (L:LOG ) -> struct
         | Leaf l  -> return (c + List.length l)
         | Index (p0, kps) ->
             _kc_descend t slab p0 c >>= fun c' ->
-            foldl (fun acc (k,p) -> _kc_descend t slab p acc) c' kps
+            foldl (fun acc (_k,p) -> _kc_descend t slab p acc) c' kps
         | Commit _ -> failwith "reaced a second commit on descend"
     in
     let _kc_descend_root t slab =

@@ -21,7 +21,6 @@ open Base
 open Tree
 open Log
 open Entry
-open Slab
 open Commit
 open Catchup
 open Prefix

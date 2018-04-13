@@ -45,7 +45,9 @@ let _ = dispatch & function
         S[ A"-lbaardskeerder_c";];
 
       dep ["link"; "ocaml"; "link_libbaardskeerder"]
-        ["libbaardskeerder_c.a"];
+        ["libbaardskeerder_c.a";
+         "posix_stubs.o"
+        ];
 
       flag ["compile"; "c"]
         (S[A"-ccopt"; A"-I.."; A"-ccopt"; A"-msse4.2";

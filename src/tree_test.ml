@@ -63,7 +63,7 @@ let mem_wrap t = OUnit.bracket mem_setup t mem_teardown
 
 let check q kvs =
   List.iter (fun k ->
-    let v = String.uppercase k in
+    let v = String.uppercase_ascii k in
     let vo = Base.OK v in
     OUnit.assert_equal vo (q.get q.log k)) kvs
 
@@ -141,7 +141,7 @@ let insert_delete_1 q =
 
 
 
-let set_all q kvs = List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs
+let set_all q kvs = List.iter (fun k -> let v = String.uppercase_ascii k in q.set q.log k v) kvs
 
 let delete_all_check q kvs =
   let rec loop acc = function
@@ -199,7 +199,7 @@ let insert_delete_bug q =
      "g"; "m"; "q"; "t";
      "w";"z"]
   in
-  List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs;
+  List.iter (fun k -> let v = String.uppercase_ascii k in q.set q.log k v) kvs;
   _ok_delete q "a";
   _ok_delete q "b";
   _ok_delete q "j";
@@ -210,10 +210,10 @@ let insert_delete_bug2 q =
              "g";"j"; "m"; "q"; "t";
              "w";"z"]
   in
-  List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs;
+  List.iter (fun k -> let v = String.uppercase_ascii k in q.set q.log k v) kvs;
   _ok_delete q "a";
   let kvs' = List.filter ( (<>) "a") kvs in
-  List.iter (fun k -> let vo = Base.OK (String.uppercase k) in
+  List.iter (fun k -> let vo = Base.OK (String.uppercase_ascii k) in
                       let vo2 = q.get q.log k in
                       OUnit.assert_equal vo vo2) kvs'
 
@@ -223,7 +223,7 @@ let insert_delete_bug3 q =
              "k";"l";"m";"n";"o";
              "p";]
   in
-  List.iter (fun k -> let v = String.uppercase k in q.set q.log k v) kvs;
+  List.iter (fun k -> let v = String.uppercase_ascii k in q.set q.log k v) kvs;
   set_all q kvs;
   check q kvs;
   _ok_delete q "a";
@@ -308,7 +308,7 @@ let insert_delete_permutations_generic  n q =
     try
       q.clear q.log;
       if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
-      Array.iter (fun k -> q.set q.log k (String.uppercase k)) a;
+      Array.iter (fun k -> q.set q.log k (String.uppercase_ascii k)) a;
       check q (Array.to_list a);
       Array.iter (fun k -> let () = check_invariants q in _ok_delete q k) a;
       check_empty q
@@ -356,7 +356,7 @@ let insert_static_delete_permutations_generic  n (q: 'a q) =
       q.clear q.log;
       (*Printf.printf "-----\n"; *)
       if n mod 500 = 0 then Printf.printf "n=%i\n%!" n;
-      List.iter (fun k -> q.set q.log k (String.uppercase k)) kvs;
+      List.iter (fun k -> q.set q.log k (String.uppercase_ascii k)) kvs;
       check q kvs;
       Array.iter (fun k -> check_invariants q; _ok_delete q k) a;
       check_empty q
