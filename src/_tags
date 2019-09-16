@@ -2,10 +2,10 @@ true: annot
 true: debug
 true: package(lwt)
 true: package(lwt.unix)
-true: package(lwt.preemptive)
-<**/*.ml>: warn_error_A
+
+<**/*.ml>: warn_A
 <**/*_test.ml>: -warn_error_A, warn_A
-<flog*.ml>: warn_error_A
+<flog*.ml>: warn_A
 <flog0.o>: use_libbaardskeerder
 <test.*>: package(oUnit), use_libbaardskeerder
 <*_test.*>: package(oUnit), package(quickcheck)

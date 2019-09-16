@@ -39,8 +39,8 @@ let run_writer ?buffer_size:(bs=64): ('a writer) -> 'a -> (string * int) =
 
 let ord = Char.code
 and uchr = Char.unsafe_chr
-and uget = String.unsafe_get
-and uset = String.unsafe_set
+and uget = Bytes.unsafe_get
+and uset = Bytes.unsafe_set
 
 let check l s o =
   if not (o >= 0 && o <= String.length s - l)

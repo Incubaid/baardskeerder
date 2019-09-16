@@ -19,7 +19,6 @@
 
 open Entry
 open Base
-open Slab
 
 
 type s = { mutable es: entry array;
@@ -119,23 +118,21 @@ let last t =
 
 let size (_:entry) = 1
 
-let read t = function
-  | Outer (s, o) ->
-      if o < 0
-      then NIL
-      else Array.get (Array.get t.spindles s).es o
-  | Inner _ -> failwith "can't read inner"
+let read t pos =
+  let s,o = get_out pos in
+  if o < 0
+  then NIL
+  else Array.get (Array.get t.spindles s).es o
 
 
 let lookup (t:t) =
   let (p0:pos) = last t in
-  match p0 with
-    | Inner _ -> failwith "can't do inner"
-    | p0 -> bind (read t p0)
-        (function
-          | Commit c -> Commit.get_lookup c
-          | e -> failwith "no commit"
-        )
+  bind
+    (read t p0)
+    (fun e ->
+      let c = get_commit e in
+      Commit.get_lookup c
+    )
 
 let dump ?out:(o=stdout) (t:t) =
   Printf.fprintf o "Next = %d %d\n" t.current_spindle
@@ -155,7 +152,7 @@ let dump ?out:(o=stdout) (t:t) =
 
 let clear (t:t) =
   Array.iteri
-    (fun i s ->
+    (fun _i s ->
       s.next <- 0;
       Array.fill s.es 0 (Array.length s.es) NIL)
     t.spindles;

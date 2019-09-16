@@ -21,7 +21,6 @@ open Base
 open Tree
 open Log
 open Entry
-open Slab
 open Commit
 open Catchup
 open Prefix
@@ -50,11 +49,11 @@ module DBX(L:LOG) = struct
   let delete tx k =
     DBL._delete tx.log tx.slab k >>= fun r ->
     let r' = match r with
-      | OK _ ->
+      | Ok _ ->
           let a = CDelete k in
           let () = tx.cactions <- a :: tx.cactions in
-          OK ()
-      | NOK k -> NOK k
+          Ok ()
+      | Error k -> Error k
     in
     return r'
 
@@ -66,7 +65,7 @@ module DBX(L:LOG) = struct
     let tx = {log;slab;cactions = []} in
     f tx >>= fun txr ->
     match txr with
-      | OK a ->
+      | Ok _a ->
           let root = Slab.length tx.slab -1 in
           let previous = L.last log in
           let pos = Inner root in
@@ -78,7 +77,7 @@ module DBX(L:LOG) = struct
           let slab' = Slab.compact tx.slab in
           L.write log slab' >>= fun () ->
           return txr
-      | NOK k -> return txr
+      | Error _k -> return txr
 
 
 
@@ -94,15 +93,15 @@ module DBX(L:LOG) = struct
   let prefix_keys (tx:tx) (prefix : string) (max: int option) =
     PrL.prefix_keys tx.log tx.slab prefix max
 
-  let multi_delete (tx:tx) (keys: k list) : (int,k) Base.result L.m =
+  let multi_delete (tx:tx) (keys: k list) : (int,k) result L.m =
     let rec _inner (acc:int) keys = match keys with
-      | [] -> let r = OK acc in
+      | [] -> let r = Ok acc in
               return r
       | k :: keys ->
           begin
             delete tx k >>= function
-              | OK r   -> _inner (acc+1) keys
-              | NOK k  -> return (NOK k)
+              | Ok _r   -> _inner (acc+1) keys
+              | Error k  -> return (Error k)
           end
     in _inner 0 keys
 
@@ -111,19 +110,19 @@ module DBX(L:LOG) = struct
     let rec _inner tx acc : (int,Base.k) result L.m =
       prefix_keys tx prefix max >>= fun keys ->
       match keys with
-        | []   -> return (OK acc)
+        | []   -> return (Ok acc)
         | keys ->
             begin
               multi_delete tx keys >>= fun r ->
               match r with
-                | OK i ->
+                | Ok i ->
                     _inner tx (acc + i)
-                | r -> return r
+                | Error _ -> return r
             end
     in
     _inner tx 0 >>= function
-      | OK i -> return i
-      | NOK k -> failwith (Printf.sprintf "delete_prefix: %s" k)
+      | Ok i -> return i
+      | Error k -> failwith (Printf.sprintf "delete_prefix: %s" k)
 
   let log_update (log:L.t) ?(diff = true) (f: tx -> ('a,'b) result L.m) =
     let previous = L.last log in
@@ -135,7 +134,7 @@ module DBX(L:LOG) = struct
               else Commit.get_lookup lc
             in return lu
         | NIL -> return previous
-        | e -> failwith (Printf.sprintf "log_update: %s is not commit" (entry2s e))
+        | Value _ | Index _ | Leaf _ as e -> wrong "Commit|Nil" e
     in
     let now = L.now log in
     let fut = if diff then Time.next_major now else now in
@@ -145,7 +144,7 @@ module DBX(L:LOG) = struct
 
     _find_lookup () >>= fun lookup ->
     f tx >>= function
-      | OK x ->
+      | Ok x ->
           begin
             let sl = Slab.length tx.slab in
             if sl > 0
@@ -158,7 +157,7 @@ module DBX(L:LOG) = struct
                 let _ = Slab.add tx.slab c in
                 let slab' = Slab.compact tx.slab in
                 L.write log slab' >>= fun () ->
-                return (OK x)
+                return (Ok x)
               end
             else (* This is an empty transaction *)
               begin
@@ -166,7 +165,7 @@ module DBX(L:LOG) = struct
                   begin function
                     | Commit lc -> return (Commit.get_pos lc)
                     | NIL       -> return (Inner (-1))
-                    | e -> failwith (Printf.sprintf "log_update %s is not a commit" (entry2s e))
+                    | Value _ | Leaf _ | Index _ as e -> wrong "commit|nil" e
                   end
                 >>= fun ppos ->
                 let commit = make_commit
@@ -180,16 +179,16 @@ module DBX(L:LOG) = struct
                 let _ = Slab.add tx.slab c in
                 let slab' = Slab.compact tx.slab in
                 L.write log slab' >>= fun () ->
-                return (OK x)
+                return (Ok x)
               end
           end
-      | NOK k -> return (NOK k)
+      | Error k -> return (Error k)
 
   let commit_last (log:L.t) =
     let pp = L.last log in
-    (L.read log pp >>= function
-      | Commit lc -> L.return lc
-      | e -> failwith (Printf.sprintf "_read_commit: %s is not commit" (entry2s e))
+    (L.read log pp >>= fun entry ->
+     let lc = get_commit entry in
+     L.return lc
     ) >>= fun lc ->
     let time = Commit.get_time lc in
     let slab = Slab.make time in
@@ -214,6 +213,6 @@ module DBX(L:LOG) = struct
           CaL.translate_cactions log cas >>= fun actions ->
           L.return (Some (i, actions, explicit))
       | NIL -> L.return None
-      | e -> failwith (Printf.sprintf "last_update: %s should be commit" (entry2s e))
+      | Value _ | Index _ | Leaf _ as e -> wrong "commit|nil" e
 
 end

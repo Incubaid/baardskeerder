@@ -32,9 +32,9 @@ module Sync (L:LOG) = struct
 
   let fold_actions t0 (f:'a -> Time.t -> caction -> 'a) a0 log =
     let read_commit p =
-      L.read log p >>= function
-        | Commit c -> return c
-        | _ -> failwith "not a commit node"
+      L.read log p >>= fun e ->
+      let c = get_commit e in
+      return c
     in
     let no_prev = Pos.Outer (0, 0) in
     let rec build ps p =

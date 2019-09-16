@@ -26,6 +26,14 @@ type pos =
 
 let out s o = Outer (s, o)
 
+let get_out = function
+  | Outer (s, o) -> (s,o)
+  | Inner _ -> failwith "expected Outer, not Inner"
+
+let get_in = function
+  | Inner p -> p
+  | Outer _ -> failwith "expected Inner, not Outer"
+
 let pos2s = function
   | Outer (s, o) -> Printf.sprintf "Outer (%d, %d)" s o
   | Inner p -> Printf.sprintf "Inner %i" p

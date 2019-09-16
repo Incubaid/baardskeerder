@@ -17,8 +17,6 @@
  * along with Baardskeerder.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-open Store
-
 open Base
 open Entry
 open Unix
@@ -88,7 +86,7 @@ struct
     let () = Pack.vint_to b o in
     let () = Pack.vint_to b m.td in
     let () = time_to b m.t0 in
-    let block = String.create _METADATA_SIZE in
+    let block = Bytes.create _METADATA_SIZE in
 
     let () = Buffer.blit b 0 block 0 (Buffer.length b) in
 
@@ -157,10 +155,8 @@ struct
     | INDEX  -> Buffer.add_char b '\x03'
     | VALUE  -> Buffer.add_char b '\x04'
 
-  open Pack
   let input_tag input =
-    let tc = input.s.[input.p] in
-    let () = input.p <- input.p + 1 in
+    let tc = Pack.input_char input in
     match tc with
       | '\x01' -> COMMIT
       | '\x02' -> LEAF
@@ -170,7 +166,8 @@ struct
 
 
   let inflate_action input =
-    let t = input_char input in
+    let t = Pack.input_char input in
+    let open Pack in
     match t with
       | 'D' -> let k = input_string input in
                Commit.CDelete k
@@ -197,11 +194,11 @@ struct
     Commit.make_commit ~pos ~previous ~lookup t actions explicit
 
 
-  let inflate_value input = input_string input
+  let inflate_value input = Pack.input_string input
 
   let input_suffix_list input =
-    let prefix = input_string input in
-    let suffixes = input_list input input_kp  in
+    let prefix = Pack.input_string input in
+    let suffixes = Pack.input_list input input_kp  in
     let kps = List.map (fun (s,p) -> (prefix ^s, p)) suffixes in
     kps
 
@@ -209,8 +206,8 @@ struct
 
 
   let inflate_index input =
-    let _ = input_vint input in (* spindle *)
-    let p0 = input_vint input in
+    let _ = Pack.input_vint input in (* spindle *)
+    let p0 = Pack.input_vint input in
     let kps = input_suffix_list input in
     Outer (0, p0), kps
 
@@ -222,7 +219,7 @@ struct
       | VALUE  -> Value (inflate_value input)
 
   let inflate_entry es =
-    let input = make_input es 0 in
+    let input = Pack.make_input es 0 in
     input_entry input
 
 
@@ -255,7 +252,7 @@ struct
 
   let _add_buffer b mb =
     let l = Buffer.length mb in
-    size_to b l;
+    Pack.size_to b l;
     Buffer.add_buffer b mb;
     l + 4
 
@@ -263,7 +260,7 @@ struct
     let l = String.length v in
     let mb = Buffer.create (l+5) in
     tag_to mb VALUE;
-    string_to mb v;
+    Pack.string_to mb v;
     _add_buffer b mb
 
   let pos_remap mb h p =
@@ -272,10 +269,11 @@ struct
       | Inner x when x = -1-> (0,0) (* TODO: don't special case with -1 *)
       | Inner x -> Hashtbl.find h x
     in
-    vint_to mb s;
-    vint_to mb o
+    Pack.vint_to mb s;
+    Pack.vint_to mb o
 
   let kps_to mb h kps =
+    let open Pack in
     let px = Leaf.shared_prefix kps in
     let pxs = String.length px in
     string_to mb px;
@@ -303,16 +301,19 @@ struct
     _add_buffer b mb
 
 
-  let deflate_action b h = function
+  let deflate_action b h =
+    let open Pack in
+    function
     | Commit.CSet (k,p) ->
-        Buffer.add_char b 'S';
-        string_to b k;
-        pos_remap b h p
+       Buffer.add_char b 'S';
+       string_to b k;
+       pos_remap b h p
     | Commit.CDelete k ->
-        Buffer.add_char b 'D';
-        string_to b k
+       Buffer.add_char b 'D';
+       string_to b k
 
   let deflate_commit b h c =
+    let open Pack in
     let mb = Buffer.create 8 in
     tag_to mb COMMIT;
     let pos = Commit.get_pos c in
@@ -453,10 +454,10 @@ struct
 
   let lookup t =
     let p = last t in
-    read t p >>= function
-      | Commit c -> let lu = Commit.get_lookup c in return lu
-      | e -> failwith "can only do commits"
-
+    read t p >>= fun e ->
+    let c = get_commit e in
+    let lu = Commit.get_lookup c in
+    return lu
 
   let init ?(d=8) fn t0 =
     S.init fn >>= fun s ->
@@ -498,7 +499,7 @@ struct
           match eso with
             | Some es ->
                 begin
-                  let input = make_input es 0 in
+                  let input = Pack.make_input es 0 in
                   let e = input_entry input in
                   let next = tbr + 4 + String.length es in
                   let lt' =
@@ -506,7 +507,7 @@ struct
                       | Commit c ->
                         let time = Commit.get_time c in
                         (0, tbr), time
-                      | e -> lt
+                      | NIL | Index _ | Leaf _ | Value _ -> lt
                   in
                   _scan_forward lt' next
 
@@ -533,7 +534,7 @@ struct
     let f = t.filename ^ ".meta" in
     let o = f ^ ".new" in
     let b = Buffer.create 128 in
-    size_to b (String.length s);
+    Pack.size_to b (String.length s);
     Buffer.add_string b s;
     let s' = Buffer.contents b in
     S.init o >>= fun fd ->

@@ -25,14 +25,14 @@ let printer r = Pretty.string_of_list (fun s -> s) r
 
 let setup () =
   let log = Mlog.make "mlog" in
-  List.iter (fun k -> MDB.set log k (String.uppercase k)) ["a";"b";"c";"d";"e";"f";"g"];
+  List.iter (fun k -> MDB.set log k (String.uppercase_ascii k)) ["a";"b";"c";"d";"e";"f";"g"];
   log
 
 let teardown _ = ()
 
 let range_all log =
   let r = MDB.range log None true None true None in
-  OUnit.assert_equal ~printer ["a";"b";"c";"d";"e";"f";"g"] r;;
+  OUnit.assert_equal ~printer ["a";"b";"c";"d";"e";"f";"g"] r
 
 let range_some log =
   let r = MDB.range log None true None true (Some 5) in

@@ -18,7 +18,6 @@
  *)
 
 open Log
-open Pos
 open Entry
 open Base
 open Dbx
@@ -60,7 +59,7 @@ struct
       DBX1.with_tx l1 ~inc
         (fun tx ->
           M.iter (fun (k,v) -> DBX1.set tx k v) u.kvs
-          >>= fun () -> return (OK ())
+          >>= fun () -> return (Ok ())
         )
     in
     let read_value pos =
@@ -89,8 +88,8 @@ struct
         begin
           let () = Printf.printf "fat\n%!" in
           apply_update acc1 false >>= function
-            | OK () -> return (make_update ())
-            | NOK k -> failwith "todo"
+            | Ok() -> return (make_update ())
+            | Error _k -> failwith "todo"
         end
       else
         return acc1

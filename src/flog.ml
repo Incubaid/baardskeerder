@@ -137,7 +137,7 @@ module SerDes = struct
   and index_tag = chr3
   and commit_tag = chr4
 
-  let calculate_size_commit =
+  let _calculate_size_commit =
     calculate_size_envelope (fun (_:int) -> Binary.size_char8 + Binary.size_uint64)
   and commit_writer =
     Binary.const Binary.write_char8 commit_tag >>
@@ -155,7 +155,7 @@ module SerDes = struct
     Binary.return $ Commit c
 
 
-  let calculate_size_value =
+  let _calculate_size_value =
     calculate_size_envelope
       (fun s -> Binary.size_uint8 + Binary.size_uint8 + Binary.size_string s)
   and value_writer =
@@ -323,7 +323,7 @@ struct
   and deserialize_commit = deserialize_helper SerDes.commit_reader
 
   let serialize_value = serialize_helper SerDes.value_writer
-  and deserialize_value = deserialize_helper SerDes.value_reader
+  and _deserialize_value = deserialize_helper SerDes.value_reader
 
   let serialize_leaf h = serialize_helper (SerDes.leaf_writer h)
   and deserialize_leaf = deserialize_helper SerDes.leaf_reader
@@ -471,7 +471,7 @@ struct
     let sl = Slab.length slab in
     let h = Hashtbl.create sl in
     let start = ref t.offset in
-    let rec do_one i e =
+    let do_one i e =
       begin
         let s = serialize_entry h e in
         let size = String.length s + String.length marker' in
@@ -562,9 +562,9 @@ struct
 
   let lookup t =
     let p = last t in
-    read t p >>= function
-      | Commit c -> return (Commit.get_lookup c)
-      | _ -> failwith "Flog.lookup: can only do commit"
+    read t p >>= fun e ->
+    let c = get_commit e in
+    return (Commit.get_lookup c)
 
   let sync t =
   (* Retrieve current commit offset *)
@@ -620,8 +620,6 @@ struct
     type t = offset
     let compare = Pervasives.compare
   end
-
-  open OffsetOrder
 
   module OffsetSet = Set.Make(OffsetOrder)
 
@@ -763,13 +761,13 @@ struct
       | Leaf _ | Value _ | Index _ ->
           invalid_arg "Flog.compact: no commit entry at given offset"
 
-  let set_metadata t s =
+  let set_metadata _t _s =
     failwith "not implemented"
 
-  let unset_metadata t =
+  let unset_metadata _t =
     failwith "not implemented"
 
-  let get_metadata t =
+  let get_metadata _t =
     failwith "not implemented"
 
 end (* module / functor *)

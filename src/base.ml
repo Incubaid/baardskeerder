@@ -32,10 +32,6 @@ type action =
   |Delete of k
 
 
-type ('a,'b) result =
-  | OK of 'a
-  | NOK of 'b
-
 type kp = k * pos
 
 let kpl2s l =

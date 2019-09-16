@@ -18,7 +18,6 @@
  *)
 
 open Base
-open Index
 
 
 type index_z = pos * (kp list) * (kp list)

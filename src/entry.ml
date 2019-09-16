@@ -33,6 +33,7 @@ type entry =
   | Index of index
   | Commit of commit
 
+
 type dir =
   | Leaf_down of leaf_z
   | Index_down of index_z
@@ -49,3 +50,13 @@ let entry2s = function
 let string_of_dir = function
   | Leaf_down l  -> Printf.sprintf "Leaf_down %s" (lz2s l)
   | Index_down i -> Printf.sprintf "Index_down (%s)" (iz2s i)
+
+let wrong expected e = Printf.sprintf "%s is not a %s" (entry2s e) expected |> failwith
+
+let get_value = function
+  | Value v -> v
+  | NIL | Leaf _ | Index _ |  Commit _ as e -> wrong "value" e
+
+let get_commit = function
+  | Commit c -> c
+  | NIL | Value _ | Leaf _ | Index _  as e -> wrong "commit" e

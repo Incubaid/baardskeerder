@@ -18,11 +18,6 @@
  *)
 
 open OUnit
-open Log
-open Tree
-open Entry
-open Base
-open Index
 
 let suite =
   "correctness" >:::

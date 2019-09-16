@@ -23,8 +23,6 @@ open Unix
 open Tree
 open Flog
 
-open Base
-
 module MyFlog = Flog(Store.Sync)
 
 
@@ -52,7 +50,7 @@ let test_uintN wf rf l n () =
         let l' = String.length s in
         OUnit.assert_equal ~printer:string_of_int l l';
 
-        let s' = String.create (l' + 10) in
+        let s' = Bytes.create (l' + 10) in
         let o = Random.int 10 in
         String.blit s 0 s' o l';
 
@@ -183,7 +181,7 @@ let test_database_set_get _ db =
 
   FDB.set db k v;
   let vo' = FDB.get db k in
-  let vo = OK v in
+  let vo = Ok v in
   OUnit.assert_equal vo vo'
 
 let test_database_multi_action _ db =
@@ -196,15 +194,15 @@ let test_database_multi_action _ db =
   FDB.set db k1 v1;
   FDB.set db k2 v2;
   let my_get k = FDB.get db k in
-  OUnit.assert_equal (OK v1) (my_get k1);
-  OUnit.assert_equal (OK v2) (my_get k2);
+  OUnit.assert_equal (Ok v1) (my_get k1);
+  OUnit.assert_equal (Ok v2) (my_get k2);
 
   FDB.set db k1 v1';
-  OUnit.assert_equal (OK v1') (my_get k1);
+  OUnit.assert_equal (Ok v1') (my_get k1);
 
   let r = FDB.delete db k2 in
-  OUnit.assert_equal (Base.OK ()) r;
-  OUnit.assert_equal (NOK k2) (my_get k2)
+  OUnit.assert_equal (Ok ()) r;
+  OUnit.assert_equal (Error k2) (my_get k2)
 
 
 let test_database_reopen fn db =
@@ -223,8 +221,8 @@ let test_database_reopen fn db =
   let vo1' = my_get k1
   and vo2' = my_get k2 in
 
-  OUnit.assert_equal (OK v1) vo1';
-  OUnit.assert_equal (OK v2) vo2';
+  OUnit.assert_equal (Ok v1) vo1';
+  OUnit.assert_equal (Ok v2) vo2';
 
   MyFlog.close db'
 
@@ -238,7 +236,7 @@ let test_database_sync fn db =
   MyFlog.sync db;
   MyFlog.sync db;
   let my_get k = FDB.get db k in
-  let vo = OK v in
+  let vo = Ok v in
   OUnit.assert_equal (my_get k) vo;
 
   MyFlog.close db;
@@ -290,7 +288,7 @@ let test_compaction_basic fn db =
 
   let db' = MyFlog.make fn in
   let my_get k = FDB.get db' k in
-  OUnit.assert_equal (my_get "foo") (OK "bal");
+  OUnit.assert_equal (my_get "foo") (Ok "bal");
   MyFlog.close db';
 
   dump_fiemap fn
@@ -320,7 +318,7 @@ let test_compaction_lengthy fn db =
     | n ->
         let key = Printf.sprintf "key_%d" n in
         let r = FDB.delete db key in
-        assert (r = Base.OK ());
+        assert (r = Ok ());
         loop2 (pred n)
   in
 
@@ -349,7 +347,7 @@ let test_compaction_all_states m c fn db =
       | i when i = (n - 1) -> ()
       | i ->
           let key = Printf.sprintf "key_%d" i in
-          OUnit.assert_equal (NOK key) (FDB.get db key);
+          OUnit.assert_equal (Error key) (FDB.get db key);
           check_deleted n (pred i)
     in
 
@@ -358,7 +356,7 @@ let test_compaction_all_states m c fn db =
       | i ->
           let key = Printf.sprintf "key_%d" i
           and value = Printf.sprintf "value_%d" i in
-          OUnit.assert_equal (OK value) (FDB.get db key);
+          OUnit.assert_equal (Ok value) (FDB.get db key);
           check_existing (pred i)
     in
 
@@ -368,7 +366,7 @@ let test_compaction_all_states m c fn db =
           MyFlog.compact ~min_blocks:m db;
           let key = Printf.sprintf "key_%d" n in
           let r = FDB.delete db key in
-          assert (r = Base.OK ());
+          assert (r = Ok ());
           check_deleted n t;
           check_existing (pred n);
           test_loop t (pred n)

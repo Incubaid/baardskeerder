@@ -58,7 +58,7 @@ let test_presence () =
   let empty = Slab.make fut in
   M.iter
     (fun (k,v) ->
-     let vo = Base.OK v in
+     let vo = Ok v in
      MDB._get m1 empty k >>= fun vo' -> return (OUnit.assert_equal vo' vo))
     kvs >>= fun () ->
   let m1t = LLog.now m1 in

@@ -33,7 +33,7 @@ module Prefix = functor (L:LOG ) -> struct
       let rec loop count acc = function
         | [] ->
             return (count,acc)
-        | (k, vpos) :: t ->
+        | (k, _vpos) :: t ->
             if t_max count
             then
               let ok = prefix_ok prefix k in

@@ -10,19 +10,12 @@ module Catchup(L: LOG) = struct
   let (>>=) = L.bind
 
   let read_value log pos =
-    (L.read log pos) >>= (function
-      | Value v -> L.return v
-      | e -> failwith (Printf.sprintf "Catchup:%s is not a value" (entry2s e))
-     )
+    L.read log pos >>= fun e ->
+    L.return (get_value e)
 
   let read_commit log pos =
-    L.bind
-      (L.read log pos)
-      (function
-        | Commit c -> L.return c
-        | e -> failwith (Printf.sprintf "Catchup:%s is not commit" (entry2s e))
-      )
-
+    L.read log pos >>= fun e ->
+    L.return (get_commit e)
 
   let translate_caction log = function
     | CSet (k,vp) -> read_value log vp >>= fun v -> L.return (Set (k,v))
@@ -42,21 +35,20 @@ module Catchup(L: LOG) = struct
   let catchup (i0: int64) (f : 'a -> int64 -> action list -> 'a L.m) (a0:'a) (log : L.t) =
     let start = (i0, 0,false) in
     let rec go_back acc p =
-      L.bind
-        (L.read log p)
-        (function
-          | Commit c ->
-              let t0 = Commit.get_time c in
-              if t0 =>: start
-              then
-                let p' = Commit.get_previous c in
-                go_back (p::acc) p'
-              else
-                L.return acc
-          | NIL ->
-              L.return acc
-          | e -> failwith (Printf.sprintf "Catchup:%s is not commit" (entry2s e))
-        )
+      L.read log p >>= 
+      function
+      | Commit c ->
+         let t0 = Commit.get_time c in
+         if t0 =>: start
+         then
+           let p' = Commit.get_previous c in
+           go_back (p::acc) p'
+         else
+           L.return acc
+      | NIL ->
+         L.return acc
+      | Value _ | Leaf _ | Index _ as e -> Entry.wrong "commit|nil" e
+        
     in
     go_back [] (L.last log) >>= fun ps ->
     match ps with
